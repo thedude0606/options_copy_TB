@@ -8,6 +8,8 @@
 
 - **Authentication System**: Implemented a robust authentication system that handles OAuth flow with both interactive and non-interactive modes, with token persistence for improved user experience.
 
+- **Simplified Application Structure**: Moved from a complex package-based structure to a standalone script approach to resolve import issues and ensure compatibility across different environments.
+
 ## Technology Selections
 
 - **API Integration**: Using the Schwabdev library as the foundation for Schwab API integration to leverage existing authentication and request handling.
@@ -26,13 +28,13 @@
 
 - **Environment Variables**: Using .env file for secure credential management to avoid hardcoding sensitive information.
 
-- **Modular Design**: Separated API interaction (auth.py, options_data.py) from UI components (app.py) to improve maintainability.
+- **Modular Design**: Organized code into logical classes (SchwabAuth, OptionsDataRetriever) for better maintainability even within a single file.
 
 - **Event-Driven Updates**: Implemented event-driven pattern with Dash callbacks for real-time data updates in the dashboard.
 
 - **Singleton Pattern**: Used a singleton instance for the authentication manager to ensure consistent authentication state.
 
-- **Path Resolution**: Modified the main entry point to explicitly add the current directory to the Python path to resolve module import issues across different environments.
+- **Self-Contained Application**: Consolidated all functionality into a single file to eliminate import issues while maintaining clean code organization.
 
 ## Rationale for Key Decisions
 
@@ -45,3 +47,5 @@
 - **Error Handling**: Implemented comprehensive error handling in data retrieval functions to ensure the dashboard remains functional even if API calls fail.
 
 - **Flexible Dependencies**: Changed from strict version requirements to more flexible version specifications to prevent installation issues across different environments and Python versions.
+
+- **Standalone Script Approach**: After encountering persistent import issues with the package-based structure, switched to a self-contained script approach that eliminates import complexities while maintaining all functionality.
