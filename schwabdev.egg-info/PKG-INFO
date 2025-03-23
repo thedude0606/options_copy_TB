@@ -1,0 +1,60 @@
+Metadata-Version: 2.1
+Name: schwabdev
+Version: 2.5.0
+Summary: An easy and lightweight wrapper for using the Charles Schwab API.
+Home-page: https://github.com/tylerebowers/Schwab-API-Python
+Author: Tyler Bowers
+Author-email: tylerebowers@gmail.com
+License: MIT
+Project-URL: Source, https://github.com/tylerebowers/Schwab-API-Python
+Project-URL: Youtube, https://www.youtube.com/playlist?list=PLs4JLWxBQIxpbvCj__DjAc0RRTlBz-TR8
+Project-URL: PyPI, https://pypi.org/project/schwabdev/
+Keywords: python,schwab,api,client,finance,trading,stocks,equities,options,forex,futures
+Platform: UNKNOWN
+Classifier: Topic :: Office/Business :: Financial :: Investment
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+# Schwab Options Dashboard
+
+This project creates a dashboard that pulls real-time and historical options data from the Schwab API. The dashboard allows users to input a symbol and view options data including price, candles, and the Greeks.
+
+## Features
+
+- Real-time options data retrieval
+- Historical data visualization
+- Options Greeks display
+- Interactive symbol search
+- Customizable data views
+
+## Setup
+
+1. Clone this repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Create a `.env` file with your Schwab API credentials:
+```
+SCHWAB_APP_KEY=your_app_key
+SCHWAB_APP_SECRET=your_app_secret
+SCHWAB_CALLBACK_URL=your_callback_url
+```
+4. Run the dashboard: `python app.py`
+
+## Usage
+
+The dashboard will be available at http://localhost:8050
+
+## Development
+
+This project is based on the [Schwabdev](https://github.com/tylerebowers/Schwabdev) library.
+
+## License
+
+See the LICENSE file for details.
+
+

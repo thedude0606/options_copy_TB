@@ -16,7 +16,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     packages=find_packages(),
-    python_requires='>=3.11',
+    python_requires='>=3.10',
     install_requires=[
         'tzdata',
         'requests',
