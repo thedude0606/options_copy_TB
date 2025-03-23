@@ -1,5 +1,5 @@
 """
-Full-featured Schwab Options Dashboard application with simplified import structure
+Full-featured Schwab Options Dashboard application with real API data integration
 """
 import os
 import sys
@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 import requests
 import json
 from datetime import datetime, timedelta
+import time
+import webbrowser
+from schwabdev import SchwabClient
 
 # Load environment variables
 load_dotenv()
@@ -32,18 +35,36 @@ class SchwabAuth:
         self.app_secret = SCHWAB_APP_SECRET
         self.callback_url = SCHWAB_CALLBACK_URL
         self.tokens = None
+        self.client = None
         
         # Load tokens if they exist
         if os.path.exists(TOKENS_FILE):
             try:
                 with open(TOKENS_FILE, 'r') as f:
                     self.tokens = json.load(f)
+                    self.initialize_client()
             except Exception as e:
                 print(f"Error loading tokens: {str(e)}")
     
+    def initialize_client(self):
+        """Initialize the Schwab client with existing tokens"""
+        if self.tokens:
+            try:
+                self.client = SchwabClient(
+                    client_id=self.app_key,
+                    redirect_uri=self.callback_url,
+                    access_token=self.tokens.get('access_token'),
+                    refresh_token=self.tokens.get('refresh_token')
+                )
+                return True
+            except Exception as e:
+                print(f"Error initializing client: {str(e)}")
+                return False
+        return False
+    
     def get_auth_status(self):
-        """Check if we have valid authentication tokens"""
-        return self.tokens is not None
+        """Check if we have valid authentication tokens and client"""
+        return self.tokens is not None and self.client is not None
     
     def authenticate(self, callback_url=None):
         """
@@ -55,21 +76,37 @@ class SchwabAuth:
         Returns:
             bool: Whether authentication was successful
         """
-        # This is a simplified placeholder for the authentication process
-        # In a real implementation, this would handle the OAuth flow
-        
-        # For demo purposes, we'll just create a dummy token
-        self.tokens = {
-            "access_token": "dummy_access_token",
-            "refresh_token": "dummy_refresh_token",
-            "expires_in": 3600
-        }
-        
-        # Save tokens
-        with open(TOKENS_FILE, 'w') as f:
-            json.dump(self.tokens, f)
-        
-        return True
+        try:
+            # Initialize client for authentication
+            self.client = SchwabClient(
+                client_id=self.app_key,
+                redirect_uri=self.callback_url
+            )
+            
+            if callback_url:
+                # Complete authentication with callback URL
+                self.client.get_access_token(callback_url)
+                
+                # Save tokens
+                self.tokens = {
+                    "access_token": self.client.access_token,
+                    "refresh_token": self.client.refresh_token,
+                    "expires_in": 3600  # Default expiration
+                }
+                
+                with open(TOKENS_FILE, 'w') as f:
+                    json.dump(self.tokens, f)
+                
+                return True
+            else:
+                # Start authentication flow
+                auth_url = self.client.get_auth_url()
+                print(f"Please visit this URL to authenticate: {auth_url}")
+                webbrowser.open(auth_url)
+                return False
+        except Exception as e:
+            print(f"Authentication error: {str(e)}")
+            return False
 
 class OptionsDataRetriever:
     """
@@ -88,66 +125,87 @@ class OptionsDataRetriever:
         Returns:
             dict: Option chain data
         """
-        # This is a simplified placeholder that returns dummy data
-        # In a real implementation, this would make API calls to Schwab
+        if not self.auth.get_auth_status():
+            print("Not authenticated. Please authenticate first.")
+            return None
         
-        # Generate some dummy option chain data
-        expiration_dates = [
-            (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
-            (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d"),
-            (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
-            (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d")
-        ]
-        
-        current_price = 150.0  # Dummy current price
-        
-        option_chain = {
-            "symbol": symbol,
-            "underlying_price": current_price,
-            "expirations": expiration_dates,
-            "options": []
-        }
-        
-        # Generate some dummy options for each expiration
-        for exp in expiration_dates:
-            for strike in range(int(current_price * 0.8), int(current_price * 1.2), 5):
-                # Call option
-                option_chain["options"].append({
-                    "option_type": "CALL",
-                    "symbol": f"{symbol}_{exp}_C_{strike}",
-                    "strike": strike,
-                    "expiration": exp,
-                    "bid": round(max(0, current_price - strike + 5 + (0.1 * (current_price - strike))), 2),
-                    "ask": round(max(0, current_price - strike + 5 + (0.1 * (current_price - strike))) + 0.5, 2),
-                    "last": round(max(0, current_price - strike + 5 + (0.1 * (current_price - strike))) + 0.25, 2),
-                    "volume": int(1000 * (1 - abs(current_price - strike) / current_price)),
-                    "open_interest": int(5000 * (1 - abs(current_price - strike) / current_price)),
-                    "delta": round(max(0, min(1, 0.5 + (current_price - strike) / 20)), 2),
-                    "gamma": round(max(0, 0.05 - abs(current_price - strike) / 400), 4),
-                    "theta": round(-0.05 - abs(current_price - strike) / 200, 4),
-                    "vega": round(0.1 - abs(current_price - strike) / 300, 4),
-                    "implied_volatility": round(0.3 + abs(current_price - strike) / 200, 2)
-                })
+        try:
+            # Get the current price of the underlying
+            quote = self.auth.client.get_quote(symbol)
+            current_price = quote.get('lastPrice', 0)
+            
+            # Get option chain data
+            option_chain_data = self.auth.client.get_option_chain(
+                symbol=symbol,
+                contract_type="ALL",
+                strike_count=10,  # Get options around the current price
+                include_quotes=True,
+                strategy="SINGLE"
+            )
+            
+            # Process the option chain data
+            expiration_dates = []
+            options = []
+            
+            # Extract expiration dates and options data
+            for exp_date in option_chain_data.get('callExpDateMap', {}).keys():
+                expiration_dates.append(exp_date.split(':')[0])
                 
-                # Put option
-                option_chain["options"].append({
-                    "option_type": "PUT",
-                    "symbol": f"{symbol}_{exp}_P_{strike}",
-                    "strike": strike,
-                    "expiration": exp,
-                    "bid": round(max(0, strike - current_price + 5 + (0.1 * (strike - current_price))), 2),
-                    "ask": round(max(0, strike - current_price + 5 + (0.1 * (strike - current_price))) + 0.5, 2),
-                    "last": round(max(0, strike - current_price + 5 + (0.1 * (strike - current_price))) + 0.25, 2),
-                    "volume": int(1000 * (1 - abs(current_price - strike) / current_price)),
-                    "open_interest": int(5000 * (1 - abs(current_price - strike) / current_price)),
-                    "delta": round(min(0, max(-1, -0.5 + (current_price - strike) / 20)), 2),
-                    "gamma": round(max(0, 0.05 - abs(current_price - strike) / 400), 4),
-                    "theta": round(-0.05 - abs(current_price - strike) / 200, 4),
-                    "vega": round(0.1 - abs(current_price - strike) / 300, 4),
-                    "implied_volatility": round(0.3 + abs(current_price - strike) / 200, 2)
-                })
-        
-        return option_chain
+                # Process call options
+                for strike in option_chain_data.get('callExpDateMap', {}).get(exp_date, {}):
+                    for call_option in option_chain_data.get('callExpDateMap', {}).get(exp_date, {}).get(strike, []):
+                        options.append({
+                            "option_type": "CALL",
+                            "symbol": call_option.get('symbol'),
+                            "strike": float(strike),
+                            "expiration": exp_date.split(':')[0],
+                            "bid": call_option.get('bid', 0),
+                            "ask": call_option.get('ask', 0),
+                            "last": call_option.get('last', 0),
+                            "volume": call_option.get('totalVolume', 0),
+                            "open_interest": call_option.get('openInterest', 0),
+                            "delta": call_option.get('delta', 0),
+                            "gamma": call_option.get('gamma', 0),
+                            "theta": call_option.get('theta', 0),
+                            "vega": call_option.get('vega', 0),
+                            "implied_volatility": call_option.get('volatility', 0) / 100  # Convert to decimal
+                        })
+                
+                # Process put options
+                for strike in option_chain_data.get('putExpDateMap', {}).get(exp_date, {}):
+                    for put_option in option_chain_data.get('putExpDateMap', {}).get(exp_date, {}).get(strike, []):
+                        options.append({
+                            "option_type": "PUT",
+                            "symbol": put_option.get('symbol'),
+                            "strike": float(strike),
+                            "expiration": exp_date.split(':')[0],
+                            "bid": put_option.get('bid', 0),
+                            "ask": put_option.get('ask', 0),
+                            "last": put_option.get('last', 0),
+                            "volume": put_option.get('totalVolume', 0),
+                            "open_interest": put_option.get('openInterest', 0),
+                            "delta": put_option.get('delta', 0),
+                            "gamma": put_option.get('gamma', 0),
+                            "theta": put_option.get('theta', 0),
+                            "vega": put_option.get('vega', 0),
+                            "implied_volatility": put_option.get('volatility', 0) / 100  # Convert to decimal
+                        })
+            
+            return {
+                "symbol": symbol,
+                "underlying_price": current_price,
+                "expirations": list(set(expiration_dates)),  # Remove duplicates
+                "options": options
+            }
+        except Exception as e:
+            print(f"Error retrieving option chain: {str(e)}")
+            # Return None or empty data structure
+            return {
+                "symbol": symbol,
+                "underlying_price": 0,
+                "expirations": [],
+                "options": []
+            }
     
     def get_historical_data(self, symbol, period="1M"):
         """
@@ -160,51 +218,68 @@ class OptionsDataRetriever:
         Returns:
             pd.DataFrame: Historical price data
         """
-        # This is a simplified placeholder that returns dummy data
-        # In a real implementation, this would make API calls to Schwab
+        if not self.auth.get_auth_status():
+            print("Not authenticated. Please authenticate first.")
+            return pd.DataFrame()
         
-        # Determine number of days based on period
-        days = {
-            "1D": 1,
-            "1W": 7,
-            "1M": 30,
-            "3M": 90,
-            "1Y": 365
-        }.get(period, 30)
-        
-        # Generate dummy historical data
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        # Generate dates
-        dates = []
-        current_date = start_date
-        while current_date <= end_date:
-            if current_date.weekday() < 5:  # Only include weekdays
-                dates.append(current_date)
-            current_date += timedelta(days=1)
-        
-        # Generate price data
-        base_price = 150.0
-        data = []
-        
-        for i, date in enumerate(dates):
-            # Add some randomness to the price
-            open_price = base_price + (i * 0.1) + ((-1) ** i) * (i % 5)
-            close_price = open_price + ((-1) ** i) * (i % 3) * 0.5
-            high_price = max(open_price, close_price) + (i % 3)
-            low_price = min(open_price, close_price) - (i % 2)
+        try:
+            # Map period to frequency type and frequency
+            period_mapping = {
+                "1D": {"frequencyType": "minute", "frequency": 5},
+                "1W": {"frequencyType": "minute", "frequency": 30},
+                "1M": {"frequencyType": "daily", "frequency": 1},
+                "3M": {"frequencyType": "daily", "frequency": 1},
+                "1Y": {"frequencyType": "daily", "frequency": 1}
+            }
             
-            data.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "open": round(open_price, 2),
-                "high": round(high_price, 2),
-                "low": round(low_price, 2),
-                "close": round(close_price, 2),
-                "volume": int(1000000 + (i % 10) * 100000)
-            })
-        
-        return pd.DataFrame(data)
+            # Determine end date (now) and start date based on period
+            end_date = datetime.now()
+            
+            days_mapping = {
+                "1D": 1,
+                "1W": 7,
+                "1M": 30,
+                "3M": 90,
+                "1Y": 365
+            }
+            
+            start_date = end_date - timedelta(days=days_mapping.get(period, 30))
+            
+            # Format dates for API
+            start_ms = int(start_date.timestamp() * 1000)
+            end_ms = int(end_date.timestamp() * 1000)
+            
+            # Get price history
+            price_history = self.auth.client.get_price_history(
+                symbol=symbol,
+                start_date=start_ms,
+                end_date=end_ms,
+                frequency_type=period_mapping[period]["frequencyType"],
+                frequency=period_mapping[period]["frequency"]
+            )
+            
+            # Process the price history data
+            candles = price_history.get('candles', [])
+            
+            if not candles:
+                return pd.DataFrame()
+            
+            # Convert to DataFrame
+            data = []
+            for candle in candles:
+                data.append({
+                    "date": datetime.fromtimestamp(candle.get('datetime', 0) / 1000).strftime("%Y-%m-%d"),
+                    "open": candle.get('open', 0),
+                    "high": candle.get('high', 0),
+                    "low": candle.get('low', 0),
+                    "close": candle.get('close', 0),
+                    "volume": candle.get('volume', 0)
+                })
+            
+            return pd.DataFrame(data)
+        except Exception as e:
+            print(f"Error retrieving historical data: {str(e)}")
+            return pd.DataFrame()
 
 # Initialize authentication and data retriever
 auth = SchwabAuth()
@@ -218,10 +293,12 @@ server = app.server
 app.layout = html.Div([
     html.H1("Schwab Options Dashboard"),
     
-    # Authentication status
+    # Authentication status and controls
     html.Div([
         html.Div(id="auth-status"),
-        html.Button("Authenticate", id="auth-button", n_clicks=0, style={"display": "none"}),
+        html.Button("Authenticate", id="auth-button", n_clicks=0),
+        dcc.Input(id="callback-url", type="text", placeholder="Paste callback URL here", style={"width": "50%", "display": "none"}),
+        html.Button("Submit Callback URL", id="callback-submit", n_clicks=0, style={"display": "none"}),
     ], style={"margin": "10px"}),
     
     # Symbol input and submit button
@@ -302,20 +379,56 @@ app.layout = html.Div([
 # Callback to check authentication status
 @app.callback(
     [Output("auth-status", "children"),
-     Output("auth-button", "style")],
-    [Input("auth-button", "n_clicks")]
+     Output("auth-button", "style"),
+     Output("callback-url", "style"),
+     Output("callback-submit", "style")],
+    [Input("auth-button", "n_clicks"),
+     Input("callback-submit", "n_clicks")],
+    [State("callback-url", "value")]
 )
-def check_auth_status(n_clicks):
+def check_auth_status(auth_clicks, callback_clicks, callback_url):
+    ctx = dash.callback_context
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+    
     if auth.get_auth_status():
-        return "Authentication Status: Authenticated", {"display": "none"}
-    elif n_clicks > 0:
-        # Attempt authentication
-        if auth.authenticate():
-            return "Authentication Status: Authenticated", {"display": "none"}
+        return (
+            "Authentication Status: Authenticated", 
+            {"display": "none"}, 
+            {"display": "none", "width": "50%"}, 
+            {"display": "none"}
+        )
+    elif triggered_id == "auth-button" and auth_clicks > 0:
+        # Start authentication flow
+        auth.authenticate()
+        return (
+            "Authentication Status: Please complete authentication in browser and paste callback URL", 
+            {"display": "none"}, 
+            {"display": "block", "width": "50%"}, 
+            {"display": "block"}
+        )
+    elif triggered_id == "callback-submit" and callback_clicks > 0 and callback_url:
+        # Complete authentication with callback URL
+        if auth.authenticate(callback_url):
+            return (
+                "Authentication Status: Authenticated", 
+                {"display": "none"}, 
+                {"display": "none", "width": "50%"}, 
+                {"display": "none"}
+            )
         else:
-            return "Authentication Status: Failed", {"display": "block"}
+            return (
+                "Authentication Status: Authentication Failed", 
+                {"display": "block"}, 
+                {"display": "block", "width": "50%"}, 
+                {"display": "block"}
+            )
     else:
-        return "Authentication Status: Not Authenticated", {"display": "block"}
+        return (
+            "Authentication Status: Not Authenticated", 
+            {"display": "block"}, 
+            {"display": "none", "width": "50%"}, 
+            {"display": "none"}
+        )
 
 # Callback to fetch data when symbol is submitted
 @app.callback(
@@ -333,6 +446,9 @@ def fetch_data(n_clicks, symbol, time_period):
         return None, None, [], []
     
     if not symbol:
+        return None, None, [], []
+    
+    if not auth.get_auth_status():
         return None, None, [], []
     
     # Get option chain
