@@ -4,9 +4,10 @@ Main entry point for the Schwab Options Dashboard application
 import os
 import sys
 
-# Add the parent directory to the path so we can import from app
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the current directory to the path to fix import issues
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import the app directly from the app directory
 from app.app import app
 
 if __name__ == "__main__":
