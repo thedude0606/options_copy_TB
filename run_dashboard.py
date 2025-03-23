@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timedelta
 import time
 import webbrowser
-from schwabdev import SchwabClient
+from schwabdev.client import Client  # Correct import for the Schwab client
 
 # Load environment variables
 load_dotenv()
@@ -50,11 +50,12 @@ class SchwabAuth:
         """Initialize the Schwab client with existing tokens"""
         if self.tokens:
             try:
-                self.client = SchwabClient(
-                    client_id=self.app_key,
-                    redirect_uri=self.callback_url,
-                    access_token=self.tokens.get('access_token'),
-                    refresh_token=self.tokens.get('refresh_token')
+                # Use the correct Client class from schwabdev.client
+                self.client = Client(
+                    app_key=self.app_key,
+                    app_secret=self.app_secret,
+                    callback_url=self.callback_url,
+                    tokens_file=TOKENS_FILE
                 )
                 return True
             except Exception as e:
@@ -78,9 +79,11 @@ class SchwabAuth:
         """
         try:
             # Initialize client for authentication
-            self.client = SchwabClient(
-                client_id=self.app_key,
-                redirect_uri=self.callback_url
+            self.client = Client(
+                app_key=self.app_key,
+                app_secret=self.app_secret,
+                callback_url=self.callback_url,
+                tokens_file=TOKENS_FILE
             )
             
             if callback_url:
