@@ -20,6 +20,8 @@
 
 - **Data Storage**: Using in-memory data structures for real-time data with token persistence for authentication.
 
+- **Dependency Management**: Updated from strict version requirements to more flexible version specifications to improve compatibility across different Python environments and versions.
+
 ## Design Patterns
 
 - **Environment Variables**: Using .env file for secure credential management to avoid hardcoding sensitive information.
@@ -30,6 +32,8 @@
 
 - **Singleton Pattern**: Used a singleton instance for the authentication manager to ensure consistent authentication state.
 
+- **Path Resolution**: Modified the main entry point to explicitly add the current directory to the Python path to resolve module import issues across different environments.
+
 ## Rationale for Key Decisions
 
 - **Local Development**: Developing on localhost:8050 for ease of testing and development before any potential deployment.
@@ -39,3 +43,5 @@
 - **Data Visualization Strategy**: Created a tabbed interface to organize different types of options data (chain, Greeks, historical) for better user experience and clarity.
 
 - **Error Handling**: Implemented comprehensive error handling in data retrieval functions to ensure the dashboard remains functional even if API calls fail.
+
+- **Flexible Dependencies**: Changed from strict version requirements to more flexible version specifications to prevent installation issues across different environments and Python versions.
