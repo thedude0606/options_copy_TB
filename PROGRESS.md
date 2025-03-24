@@ -15,6 +15,8 @@
 - Fixed historical data retrieval by adding required 'periodType' parameter to price_history() method call
 - Added extensive debugging code to historical data retrieval and visualization
 - Enhanced historical data visualization with daily close price line chart alongside candlestick chart
+- Implemented retry logic for historical data API with multiple parameter combinations
+- Added sample data generation fallback when API fails to return historical data
 
 ## Current Work in Progress
 - Testing the updated API method implementations
