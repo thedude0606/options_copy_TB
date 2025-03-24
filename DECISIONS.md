@@ -10,6 +10,8 @@
 
 - **Simplified Application Structure**: Moved from a complex package-based structure to a standalone script approach to resolve import issues and ensure compatibility across different environments.
 
+- **Modular Real-Time Data Implementation**: Created separate modules for streaming data management, data handling, and UI components to maintain clean separation of concerns while enabling real-time functionality.
+
 ## Technology Selections
 
 - **API Integration**: Using the Schwabdev library as the foundation for Schwab API integration to leverage existing authentication and request handling.
@@ -24,17 +26,23 @@
 
 - **Dependency Management**: Updated from strict version requirements to more flexible version specifications to improve compatibility across different Python environments and versions.
 
+- **WebSocket Communication**: Leveraging the Schwabdev Streamer capabilities for real-time data streaming, which provides a reliable and efficient way to receive market updates.
+
 ## Design Patterns
 
 - **Environment Variables**: Using .env file for secure credential management to avoid hardcoding sensitive information.
 
-- **Modular Design**: Organized code into logical classes (SchwabAuth, OptionsDataRetriever) for better maintainability even within a single file.
+- **Modular Design**: Organized code into logical classes (SchwabAuth, OptionsDataRetriever, StreamingDataManager) for better maintainability even within a single file.
 
 - **Event-Driven Updates**: Implemented event-driven pattern with Dash callbacks for real-time data updates in the dashboard.
 
 - **Singleton Pattern**: Used a singleton instance for the authentication manager to ensure consistent authentication state.
 
 - **Self-Contained Application**: Consolidated all functionality into a single file to eliminate import issues while maintaining clean code organization.
+
+- **Observer Pattern**: Implemented in the streaming data functionality to notify UI components when new data arrives from the WebSocket connection.
+
+- **Factory Pattern**: Used for creating appropriate data handlers based on the type of streaming data received.
 
 ## Rationale for Key Decisions
 
@@ -94,3 +102,37 @@
   - Included weekend skipping and trend factors for more realistic data
   
   This decision was made to ensure the historical data visualization would always work, even when the API fails to return data. This approach provides a seamless user experience while still clearly indicating (through console logs) when sample data is being used instead of real API data.
+
+- **Real-Time Data Architecture**: Implemented a three-tier architecture for real-time data:
+  - StreamingDataManager: Handles WebSocket connection and subscription management
+  - StreamDataHandler: Processes and formats incoming streaming data
+  - Real-Time Tab UI: Displays streaming data and provides user controls
+  
+  This decision was made to maintain a clean separation of concerns while enabling efficient real-time data handling. The architecture allows for independent testing and maintenance of each component.
+
+- **Symbol Management Approach**: Implemented a flexible symbol management system:
+  - Allows users to add/remove symbols for streaming
+  - Stores active symbols in a client-side store component
+  - Dynamically updates subscriptions when symbols change
+  
+  This decision provides users with flexibility to monitor multiple symbols simultaneously while efficiently managing WebSocket subscriptions.
+
+- **Data Visualization Strategy**: Created multiple visualization options for real-time data:
+  - Price chart for visual trend analysis
+  - Data table for detailed numeric information
+  - Time & sales view for transaction history
+  
+  This multi-view approach gives users different ways to analyze the same data based on their specific needs and preferences.
+
+- **Connection Management Controls**: Implemented explicit start/stop controls:
+  - Start Stream button to initiate WebSocket connection
+  - Stop Stream button to close connection and clean up resources
+  - Connection status indicator for visual feedback
+  
+  This approach gives users explicit control over when streaming occurs, helping to manage resources and avoid unnecessary data consumption.
+
+- **Interval-Based UI Updates**: Used Dash interval component for UI updates:
+  - Set to 1-second intervals for responsive but efficient updates
+  - Can be disabled when streaming is inactive
+  
+  This decision balances UI responsiveness with performance considerations, ensuring smooth updates without overwhelming the browser.

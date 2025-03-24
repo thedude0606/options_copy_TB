@@ -15,6 +15,7 @@ import time
 import webbrowser
 import random
 import math
+import dash_bootstrap_components as dbc
 
 # Load environment variables
 load_dotenv()
@@ -205,171 +206,185 @@ class OptionsDataRetriever:
                 endDate=end_ms,
                 frequencyType=period_mapping[period]["frequencyType"],
                 frequency=period_mapping[period]["frequency"],
-                needExtendedHoursData=True
             )
             
-            print(f"API Response type: {type(price_history_response)}")
-            
             if hasattr(price_history_response, 'json'):
-                price_history = price_history_response.json()
-                print(f"Price history JSON keys: {price_history.keys() if price_history else 'None'}")
-                
-                # Check for errors
-                if 'errors' in price_history:
-                    print(f"API returned errors: {price_history['errors']}")
-                    
-                    # Try with different parameters - use day periodType for all
-                    print("Retrying with different parameters...")
-                    price_history_response = self.client.price_history(
-                        symbol=symbol,
-                        periodType="day",
-                        period=1,
-                        frequencyType="daily",
-                        frequency=1,
-                        needExtendedHoursData=True
-                    )
-                    
-                    if hasattr(price_history_response, 'json'):
-                        price_history = price_history_response.json()
-                        print(f"Retry response keys: {price_history.keys() if price_history else 'None'}")
-                        
-                        if 'errors' in price_history:
-                            print(f"Retry also returned errors: {price_history['errors']}")
-                            
-                            # Try with a simpler approach - use month periodType
-                            print("Trying with month periodType...")
-                            price_history_response = self.client.price_history(
-                                symbol=symbol,
-                                periodType="month",
-                                period=1,
-                                frequencyType="daily",
-                                frequency=1
-                            )
-                            
-                            if hasattr(price_history_response, 'json'):
-                                price_history = price_history_response.json()
-                                print(f"Month periodType response keys: {price_history.keys() if price_history else 'None'}")
+                price_history_data = price_history_response.json()
             else:
-                price_history = {}
-                print(f"Price history response has no json method. Response: {price_history_response}")
+                price_history_data = {}
             
             # Process the price history data
-            candles = price_history.get('candles', [])
-            
-            print(f"Number of candles received: {len(candles)}")
-            if candles and len(candles) > 0:
-                print(f"First candle: {candles[0]}")
-            
-            if not candles:
-                print("No candles data received from API")
-                # Create sample data for testing
-                print("Creating sample data for testing visualization...")
-                candles = self._create_sample_data(symbol, start_date, end_date, days_mapping.get(period, 30))
-                print(f"Created {len(candles)} sample candles")
+            candles = price_history_data.get('candles', [])
             
             # Convert to DataFrame
-            data = []
-            for candle in candles:
-                if isinstance(candle, dict):
-                    # API data
-                    data.append({
-                        "date": datetime.fromtimestamp(candle.get('datetime', 0) / 1000).strftime("%Y-%m-%d"),
-                        "open": candle.get('open', 0),
-                        "high": candle.get('high', 0),
-                        "low": candle.get('low', 0),
-                        "close": candle.get('close', 0),
-                        "volume": candle.get('volume', 0)
-                    })
-                else:
-                    # Sample data
-                    data.append(candle)
+            df = pd.DataFrame(candles)
             
-            df = pd.DataFrame(data)
-            print(f"Created DataFrame with {len(df)} rows")
-            print(f"DataFrame columns: {df.columns}")
             if not df.empty:
-                print(f"DataFrame head: {df.head()}")
-            
-            return df
-        except Exception as e:
-            print(f"Error retrieving historical data: {str(e)}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
-            return pd.DataFrame()
-    
-    def _create_sample_data(self, symbol, start_date, end_date, days):
-        """Create sample historical data for testing visualization"""
-        data = []
-        current_date = start_date
-        base_price = 150.0  # Example base price
-        
-        if symbol == "AAPL":
-            base_price = 170.0
-        elif symbol == "MSFT":
-            base_price = 400.0
-        elif symbol == "GOOGL":
-            base_price = 150.0
-        elif symbol == "AMZN":
-            base_price = 180.0
-        
-        # Generate daily data
-        while current_date <= end_date:
-            # Skip weekends
-            if current_date.weekday() < 5:  # 0-4 are Monday to Friday
-                # Create some random price movement
-                daily_volatility = base_price * 0.02  # 2% volatility
+                # Convert datetime
+                df['date'] = pd.to_datetime(df['datetime'], unit='ms')
                 
-                open_price = base_price + random.uniform(-daily_volatility, daily_volatility)
-                close_price = open_price + random.uniform(-daily_volatility, daily_volatility)
-                high_price = max(open_price, close_price) + random.uniform(0, daily_volatility)
-                low_price = min(open_price, close_price) - random.uniform(0, daily_volatility)
-                
-                # Ensure low <= open, close <= high
-                low_price = min(low_price, open_price, close_price)
-                high_price = max(high_price, open_price, close_price)
-                
-                # Add some trend
-                trend_factor = math.sin(current_date.day / 15) * daily_volatility * 2
-                
-                data.append({
-                    "date": current_date.strftime("%Y-%m-%d"),
-                    "open": round(open_price + trend_factor, 2),
-                    "high": round(high_price + trend_factor, 2),
-                    "low": round(low_price + trend_factor, 2),
-                    "close": round(close_price + trend_factor, 2),
-                    "volume": int(random.uniform(5000000, 15000000))
+                # Rename columns
+                df = df.rename(columns={
+                    'open': 'open',
+                    'high': 'high',
+                    'low': 'low',
+                    'close': 'close',
+                    'volume': 'volume'
                 })
                 
-                # Update base price for next day (slight drift)
-                base_price = close_price + trend_factor
-            
-            current_date += timedelta(days=1)
+                # Select and order columns
+                df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
+                
+                # Sort by date
+                df = df.sort_values('date')
+                
+                return df.to_dict('records')
+            else:
+                return []
+        except Exception as e:
+            print(f"Error retrieving historical data: {str(e)}")
+            return []
+    
+    def get_quote(self, symbol):
+        """
+        Get current quote for a symbol
         
-        return data
+        Args:
+            symbol (str): The stock symbol
+            
+        Returns:
+            dict: Quote data
+        """
+        try:
+            # Get quote data
+            quote_response = self.client.quote(symbol)
+            
+            if hasattr(quote_response, 'json'):
+                quote_data = quote_response.json()
+            else:
+                quote_data = {}
+            
+            return quote_data
+        except Exception as e:
+            print(f"Error retrieving quote: {str(e)}")
+            return {}
 
-# Initialize data retriever
+# Initialize the options data retriever
 options_data = OptionsDataRetriever(client)
+
+# Initialize the streaming data manager
+streaming_manager = StreamingDataManager(interactive_auth=True)
+
+# Initialize the stream data handler
+stream_handler = StreamDataHandler()
 
 # Initialize the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
+
+# Register real-time callbacks
+register_real_time_callbacks(app)
+
+# Define callback to handle stream data
+@app.callback(
+    Output("rt-stream-data", "data"),
+    [Input("rt-update-interval", "n_intervals")],
+    [State("rt-symbols-store", "data"),
+     State("rt-connection-store", "data"),
+     State("rt-stream-data", "data")]
+)
+def update_stream_data(n_intervals, symbols, connection_data, current_data):
+    if not symbols or not connection_data or not connection_data.get("active", False):
+        return {}
+    
+    # Get data from stream handler
+    data_store = stream_handler.get_data_store()
+    
+    # If no current data, initialize with data store
+    if not current_data:
+        return data_store
+    
+    # Otherwise, update with new data
+    return data_store
+
+# Callback to start/stop streaming
+@app.callback(
+    Output("rt-connection-status", "children", allow_duplicate=True),
+    [Input("rt-start-stream-button", "n_clicks"),
+     Input("rt-stop-stream-button", "n_clicks")],
+    [State("rt-symbols-store", "data"),
+     State("rt-data-type", "value"),
+     State("rt-connection-store", "data")],
+    prevent_initial_call=True
+)
+def manage_streaming(start_clicks, stop_clicks, symbols, data_type, connection_data):
+    # Determine which button was clicked
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+    
+    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if button_id == "rt-start-stream-button" and start_clicks > 0:
+        # Start streaming
+        if not symbols:
+            return html.Div([
+                html.Span("Error", style={"color": "red"}),
+                html.Span(" - No symbols selected", style={"font-style": "italic", "margin-left": "5px"})
+            ])
+        
+        try:
+            # Define callback for stream data
+            def stream_callback(message):
+                processed_data = stream_handler.process_message(message)
+                return processed_data
+            
+            # Start stream
+            streaming_manager.start_stream(stream_callback)
+            
+            # Subscribe to appropriate data
+            if data_type == "quotes":
+                streaming_manager.subscribe_level1_quotes(symbols)
+            else:
+                streaming_manager.subscribe_option_quotes(symbols)
+            
+            return html.Div([
+                html.Span("Connected", style={"color": "green"}),
+                html.Span(f" - Streaming {data_type} for {', '.join(symbols)}", style={"font-style": "italic", "margin-left": "5px"})
+            ])
+        except Exception as e:
+            return html.Div([
+                html.Span("Error", style={"color": "red"}),
+                html.Span(f" - {str(e)}", style={"font-style": "italic", "margin-left": "5px"})
+            ])
+    
+    elif button_id == "rt-stop-stream-button" and stop_clicks > 0:
+        # Stop streaming
+        try:
+            streaming_manager.stop_stream()
+            stream_handler.clear_data_store()
+            
+            return html.Div([
+                html.Span("Disconnected", style={"color": "red"}),
+                html.Span(" - Stream stopped", style={"font-style": "italic", "margin-left": "5px"})
+            ])
+        except Exception as e:
+            return html.Div([
+                html.Span("Error", style={"color": "red"}),
+                html.Span(f" - {str(e)}", style={"font-style": "italic", "margin-left": "5px"})
+            ])
+    
+    return dash.no_update
 
 # App layout
 app.layout = html.Div([
     html.H1("Schwab Options Dashboard"),
     
     # Authentication status
-    html.Div([
-        html.Div(id="auth-status"),
-        html.Div([
-            html.H3("Authentication Instructions:", style={"color": "blue"}),
-            html.P("1. Check the terminal/console where you started this dashboard"),
-            html.P("2. Follow the authentication prompts in the terminal"),
-            html.P("3. After authenticating in your browser, copy the callback URL"),
-            html.P("4. Paste the callback URL back into the terminal (not here)"),
-            html.P("5. Once authenticated, you can use the dashboard below")
-        ], style={"border": "1px solid blue", "padding": "10px", "margin": "10px 0", "background-color": "#f0f8ff"}),
-    ], style={"margin": "10px"}),
+    html.Div(id="auth-status", children=[
+        html.Div("Checking authentication status...", id="auth-message"),
+        html.Div(id="auth-details", style={"display": "none"})
+    ], style={"border": "1px solid blue", "padding": "10px", "margin": "10px 0", "background-color": "#f0f8ff"}),
     
     # Symbol input and submit button
     html.Div([
@@ -437,6 +452,107 @@ app.layout = html.Div([
                 # Candle chart
                 dcc.Graph(id="historical-chart")
             ])
+        ]),
+        
+        # Real-Time Data Tab
+        dcc.Tab(label="Real-Time Data", children=[
+            html.Div([
+                # Controls section
+                html.Div([
+                    html.H3("Real-Time Data Controls"),
+                    
+                    # Symbol selection
+                    html.Div([
+                        html.Label("Symbol:"),
+                        dcc.Input(
+                            id="rt-symbol-input",
+                            type="text",
+                            value="",
+                            placeholder="Enter symbol (e.g., AAPL)",
+                            style={"width": "150px", "margin-right": "10px"}
+                        ),
+                        html.Button(
+                            "Add Symbol",
+                            id="rt-add-symbol-button",
+                            n_clicks=0,
+                            style={"margin-right": "10px"}
+                        ),
+                        
+                        # Display active symbols
+                        html.Div([
+                            html.Label("Active Symbols:"),
+                            html.Div(id="rt-active-symbols", style={"margin-top": "5px"})
+                        ], style={"margin-top": "10px"})
+                    ], style={"margin-bottom": "20px"}),
+                    
+                    # Connection controls
+                    html.Div([
+                        html.Button(
+                            "Start Stream",
+                            id="rt-start-stream-button",
+                            n_clicks=0,
+                            style={"margin-right": "10px"}
+                        ),
+                        html.Button(
+                            "Stop Stream",
+                            id="rt-stop-stream-button",
+                            n_clicks=0,
+                            style={"margin-right": "10px"}
+                        ),
+                        html.Div(id="rt-connection-status", style={"margin-top": "5px"})
+                    ], style={"margin-bottom": "20px"}),
+                    
+                    # Data type selection
+                    html.Div([
+                        html.Label("Data Type:"),
+                        dcc.RadioItems(
+                            id="rt-data-type",
+                            options=[
+                                {"label": "Quotes", "value": "quotes"},
+                                {"label": "Options", "value": "options"}
+                            ],
+                            value="quotes",
+                            inline=True
+                        )
+                    ], style={"margin-bottom": "20px"})
+                ], style={"padding": "15px", "background-color": "#f8f9fa", "border-radius": "5px"}),
+                
+                # Data display section
+                html.Div([
+                    html.H3("Real-Time Data"),
+                    
+                    # Tabs for different data views
+                    dcc.Tabs([
+                        # Price chart tab
+                        dcc.Tab(label="Price Chart", children=[
+                            dcc.Graph(id="rt-price-chart")
+                        ]),
+                        
+                        # Data table tab
+                        dcc.Tab(label="Data Table", children=[
+                            html.Div(id="rt-data-table")
+                        ]),
+                        
+                        # Time & Sales tab
+                        dcc.Tab(label="Time & Sales", children=[
+                            html.Div(id="rt-time-sales")
+                        ])
+                    ])
+                ], style={"margin-top": "20px"}),
+                
+                # Hidden divs for storing data
+                dcc.Store(id="rt-stream-data"),
+                dcc.Store(id="rt-symbols-store"),
+                dcc.Store(id="rt-connection-store"),
+                
+                # Interval component for updating charts
+                dcc.Interval(
+                    id="rt-update-interval",
+                    interval=1000,  # 1 second
+                    n_intervals=0,
+                    disabled=True
+                )
+            ])
         ])
     ]),
     
@@ -448,22 +564,55 @@ app.layout = html.Div([
 
 # Callback to check authentication status
 @app.callback(
-    Output("auth-status", "children"),
-    [Input("submit-button", "n_clicks")]
+    [Output("auth-message", "children"),
+     Output("auth-details", "children"),
+     Output("auth-details", "style")],
+    [Input("auth-status", "id")]
 )
-def check_auth_status(n_clicks):
-    # The authentication is handled automatically by the library
-    # This just displays the current status
+def update_auth_status(auth_id):
     if hasattr(client, 'tokens') and hasattr(client.tokens, 'access_token') and client.tokens.access_token:
-        return html.Div("Authentication Status: Authenticated", style={"color": "green"})
+        # Authentication successful
+        message = html.Div([
+            html.Span("✓ ", style={"color": "green", "font-weight": "bold"}),
+            "Authentication successful"
+        ])
+        
+        # Get account details
+        try:
+            accounts_response = client.accounts()
+            if hasattr(accounts_response, 'json'):
+                accounts_data = accounts_response.json()
+                
+                # Extract account details
+                accounts = []
+                for account in accounts_data:
+                    account_id = account.get('accountNumber', 'Unknown')
+                    account_type = account.get('type', 'Unknown')
+                    accounts.append(f"Account: {account_id} (Type: {account_type})")
+                
+                details = html.Div([
+                    html.H4("Account Information"),
+                    html.Ul([html.Li(account) for account in accounts])
+                ])
+                
+                return message, details, {"display": "block", "margin-top": "10px"}
+            else:
+                return message, "No account details available", {"display": "block", "margin-top": "10px"}
+        except Exception as e:
+            return message, f"Error retrieving account details: {str(e)}", {"display": "block", "margin-top": "10px"}
     else:
-        return html.Div("Authentication Status: Not Authenticated - Please check console for authentication instructions", 
-                        style={"color": "red"})
+        # Authentication failed
+        message = html.Div([
+            html.Span("✗ ", style={"color": "red", "font-weight": "bold"}),
+            "Authentication failed or not completed"
+        ])
+        return message, "Please check your credentials and try again", {"display": "block", "margin-top": "10px"}
 
 # Callback to fetch data when symbol is submitted
 @app.callback(
     [Output("options-data", "data"),
      Output("historical-data", "data"),
+     Output("quote-data", "data"),
      Output("expiration-dropdown", "options"),
      Output("greeks-expiration-dropdown", "options")],
     [Input("submit-button", "n_clicks")],
@@ -473,23 +622,26 @@ def check_auth_status(n_clicks):
 def fetch_data(n_clicks, symbol, time_period):
     if n_clicks == 0:
         # Default data for initial load
-        return None, None, [], []
+        return None, None, None, [], []
     
     if not symbol:
-        return None, None, [], []
+        return None, None, None, [], []
     
     # Get option chain
     option_chain = options_data.get_option_chain(symbol)
     
     # Get historical data
-    historical_data = options_data.get_historical_data(symbol, time_period)
+    historical_data = options_data.get_historical_data(symbol, period=time_period)
+    
+    # Get current quote
+    quote = options_data.get_quote(symbol)
     
     # Extract expiration dates for dropdown
     expiration_dates = []
     if option_chain and "expirations" in option_chain:
         expiration_dates = [{"label": exp, "value": exp} for exp in option_chain["expirations"]]
     
-    return option_chain, historical_data.to_dict('records'), expiration_dates, expiration_dates
+    return option_chain, historical_data, quote, expiration_dates, expiration_dates
 
 # Callback to update options chain display
 @app.callback(
@@ -502,60 +654,72 @@ def update_options_chain(options_data, expiration, option_type):
     if not options_data or not expiration:
         return html.Div("No data available. Please enter a symbol and select an expiration date.")
     
-    # Filter options data by expiration and type
+    # Filter options by expiration and type
     filtered_options = []
-    for option in options_data["options"]:
+    for option in options_data.get("options", []):
         if option["expiration"] == expiration:
             if option_type == "ALL" or option["option_type"] == option_type:
                 filtered_options.append(option)
     
+    if not filtered_options:
+        return html.Div("No options found for the selected criteria.")
+    
     # Sort by strike price
     filtered_options.sort(key=lambda x: x["strike"])
     
-    # Create table to display options data
-    columns = [
-        {"name": "Type", "id": "option_type"},
-        {"name": "Strike", "id": "strike"},
-        {"name": "Bid", "id": "bid"},
-        {"name": "Ask", "id": "ask"},
-        {"name": "Last", "id": "last"},
-        {"name": "Volume", "id": "volume"},
-        {"name": "Open Int", "id": "open_interest"},
-        {"name": "Delta", "id": "delta"},
-        {"name": "Gamma", "id": "gamma"},
-        {"name": "Theta", "id": "theta"},
-        {"name": "Vega", "id": "vega"},
-        {"name": "IV", "id": "implied_volatility"}
+    # Create table
+    table_header = [
+        html.Thead(html.Tr([
+            html.Th("Type"),
+            html.Th("Symbol"),
+            html.Th("Strike"),
+            html.Th("Bid"),
+            html.Th("Ask"),
+            html.Th("Last"),
+            html.Th("Volume"),
+            html.Th("Open Int"),
+            html.Th("Delta"),
+            html.Th("Gamma"),
+            html.Th("Theta"),
+            html.Th("Vega"),
+            html.Th("IV")
+        ]))
     ]
     
-    return dash_table.DataTable(
-        id='options-table',
-        columns=columns,
-        data=filtered_options,
-        style_table={'overflowX': 'auto'},
-        style_cell={
-            'textAlign': 'center',
-            'padding': '5px'
-        },
-        style_header={
-            'backgroundColor': 'rgb(230, 230, 230)',
-            'fontWeight': 'bold'
-        },
-        style_data_conditional=[
-            {
-                'if': {'row_index': 'odd'},
-                'backgroundColor': 'rgb(248, 248, 248)'
-            },
-            {
-                'if': {'filter_query': '{option_type} = "CALL"'},
-                'backgroundColor': 'rgba(0, 128, 0, 0.1)'
-            },
-            {
-                'if': {'filter_query': '{option_type} = "PUT"'},
-                'backgroundColor': 'rgba(255, 0, 0, 0.1)'
-            }
-        ]
+    rows = []
+    for option in filtered_options:
+        row = html.Tr([
+            html.Td(option["option_type"]),
+            html.Td(option["symbol"]),
+            html.Td(f"${option['strike']:.2f}"),
+            html.Td(f"${option['bid']:.2f}"),
+            html.Td(f"${option['ask']:.2f}"),
+            html.Td(f"${option['last']:.2f}"),
+            html.Td(f"{option['volume']:,}"),
+            html.Td(f"{option['open_interest']:,}"),
+            html.Td(f"{option['delta']:.3f}"),
+            html.Td(f"{option['gamma']:.3f}"),
+            html.Td(f"{option['theta']:.3f}"),
+            html.Td(f"{option['vega']:.3f}"),
+            html.Td(f"{option['implied_volatility']:.2%}")
+        ])
+        rows.append(row)
+    
+    table_body = [html.Tbody(rows)]
+    
+    table = dbc.Table(
+        table_header + table_body,
+        bordered=True,
+        striped=True,
+        hover=True,
+        responsive=True
     )
+    
+    return html.Div([
+        html.H3(f"Options Chain for {options_data.get('symbol', '')} - {expiration}"),
+        html.P(f"Underlying Price: ${options_data.get('underlying_price', 0):.2f}"),
+        table
+    ])
 
 # Callback to update Greeks visualization
 @app.callback(
@@ -567,18 +731,24 @@ def update_greeks(options_data, expiration):
     if not options_data or not expiration:
         return html.Div("No data available. Please enter a symbol and select an expiration date.")
     
-    # Filter options data by expiration
-    filtered_options = [option for option in options_data["options"] if option["expiration"] == expiration]
+    # Filter options by expiration
+    filtered_options = []
+    for option in options_data.get("options", []):
+        if option["expiration"] == expiration:
+            filtered_options.append(option)
+    
+    if not filtered_options:
+        return html.Div("No options found for the selected expiration date.")
     
     # Separate calls and puts
-    calls = [option for option in filtered_options if option["option_type"] == "CALL"]
-    puts = [option for option in filtered_options if option["option_type"] == "PUT"]
+    calls = [opt for opt in filtered_options if opt["option_type"] == "CALL"]
+    puts = [opt for opt in filtered_options if opt["option_type"] == "PUT"]
     
     # Sort by strike price
     calls.sort(key=lambda x: x["strike"])
     puts.sort(key=lambda x: x["strike"])
     
-    # Create graphs for each Greek
+    # Create graphs
     graphs = []
     
     # Delta graph
