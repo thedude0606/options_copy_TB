@@ -24,6 +24,8 @@
 - Implemented symbol selection controls for real-time data monitoring
 - Added connection management functionality (start/stop streaming)
 - Created real-time data visualization components (price chart, data table, time & sales)
+- Fixed streaming data display issue where values showed "$None (N/A)" by modifying formatting methods to return default values (0.0 for prices/percentages and "0" for volume) instead of None
+- Fixed historical data retrieval by adding required periodType and period parameters to the price_history API call based on the selected time period
 
 ## Current Work in Progress
 - Enhancing error handling for streaming data

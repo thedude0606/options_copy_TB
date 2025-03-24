@@ -70,10 +70,18 @@
   
   This decision was based on examining the Schwabdev library's client.py file, which revealed that the correct parameter name is 'includeUnderlyingQuote' rather than 'includeQuotes'. This ensures compatibility with the Schwabdev library's API and resolves the error: "Client.option_chains() got an unexpected keyword argument 'includeQuotes'".
 
-- **Historical Data Parameter Addition**: Added the required 'periodType' parameter to the price_history() method call:
-  - Added `periodType="day"` to the price_history() method parameters
+- **Historical Data Parameter Addition**: Added the required parameters to the price_history() method call:
+  - Added `periodType="day"` or `periodType="month"` or `periodType="year"` based on the selected time period
+  - Added `period` parameter with appropriate values based on the selected time period
   
-  This decision was based on examining the Schwabdev library's client.py file, which revealed that the price_history() method requires a 'periodType' parameter that was missing in our implementation. Adding this parameter ensures compatibility with the Schwabdev library's API and enables the historical data tab to properly display price history data.
+  This decision was based on examining the Schwabdev library's client.py file and api_demo.py example, which revealed that the price_history() method requires both 'periodType' and 'period' parameters that were missing in our implementation. Adding these parameters ensures compatibility with the Schwabdev library's API and enables the historical data tab to properly display price history data.
+
+- **Streaming Data Formatting Fix**: Modified the formatting methods in stream_data_handler.py to return default values instead of None:
+  - Changed _format_price to return 0.0 instead of None when price is missing or invalid
+  - Changed _format_percent to return 0.0 instead of None when percent is missing or invalid
+  - Changed _format_volume to return "0" instead of None when volume is missing or invalid
+  
+  This decision was made to fix the issue where streaming data was displaying "$None (N/A)" in the UI. By returning default values (0.0 for prices/percentages and "0" for volume) instead of None, the UI can now properly display numeric values for all data points, even when the API returns missing or invalid data.
 
 - **Enhanced Debugging for Historical Data**: Added extensive debugging code to the historical data retrieval and visualization:
   - Added detailed print statements throughout the get_historical_data method

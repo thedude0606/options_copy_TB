@@ -267,25 +267,25 @@ class StreamDataHandler:
     def _format_price(self, price):
         """Format price value"""
         if price is None:
-            return None
+            return 0.0
         try:
             return round(float(price), 2)
         except (ValueError, TypeError):
-            return price
+            return 0.0
     
     def _format_percent(self, percent):
         """Format percent value"""
         if percent is None:
-            return None
+            return 0.0
         try:
             return round(float(percent), 2)
         except (ValueError, TypeError):
-            return percent
+            return 0.0
     
     def _format_volume(self, volume):
         """Format volume value"""
         if volume is None:
-            return None
+            return "0"
         try:
             vol = int(volume)
             if vol >= 1000000:
@@ -294,7 +294,7 @@ class StreamDataHandler:
                 return f"{vol/1000:.2f}K"
             return str(vol)
         except (ValueError, TypeError):
-            return volume
+            return "0"
     
     def _format_expiration(self, year, month, day):
         """Format expiration date"""

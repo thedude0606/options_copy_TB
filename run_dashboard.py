@@ -207,10 +207,12 @@ class OptionsDataRetriever:
             # Get price history
             price_history_response = self.client.price_history(
                 symbol=symbol,
-                startDate=start_ms,
-                endDate=end_ms,
+                periodType="day" if period in ["1D", "1W"] else "month" if period in ["1M", "3M"] else "year",
+                period=1 if period == "1D" else 5 if period == "1W" else 1 if period == "1M" else 3 if period == "3M" else 1,
                 frequencyType=period_mapping[period]["frequencyType"],
                 frequency=period_mapping[period]["frequency"],
+                startDate=start_ms,
+                endDate=end_ms
             )
             
             if hasattr(price_history_response, 'json'):
