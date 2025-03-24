@@ -11,7 +11,7 @@
 - [x] Fix historical data retrieval by adding required 'periodType' parameter to price_history() method call
 - [x] Implement retry logic for historical data API with multiple parameter combinations
 - [x] Add sample data generation fallback when API fails to return historical data
-- [x] Fix streaming data display issue where values showed "$None (N/A)"
+- [x] Fix streaming data display issue where values showed "$0 (N/A)" by returning None for missing values and properly handling None values in UI
 - [x] Fix historical data retrieval by adding required periodType and period parameters based on time period
 
 ## Visualization and Debugging

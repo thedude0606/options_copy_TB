@@ -76,12 +76,12 @@
   
   This decision was based on examining the Schwabdev library's client.py file and api_demo.py example, which revealed that the price_history() method requires both 'periodType' and 'period' parameters that were missing in our implementation. Adding these parameters ensures compatibility with the Schwabdev library's API and enables the historical data tab to properly display price history data.
 
-- **Streaming Data Formatting Fix**: Modified the formatting methods in stream_data_handler.py to return default values instead of None:
-  - Changed _format_price to return 0.0 instead of None when price is missing or invalid
-  - Changed _format_percent to return 0.0 instead of None when percent is missing or invalid
-  - Changed _format_volume to return "0" instead of None when volume is missing or invalid
+- **Streaming Data Formatting Fix**: Modified the formatting methods in stream_data_handler.py to return None for missing values and updated UI components to properly handle None values:
+  - Changed _format_price, _format_percent, and _format_volume to return None when data is missing or invalid
+  - Updated chart display to filter out None values when plotting data
+  - Modified data table display to use conditional formatting to show "N/A" for None values
   
-  This decision was made to fix the issue where streaming data was displaying "$None (N/A)" in the UI. By returning default values (0.0 for prices/percentages and "0" for volume) instead of None, the UI can now properly display numeric values for all data points, even when the API returns missing or invalid data.
+  This decision was made to fix the issue where streaming data was displaying "$0 (N/A)" in the UI. The previous approach of returning default values (0.0 for prices/percentages and "0" for volume) was causing the UI to display these default values as if they were actual data. By returning None for missing values and properly handling None values in the UI components, we now correctly display actual data when available and "N/A" only when data is truly missing.
 
 - **Enhanced Debugging for Historical Data**: Added extensive debugging code to the historical data retrieval and visualization:
   - Added detailed print statements throughout the get_historical_data method

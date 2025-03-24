@@ -269,15 +269,18 @@ def register_real_time_callbacks(app):
                     
                     # Extract time and price data
                     times = [item["timestamp"] for item in symbol_data]
-                    prices = [item["price"] for item in symbol_data]
+                    prices = [item["price"] for item in symbol_data if item["price"] is not None]
+                    valid_times = [times[i] for i in range(len(times)) if i < len(prices) and symbol_data[i]["price"] is not None]
                     
-                    # Add line trace
-                    fig.add_trace(go.Scatter(
-                        x=times,
-                        y=prices,
-                        mode="lines+markers",
-                        name=symbol
-                    ))
+                    # Only add trace if we have valid data
+                    if prices and valid_times:
+                        # Add line trace
+                        fig.add_trace(go.Scatter(
+                            x=valid_times,
+                            y=prices,
+                            mode="lines+markers",
+                            name=symbol
+                        ))
             
             # Update layout
             fig.update_layout(
@@ -351,24 +354,24 @@ def register_real_time_callbacks(app):
                     if data_type == "quotes":
                         row = html.Tr([
                             html.Td(symbol),
-                            html.Td(f"${latest.get('price', 'N/A')}"),
-                            html.Td(f"{latest.get('change', 'N/A')}"),
-                            html.Td(f"{latest.get('percent_change', 'N/A')}%"),
-                            html.Td(f"${latest.get('bid', 'N/A')}"),
-                            html.Td(f"${latest.get('ask', 'N/A')}"),
-                            html.Td(f"{latest.get('volume', 'N/A')}"),
+                            html.Td(f"${latest.get('price')}" if latest.get('price') is not None else "N/A"),
+                            html.Td(f"{latest.get('change')}" if latest.get('change') is not None else "N/A"),
+                            html.Td(f"{latest.get('percent_change')}%" if latest.get('percent_change') is not None else "N/A"),
+                            html.Td(f"${latest.get('bid')}" if latest.get('bid') is not None else "N/A"),
+                            html.Td(f"${latest.get('ask')}" if latest.get('ask') is not None else "N/A"),
+                            html.Td(f"{latest.get('volume')}" if latest.get('volume') is not None else "N/A"),
                             html.Td(latest.get('timestamp', 'N/A'))
                         ])
                     else:  # options
                         row = html.Tr([
                             html.Td(symbol),
-                            html.Td(f"${latest.get('price', 'N/A')}"),
-                            html.Td(f"{latest.get('change', 'N/A')}"),
-                            html.Td(f"{latest.get('percent_change', 'N/A')}%"),
-                            html.Td(f"${latest.get('bid', 'N/A')}"),
-                            html.Td(f"${latest.get('ask', 'N/A')}"),
-                            html.Td(f"{latest.get('volume', 'N/A')}"),
-                            html.Td(f"{latest.get('open_interest', 'N/A')}"),
+                            html.Td(f"${latest.get('price')}" if latest.get('price') is not None else "N/A"),
+                            html.Td(f"{latest.get('change')}" if latest.get('change') is not None else "N/A"),
+                            html.Td(f"{latest.get('percent_change')}%" if latest.get('percent_change') is not None else "N/A"),
+                            html.Td(f"${latest.get('bid')}" if latest.get('bid') is not None else "N/A"),
+                            html.Td(f"${latest.get('ask')}" if latest.get('ask') is not None else "N/A"),
+                            html.Td(f"{latest.get('volume')}" if latest.get('volume') is not None else "N/A"),
+                            html.Td(f"{latest.get('open_interest')}" if latest.get('open_interest') is not None else "N/A"),
                             html.Td(latest.get('timestamp', 'N/A'))
                         ])
                     
