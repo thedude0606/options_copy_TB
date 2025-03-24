@@ -145,15 +145,20 @@ class StreamDataHandler:
             dict: Processed data
         """
         try:
+            print(f"DEBUG - Received stream message: {message[:200]}...")
             data = json.loads(message)
             
             # Process data responses
             if "data" in data:
+                print(f"DEBUG - Processing data message with {len(data['data'])} items")
                 return self._process_data(data["data"])
+            else:
+                print(f"DEBUG - Message does not contain 'data' field. Keys: {list(data.keys())}")
             
             return None
         except Exception as e:
             self.logger.error(f"Error processing stream message: {str(e)}")
+            print(f"DEBUG - Error processing stream message: {str(e)}")
             return None
     
     def _process_data(self, data_list):
@@ -171,15 +176,20 @@ class StreamDataHandler:
         for data in data_list:
             service = data.get("service")
             if not service or service not in self.field_maps:
+                print(f"DEBUG - Skipping data with unknown service: {service}")
                 continue
                 
             content = data.get("content", [])
+            print(f"DEBUG - Processing {service} data with {len(content)} content items")
             field_map = self.field_maps[service]
             
             for item in content:
                 symbol = item.get("key")
                 if not symbol:
+                    print(f"DEBUG - Skipping item with no symbol key")
                     continue
+                
+                print(f"DEBUG - Processing data for symbol: {symbol}")
                     
                 # Initialize symbol data if not exists
                 if symbol not in self.data_store:
@@ -187,6 +197,7 @@ class StreamDataHandler:
                 
                 # Process fields
                 fields = item.get("fields", {})
+                print(f"DEBUG - Raw fields for {symbol}: {fields}")
                 processed_fields = {}
                 
                 for field_id, value in fields.items():
@@ -194,11 +205,14 @@ class StreamDataHandler:
                         field_name = field_map[field_id]
                         processed_fields[field_name] = value
                 
+                print(f"DEBUG - Processed fields for {symbol}: {processed_fields}")
+                
                 # Add timestamp
                 processed_fields["timestamp"] = datetime.now().strftime("%H:%M:%S.%f")[:-3]
                 
                 # Format data for display
                 display_data = self._format_for_display(symbol, processed_fields, service)
+                print(f"DEBUG - Formatted display data for {symbol}: {display_data}")
                 
                 # Add to data store (limit to last 100 data points)
                 self.data_store[symbol].append(display_data)
@@ -222,6 +236,9 @@ class StreamDataHandler:
         Returns:
             dict: Formatted data
         """
+        print(f"DEBUG - Formatting data for display: symbol={symbol}, service={service}")
+        print(f"DEBUG - Raw data keys: {list(data.keys())}")
+        
         formatted = {
             "symbol": symbol,
             "timestamp": data.get("timestamp")
@@ -229,10 +246,22 @@ class StreamDataHandler:
         
         # Format based on service type
         if service == "LEVELONE_EQUITIES":
+            last_price = data.get("last_price")
+            net_change = data.get("net_change")
+            percent_change = data.get("percent_change")
+            
+            print(f"DEBUG - EQUITY Raw values: last_price={last_price}, net_change={net_change}, percent_change={percent_change}")
+            
+            formatted_price = self._format_price(last_price)
+            formatted_change = self._format_price(net_change)
+            formatted_percent = self._format_percent(percent_change)
+            
+            print(f"DEBUG - EQUITY Formatted values: price={formatted_price}, change={formatted_change}, percent={formatted_percent}")
+            
             formatted.update({
-                "price": self._format_price(data.get("last_price")),
-                "change": self._format_price(data.get("net_change")),
-                "percent_change": self._format_percent(data.get("percent_change")),
+                "price": formatted_price,
+                "change": formatted_change,
+                "percent_change": formatted_percent,
                 "bid": self._format_price(data.get("bid_price")),
                 "ask": self._format_price(data.get("ask_price")),
                 "volume": self._format_volume(data.get("total_volume")),
@@ -242,10 +271,22 @@ class StreamDataHandler:
                 "close": self._format_price(data.get("close_price"))
             })
         elif service == "LEVELONE_OPTIONS":
+            last_price = data.get("last_price")
+            net_change = data.get("net_change")
+            percent_change = data.get("percent_change")
+            
+            print(f"DEBUG - OPTION Raw values: last_price={last_price}, net_change={net_change}, percent_change={percent_change}")
+            
+            formatted_price = self._format_price(last_price)
+            formatted_change = self._format_price(net_change)
+            formatted_percent = self._format_percent(percent_change)
+            
+            print(f"DEBUG - OPTION Formatted values: price={formatted_price}, change={formatted_change}, percent={formatted_percent}")
+            
             formatted.update({
-                "price": self._format_price(data.get("last_price")),
-                "change": self._format_price(data.get("net_change")),
-                "percent_change": self._format_percent(data.get("percent_change")),
+                "price": formatted_price,
+                "change": formatted_change,
+                "percent_change": formatted_percent,
                 "bid": self._format_price(data.get("bid_price")),
                 "ask": self._format_price(data.get("ask_price")),
                 "volume": self._format_volume(data.get("total_volume")),

@@ -66,22 +66,27 @@ class StreamingDataManager:
             message (str): JSON message from the stream
         """
         try:
+            print(f"DEBUG - StreamingDataManager received message: {message[:200]}...")
             data = json.loads(message)
             
             # Process notifications
             if "notify" in data:
+                print(f"DEBUG - Processing notification: {data['notify']}")
                 self._process_notification(data["notify"])
             
             # Process data responses
             if "data" in data:
+                print(f"DEBUG - Processing data with {len(data['data'])} items")
                 self._process_data(data["data"])
             
             # Process command responses
             if "response" in data:
+                print(f"DEBUG - Processing response: {data['response']}")
                 self._process_response(data["response"])
             
         except Exception as e:
             self.logger.error(f"Error processing stream message: {str(e)}")
+            print(f"DEBUG - Error in _stream_handler: {str(e)}")
     
     def _process_notification(self, notification):
         """
@@ -104,9 +109,22 @@ class StreamingDataManager:
         """
         for data in data_list:
             service = data.get("service")
+            print(f"DEBUG - StreamingDataManager processing data for service: {service}")
+            
             if service and service in self.callbacks:
                 content = data.get("content", [])
+                print(f"DEBUG - Found callback for {service}, processing {len(content)} content items")
+                
+                # Debug the content before passing to callback
+                if content:
+                    for item in content[:2]:  # Show first 2 items to avoid excessive logging
+                        symbol = item.get("key", "unknown")
+                        fields = item.get("fields", {})
+                        print(f"DEBUG - Content item for {symbol}: fields={list(fields.keys())[:10]}...")
+                
                 self.callbacks[service](content)
+            else:
+                print(f"DEBUG - No callback registered for service: {service}")
     
     def _process_response(self, response_list):
         """
@@ -130,11 +148,17 @@ class StreamingDataManager:
         """
         if not symbols:
             self.logger.warning("No symbols provided for subscription")
+            print("DEBUG - No symbols provided for subscription")
             return
+        
+        print(f"DEBUG - Subscribing to Level 1 quotes for symbols: {symbols}")
         
         # Register callback if provided
         if callback:
+            print(f"DEBUG - Registering callback for LEVELONE_EQUITIES service")
             self.callbacks["LEVELONE_EQUITIES"] = callback
+        else:
+            print(f"DEBUG - No callback provided for LEVELONE_EQUITIES service")
         
         # Add symbols to subscription list
         for symbol in symbols:
@@ -152,9 +176,12 @@ class StreamingDataManager:
                 "fields": fields
             }
         )
+        print(f"DEBUG - Sending subscription request: {request}")
         self.streamer.send(request)
         
         self.logger.info(f"Subscribed to Level 1 quotes for: {', '.join(symbols)}")
+        print(f"DEBUG - Subscription request sent for symbols: {symbols}")
+        print(f"DEBUG - Current callbacks: {list(self.callbacks.keys())}")
     
     def subscribe_option_quotes(self, symbols, callback=None):
         """

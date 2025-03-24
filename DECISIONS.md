@@ -83,6 +83,14 @@
   
   This decision was made to fix the issue where streaming data was displaying "$0 (N/A)" in the UI. The previous approach of returning default values (0.0 for prices/percentages and "0" for volume) was causing the UI to display these default values as if they were actual data. By returning None for missing values and properly handling None values in the UI components, we now correctly display actual data when available and "N/A" only when data is truly missing.
 
+- **Comprehensive Debugging for Streaming Data Pipeline**: Added extensive debugging throughout the streaming data pipeline to diagnose the "$0 (N/A)" issue:
+  - Added detailed print statements in stream_data_handler.py to trace data formatting and processing
+  - Added debugging in streaming_data.py to verify subscription requests and callback registration
+  - Added debugging in real_time_tab.py to trace data flow through UI components
+  - Implemented type checking and value inspection at key data transformation points
+  
+  This decision was made to provide comprehensive visibility into the entire streaming data pipeline, from the initial WebSocket connection and subscription to the final UI rendering. The debugging code will help identify exactly where and why the streaming data is showing "$0 (N/A)" instead of actual values, whether the issue is with data reception, processing, or display.
+
 - **Enhanced Debugging for Historical Data**: Added extensive debugging code to the historical data retrieval and visualization:
   - Added detailed print statements throughout the get_historical_data method
   - Added comprehensive logging in the update_historical_chart callback

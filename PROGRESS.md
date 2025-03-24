@@ -24,10 +24,14 @@
 - Implemented symbol selection controls for real-time data monitoring
 - Added connection management functionality (start/stop streaming)
 - Created real-time data visualization components (price chart, data table, time & sales)
-- Fixed streaming data display issue where values showed "$0 (N/A)" by modifying formatting methods to return None for missing values and updating UI components to properly handle None values
 - Fixed historical data retrieval by adding required periodType and period parameters to the price_history API call based on the selected time period
+- Added comprehensive debugging throughout the streaming data pipeline to diagnose the "$0 (N/A)" issue:
+  - Added detailed logging in stream_data_handler.py to trace data formatting and processing
+  - Added debugging in streaming_data.py to verify subscription requests and callback registration
+  - Added debugging in real_time_tab.py to trace data flow through UI components
 
 ## Current Work in Progress
+- Diagnosing streaming data display issue where values show "$0 (N/A)" instead of actual values
 - Enhancing error handling for streaming data
 - Optimizing real-time data performance
 - Exploring additional streaming data visualization options
@@ -39,8 +43,10 @@
 - API method names in the Schwabdev library differ from what was initially expected
 - Streaming data requires proper field mapping to correctly display all available data
 - WebSocket connection may need reconnection logic for long-running sessions
+- Streaming data showing "$0 (N/A)" values instead of actual price data
 
 ## Next Steps
+- Analyze debugging output to identify the root cause of the "$0 (N/A)" streaming data issue
 - Test the application with real API credentials in a production environment
 - Enhance error handling for streaming connection issues
 - Add more detailed documentation about streaming data field mappings

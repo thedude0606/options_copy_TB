@@ -246,6 +246,7 @@ def register_real_time_callbacks(app):
     def update_price_chart(n_intervals, stream_data, symbols):
         # Create empty figure if no data
         if not stream_data or not symbols:
+            print(f"DEBUG - update_price_chart: No data or symbols available. stream_data={bool(stream_data)}, symbols={symbols}")
             fig = go.Figure()
             fig.update_layout(
                 title="Real-Time Price Chart",
@@ -258,6 +259,8 @@ def register_real_time_callbacks(app):
         # Parse stream data
         try:
             data_dict = stream_data
+            print(f"DEBUG - update_price_chart: Processing data for symbols: {symbols}")
+            print(f"DEBUG - update_price_chart: Available symbols in data: {list(data_dict.keys())}")
             
             # Create figure
             fig = go.Figure()
@@ -266,14 +269,25 @@ def register_real_time_callbacks(app):
             for symbol in symbols:
                 if symbol in data_dict:
                     symbol_data = data_dict[symbol]
+                    print(f"DEBUG - update_price_chart: Found {len(symbol_data)} data points for {symbol}")
                     
                     # Extract time and price data
                     times = [item["timestamp"] for item in symbol_data]
                     prices = [item["price"] for item in symbol_data if item["price"] is not None]
+                    
+                    # Debug raw data
+                    if symbol_data:
+                        print(f"DEBUG - update_price_chart: First few data points for {symbol}:")
+                        for i, item in enumerate(symbol_data[:3]):  # Show first 3 items
+                            print(f"DEBUG - Item {i}: timestamp={item['timestamp']}, price={item['price']}, type={type(item['price'])}")
+                    
                     valid_times = [times[i] for i in range(len(times)) if i < len(prices) and symbol_data[i]["price"] is not None]
+                    
+                    print(f"DEBUG - update_price_chart: {symbol} has {len(valid_times)} valid times and {len(prices)} valid prices")
                     
                     # Only add trace if we have valid data
                     if prices and valid_times:
+                        print(f"DEBUG - update_price_chart: Adding trace for {symbol} with {len(prices)} price points")
                         # Add line trace
                         fig.add_trace(go.Scatter(
                             x=valid_times,
@@ -281,6 +295,10 @@ def register_real_time_callbacks(app):
                             mode="lines+markers",
                             name=symbol
                         ))
+                    else:
+                        print(f"DEBUG - update_price_chart: No valid data for {symbol}, skipping trace")
+                else:
+                    print(f"DEBUG - update_price_chart: Symbol {symbol} not found in data_dict")
             
             # Update layout
             fig.update_layout(
@@ -294,6 +312,7 @@ def register_real_time_callbacks(app):
         
         except Exception as e:
             # Return empty figure on error
+            print(f"DEBUG - update_price_chart: Error processing data: {str(e)}")
             fig = go.Figure()
             fig.update_layout(
                 title=f"Error: {str(e)}",
@@ -313,10 +332,13 @@ def register_real_time_callbacks(app):
     )
     def update_data_table(n_intervals, stream_data, symbols, data_type):
         if not stream_data or not symbols:
+            print(f"DEBUG - update_data_table: No data or symbols available. stream_data={bool(stream_data)}, symbols={symbols}")
             return html.Div("No data available")
         
         try:
             data_dict = stream_data
+            print(f"DEBUG - update_data_table: Processing data for symbols: {symbols}")
+            print(f"DEBUG - update_data_table: Available symbols in data: {list(data_dict.keys())}")
             
             # Create table header based on data type
             if data_type == "quotes":
@@ -349,6 +371,15 @@ def register_real_time_callbacks(app):
                 if symbol in data_dict and data_dict[symbol]:
                     # Get latest data point
                     latest = data_dict[symbol][-1]
+                    print(f"DEBUG - update_data_table: Latest data for {symbol}: {latest}")
+                    
+                    # Debug raw data values
+                    print(f"DEBUG - update_data_table: {symbol} price={latest.get('price')} type={type(latest.get('price'))}")
+                    print(f"DEBUG - update_data_table: {symbol} change={latest.get('change')} type={type(latest.get('change'))}")
+                    print(f"DEBUG - update_data_table: {symbol} percent_change={latest.get('percent_change')} type={type(latest.get('percent_change'))}")
+                    print(f"DEBUG - update_data_table: {symbol} bid={latest.get('bid')} type={type(latest.get('bid'))}")
+                    print(f"DEBUG - update_data_table: {symbol} ask={latest.get('ask')} type={type(latest.get('ask'))}")
+                    print(f"DEBUG - update_data_table: {symbol} volume={latest.get('volume')} type={type(latest.get('volume'))}")
                     
                     # Create row based on data type
                     if data_type == "quotes":
@@ -376,6 +407,8 @@ def register_real_time_callbacks(app):
                         ])
                     
                     rows.append(row)
+                else:
+                    print(f"DEBUG - update_data_table: No data available for symbol {symbol}")
             
             # Create table
             table = html.Table(
@@ -383,9 +416,11 @@ def register_real_time_callbacks(app):
                 style={"width": "100%", "border-collapse": "collapse"}
             )
             
+            print(f"DEBUG - update_data_table: Created table with {len(rows)} rows")
             return table
         
         except Exception as e:
+            print(f"DEBUG - update_data_table: Error processing data: {str(e)}")
             return html.Div(f"Error: {str(e)}")
     
     # Callback to update time & sales
