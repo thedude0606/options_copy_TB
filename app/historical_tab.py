@@ -139,7 +139,7 @@ def register_historical_callbacks(app):
         app: The Dash app instance
     """
     @app.callback(
-        Output("historical-chart", "figure"),
+        Output("historical-chart", "figure", allow_duplicate=True),
         [Input("submit-button", "n_clicks")],
         [State("symbol-input", "value"),
          State("time-period", "value")]
