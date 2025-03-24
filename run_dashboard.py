@@ -199,7 +199,8 @@ class OptionsDataRetriever:
                 startDate=start_ms,
                 endDate=end_ms,
                 frequencyType=period_mapping[period]["frequencyType"],
-                frequency=period_mapping[period]["frequency"]
+                frequency=period_mapping[period]["frequency"],
+                periodType="day"
             )
             
             if hasattr(price_history_response, 'json'):

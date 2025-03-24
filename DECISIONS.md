@@ -61,3 +61,8 @@
   - Changed `includeQuotes` to `includeUnderlyingQuote`
   
   This decision was based on examining the Schwabdev library's client.py file, which revealed that the correct parameter name is 'includeUnderlyingQuote' rather than 'includeQuotes'. This ensures compatibility with the Schwabdev library's API and resolves the error: "Client.option_chains() got an unexpected keyword argument 'includeQuotes'".
+
+- **Historical Data Parameter Addition**: Added the required 'periodType' parameter to the price_history() method call:
+  - Added `periodType="day"` to the price_history() method parameters
+  
+  This decision was based on examining the Schwabdev library's client.py file, which revealed that the price_history() method requires a 'periodType' parameter that was missing in our implementation. Adding this parameter ensures compatibility with the Schwabdev library's API and enables the historical data tab to properly display price history data.
