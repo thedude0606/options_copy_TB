@@ -318,16 +318,51 @@ class RecommendationEngine:
         # Moving Averages signals
         if 'moving_averages' in indicators:
             ma_data = indicators['moving_averages']
-            if not ma_data.empty and 'ma_20' in ma_data.columns and 'ma_50' in ma_data.columns:
-                ma_20 = ma_data['ma_20'].iloc[-1]
-                ma_50 = ma_data['ma_50'].iloc[-1]
-                
-                if ma_20 > ma_50:
-                    signals['bullish'] += 1
-                    signals['signal_details']['moving_averages'] = f"Bullish (MA20: {ma_20:.2f} > MA50: {ma_50:.2f})"
-                else:
-                    signals['bearish'] += 1
-                    signals['signal_details']['moving_averages'] = f"Bearish (MA20: {ma_20:.2f} < MA50: {ma_50:.2f})"
+            
+            # Check if ma_data is a DataFrame or a dictionary
+            if isinstance(ma_data, pd.DataFrame):
+                # If it's a DataFrame, check if it's empty and has the required columns
+                if not ma_data.empty and 'ma_20' in ma_data.columns and 'ma_50' in ma_data.columns:
+                    ma_20 = ma_data['ma_20'].iloc[-1]
+                    ma_50 = ma_data['ma_50'].iloc[-1]
+                    
+                    if ma_20 > ma_50:
+                        signals['bullish'] += 1
+                        signals['signal_details']['moving_averages'] = f"Bullish (MA20: {ma_20:.2f} > MA50: {ma_50:.2f})"
+                    else:
+                        signals['bearish'] += 1
+                        signals['signal_details']['moving_averages'] = f"Bearish (MA20: {ma_20:.2f} < MA50: {ma_50:.2f})"
+            elif isinstance(ma_data, dict):
+                # If it's a dictionary, check if it has the required keys
+                if 'ma_20' in ma_data and 'ma_50' in ma_data:
+                    # Get the last values from the Series or use the values directly if they're scalars
+                    if isinstance(ma_data['ma_20'], pd.Series) and not ma_data['ma_20'].empty:
+                        ma_20 = ma_data['ma_20'].iloc[-1]
+                    else:
+                        ma_20 = ma_data['ma_20']
+                        
+                    if isinstance(ma_data['ma_50'], pd.Series) and not ma_data['ma_50'].empty:
+                        ma_50 = ma_data['ma_50'].iloc[-1]
+                    else:
+                        ma_50 = ma_data['ma_50']
+                    
+                    # Convert to float for safe comparison
+                    try:
+                        ma_20_value = float(ma_20)
+                        ma_50_value = float(ma_50)
+                        
+                        if ma_20_value > ma_50_value:
+                            signals['bullish'] += 1
+                            signals['signal_details']['moving_averages'] = f"Bullish (MA20: {ma_20_value:.2f} > MA50: {ma_50_value:.2f})"
+                        else:
+                            signals['bearish'] += 1
+                            signals['signal_details']['moving_averages'] = f"Bearish (MA20: {ma_20_value:.2f} < MA50: {ma_50_value:.2f})"
+                    except (ValueError, TypeError) as e:
+                        print(f"Error converting Moving Average values to float: {e}")
+                        signals['neutral'] += 1
+                        signals['signal_details']['moving_averages'] = "Neutral (Error in Moving Average calculation)"
+            else:
+                print(f"Unexpected type for moving_averages: {type(ma_data)}")
         
         # Volatility signals
         if 'volatility' in indicators and not indicators['volatility'].empty:
