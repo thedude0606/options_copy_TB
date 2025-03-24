@@ -43,13 +43,38 @@ class DataCollector:
             if DEBUG_MODE:
                 print(f"Requesting option chain for symbol: {symbol}")
             
-            # Get option chain data
-            option_chain = self.client.option_chains(symbol)
+            # Get option chain data with required parameters
+            option_chain_response = self.client.option_chains(
+                symbol=symbol,
+                contractType="ALL",
+                strikeCount=10,  # Get options around the current price
+                includeUnderlyingQuote=True,
+                strategy="SINGLE"
+            )
             
             if DEBUG_MODE:
-                if option_chain:
-                    print(f"Option chain received for {symbol}, keys: {list(option_chain.keys() if isinstance(option_chain, dict) else [])}")
-                else:
+                print(f"Option chain response type: {type(option_chain_response)}")
+                if hasattr(option_chain_response, 'status_code'):
+                    print(f"Status code: {option_chain_response.status_code}")
+            
+            # Process the response
+            option_chain = None
+            if hasattr(option_chain_response, 'json'):
+                try:
+                    option_chain = option_chain_response.json()
+                    if DEBUG_MODE:
+                        print(f"Option chain received for {symbol}, keys: {list(option_chain.keys() if isinstance(option_chain, dict) else [])}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error parsing option chain JSON: {str(e)}")
+                        if hasattr(option_chain_response, 'text'):
+                            print(f"Response text: {option_chain_response.text[:500]}...")
+            elif isinstance(option_chain_response, dict):
+                option_chain = option_chain_response
+                if DEBUG_MODE:
+                    print(f"Option chain received for {symbol}, keys: {list(option_chain.keys())}")
+            else:
+                if DEBUG_MODE:
                     print(f"No option chain data received for {symbol}")
             
             return option_chain
