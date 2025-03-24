@@ -26,97 +26,20 @@ SCHWAB_CALLBACK_URL = os.getenv('SCHWAB_CALLBACK_URL')
 # Token management
 TOKENS_FILE = 'tokens.json'
 
-class SchwabAuth:
-    """
-    Class to handle Schwab API authentication
-    """
-    def __init__(self):
-        self.app_key = SCHWAB_APP_KEY
-        self.app_secret = SCHWAB_APP_SECRET
-        self.callback_url = SCHWAB_CALLBACK_URL
-        self.tokens = None
-        self.client = None
-        
-        # Load tokens if they exist
-        if os.path.exists(TOKENS_FILE):
-            try:
-                with open(TOKENS_FILE, 'r') as f:
-                    self.tokens = json.load(f)
-                    self.initialize_client()
-            except Exception as e:
-                print(f"Error loading tokens: {str(e)}")
-    
-    def initialize_client(self):
-        """Initialize the Schwab client with existing tokens"""
-        if self.tokens:
-            try:
-                # Use the correct Client class from schwabdev.client
-                self.client = Client(
-                    app_key=self.app_key,
-                    app_secret=self.app_secret,
-                    callback_url=self.callback_url,
-                    tokens_file=TOKENS_FILE
-                )
-                return True
-            except Exception as e:
-                print(f"Error initializing client: {str(e)}")
-                return False
-        return False
-    
-    def get_auth_status(self):
-        """Check if we have valid authentication tokens and client"""
-        return self.tokens is not None and self.client is not None
-    
-    def authenticate(self, callback_url=None):
-        """
-        Authenticate with Schwab API
-        
-        Args:
-            callback_url (str): Callback URL from OAuth flow
-            
-        Returns:
-            bool: Whether authentication was successful
-        """
-        try:
-            # Initialize client for authentication
-            self.client = Client(
-                app_key=self.app_key,
-                app_secret=self.app_secret,
-                callback_url=self.callback_url,
-                tokens_file=TOKENS_FILE
-            )
-            
-            if callback_url:
-                # Complete authentication with callback URL
-                self.client.get_access_token(callback_url)
-                
-                # Save tokens
-                self.tokens = {
-                    "access_token": self.client.access_token,
-                    "refresh_token": self.client.refresh_token,
-                    "expires_in": 3600  # Default expiration
-                }
-                
-                with open(TOKENS_FILE, 'w') as f:
-                    json.dump(self.tokens, f)
-                
-                return True
-            else:
-                # Start authentication flow
-                auth_url = self.client.get_auth_url()
-                print(f"Please visit this URL to authenticate: {auth_url}")
-                webbrowser.open(auth_url)
-                return False
-        except Exception as e:
-            print(f"Authentication error: {str(e)}")
-            return False
+# Initialize the Schwab client - authentication is handled automatically by the library
+client = Client(
+    app_key=SCHWAB_APP_KEY,
+    app_secret=SCHWAB_APP_SECRET,
+    callback_url=SCHWAB_CALLBACK_URL,
+    tokens_file=TOKENS_FILE
+)
 
 class OptionsDataRetriever:
     """
     Class to retrieve options data from Schwab API
     """
-    def __init__(self, auth):
-        self.auth = auth
+    def __init__(self, client):
+        self.client = client
     
     def get_option_chain(self, symbol):
         """
@@ -128,17 +51,13 @@ class OptionsDataRetriever:
         Returns:
             dict: Option chain data
         """
-        if not self.auth.get_auth_status():
-            print("Not authenticated. Please authenticate first.")
-            return None
-        
         try:
             # Get the current price of the underlying
-            quote = self.auth.client.get_quote(symbol)
+            quote = self.client.get_quote(symbol)
             current_price = quote.get('lastPrice', 0)
             
             # Get option chain data
-            option_chain_data = self.auth.client.get_option_chain(
+            option_chain_data = self.client.get_option_chain(
                 symbol=symbol,
                 contract_type="ALL",
                 strike_count=10,  # Get options around the current price
@@ -221,10 +140,6 @@ class OptionsDataRetriever:
         Returns:
             pd.DataFrame: Historical price data
         """
-        if not self.auth.get_auth_status():
-            print("Not authenticated. Please authenticate first.")
-            return pd.DataFrame()
-        
         try:
             # Map period to frequency type and frequency
             period_mapping = {
@@ -253,7 +168,7 @@ class OptionsDataRetriever:
             end_ms = int(end_date.timestamp() * 1000)
             
             # Get price history
-            price_history = self.auth.client.get_price_history(
+            price_history = self.client.get_price_history(
                 symbol=symbol,
                 start_date=start_ms,
                 end_date=end_ms,
@@ -284,9 +199,8 @@ class OptionsDataRetriever:
             print(f"Error retrieving historical data: {str(e)}")
             return pd.DataFrame()
 
-# Initialize authentication and data retriever
-auth = SchwabAuth()
-options_data = OptionsDataRetriever(auth)
+# Initialize data retriever
+options_data = OptionsDataRetriever(client)
 
 # Initialize the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
@@ -296,12 +210,11 @@ server = app.server
 app.layout = html.Div([
     html.H1("Schwab Options Dashboard"),
     
-    # Authentication status and controls
+    # Authentication status
     html.Div([
         html.Div(id="auth-status"),
-        html.Button("Authenticate", id="auth-button", n_clicks=0),
-        dcc.Input(id="callback-url", type="text", placeholder="Paste callback URL here", style={"width": "50%", "display": "none"}),
-        html.Button("Submit Callback URL", id="callback-submit", n_clicks=0, style={"display": "none"}),
+        html.Div("Note: Authentication is handled automatically by the Schwab API library. If prompted in the console, please follow the instructions to authenticate.", 
+                 style={"color": "blue", "margin": "10px 0"}),
     ], style={"margin": "10px"}),
     
     # Symbol input and submit button
@@ -381,57 +294,17 @@ app.layout = html.Div([
 
 # Callback to check authentication status
 @app.callback(
-    [Output("auth-status", "children"),
-     Output("auth-button", "style"),
-     Output("callback-url", "style"),
-     Output("callback-submit", "style")],
-    [Input("auth-button", "n_clicks"),
-     Input("callback-submit", "n_clicks")],
-    [State("callback-url", "value")]
+    Output("auth-status", "children"),
+    [Input("submit-button", "n_clicks")]
 )
-def check_auth_status(auth_clicks, callback_clicks, callback_url):
-    ctx = dash.callback_context
-    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
-    
-    if auth.get_auth_status():
-        return (
-            "Authentication Status: Authenticated", 
-            {"display": "none"}, 
-            {"display": "none", "width": "50%"}, 
-            {"display": "none"}
-        )
-    elif triggered_id == "auth-button" and auth_clicks > 0:
-        # Start authentication flow
-        auth.authenticate()
-        return (
-            "Authentication Status: Please complete authentication in browser and paste callback URL", 
-            {"display": "none"}, 
-            {"display": "block", "width": "50%"}, 
-            {"display": "block"}
-        )
-    elif triggered_id == "callback-submit" and callback_clicks > 0 and callback_url:
-        # Complete authentication with callback URL
-        if auth.authenticate(callback_url):
-            return (
-                "Authentication Status: Authenticated", 
-                {"display": "none"}, 
-                {"display": "none", "width": "50%"}, 
-                {"display": "none"}
-            )
-        else:
-            return (
-                "Authentication Status: Authentication Failed", 
-                {"display": "block"}, 
-                {"display": "block", "width": "50%"}, 
-                {"display": "block"}
-            )
+def check_auth_status(n_clicks):
+    # The authentication is handled automatically by the library
+    # This just displays the current status
+    if hasattr(client, 'access_token') and client.access_token:
+        return html.Div("Authentication Status: Authenticated", style={"color": "green"})
     else:
-        return (
-            "Authentication Status: Not Authenticated", 
-            {"display": "block"}, 
-            {"display": "none", "width": "50%"}, 
-            {"display": "none"}
-        )
+        return html.Div("Authentication Status: Not Authenticated - Please check console for authentication instructions", 
+                        style={"color": "red"})
 
 # Callback to fetch data when symbol is submitted
 @app.callback(
@@ -449,9 +322,6 @@ def fetch_data(n_clicks, symbol, time_period):
         return None, None, [], []
     
     if not symbol:
-        return None, None, [], []
-    
-    if not auth.get_auth_status():
         return None, None, [], []
     
     # Get option chain
