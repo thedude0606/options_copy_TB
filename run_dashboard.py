@@ -13,7 +13,6 @@ import json
 from datetime import datetime, timedelta
 import time
 import webbrowser
-from schwabdev.client import Client  # Correct import for the Schwab client
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +25,17 @@ SCHWAB_CALLBACK_URL = os.getenv('SCHWAB_CALLBACK_URL')
 # Token management
 TOKENS_FILE = 'tokens.json'
 
+# Force authentication at startup
+print("\n" + "="*80)
+print("SCHWAB API AUTHENTICATION")
+print("="*80)
+print("You need to authenticate with Schwab API to use this dashboard.")
+print("Please follow the prompts below to complete authentication.")
+print("="*80 + "\n")
+
+# Import the Client class after displaying the authentication message
+from schwabdev.client import Client
+
 # Initialize the Schwab client - authentication is handled automatically by the library
 client = Client(
     app_key=SCHWAB_APP_KEY,
@@ -33,6 +43,13 @@ client = Client(
     callback_url=SCHWAB_CALLBACK_URL,
     tokens_file=TOKENS_FILE
 )
+
+# Force token refresh to trigger authentication
+if not os.path.exists(TOKENS_FILE) or os.path.getsize(TOKENS_FILE) == 0:
+    print("No existing tokens found. Starting authentication process...")
+    # Access tokens property to trigger authentication
+    if hasattr(client, 'tokens'):
+        client.tokens.update_refresh_token()
 
 class OptionsDataRetriever:
     """
@@ -213,8 +230,14 @@ app.layout = html.Div([
     # Authentication status
     html.Div([
         html.Div(id="auth-status"),
-        html.Div("Note: Authentication is handled automatically by the Schwab API library. If prompted in the console, please follow the instructions to authenticate.", 
-                 style={"color": "blue", "margin": "10px 0"}),
+        html.Div([
+            html.H3("Authentication Instructions:", style={"color": "blue"}),
+            html.P("1. Check the terminal/console where you started this dashboard"),
+            html.P("2. Follow the authentication prompts in the terminal"),
+            html.P("3. After authenticating in your browser, copy the callback URL"),
+            html.P("4. Paste the callback URL back into the terminal (not here)"),
+            html.P("5. Once authenticated, you can use the dashboard below")
+        ], style={"border": "1px solid blue", "padding": "10px", "margin": "10px 0", "background-color": "#f0f8ff"}),
     ], style={"margin": "10px"}),
     
     # Symbol input and submit button
@@ -300,7 +323,7 @@ app.layout = html.Div([
 def check_auth_status(n_clicks):
     # The authentication is handled automatically by the library
     # This just displays the current status
-    if hasattr(client, 'access_token') and client.access_token:
+    if hasattr(client, 'tokens') and hasattr(client.tokens, 'access_token') and client.tokens.access_token:
         return html.Div("Authentication Status: Authenticated", style={"color": "green"})
     else:
         return html.Div("Authentication Status: Not Authenticated - Please check console for authentication instructions", 
@@ -553,4 +576,11 @@ def update_historical_chart(historical_data, time_period):
 
 # Run the app
 if __name__ == "__main__":
+    # Force authentication check before starting the server
+    print("\nChecking authentication status...")
+    if hasattr(client, 'tokens') and hasattr(client.tokens, 'access_token') and client.tokens.access_token:
+        print("Authentication successful! Starting dashboard server...\n")
+    else:
+        print("Authentication required. Please follow the prompts above.\n")
+    
     app.run_server(debug=True, host="0.0.0.0", port=8050)
