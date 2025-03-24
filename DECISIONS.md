@@ -78,6 +78,11 @@
 - **Rationale**: Ensures application remains functional even when components fail
 - **Benefits**: Improved reliability, better user experience, easier troubleshooting
 
+### Datetime Handling Strategy
+- **Decision**: Implemented a robust type-checking approach for handling timedelta objects
+- **Rationale**: Prevents errors when accessing .dt attributes on non-datetime columns
+- **Benefits**: Improved reliability, consistent behavior across different data types, prevention of runtime errors
+
 ### Visualization Techniques
 - **Decision**: Used specialized visualization techniques for different data types
 - **Rationale**: Different data requires different visualization approaches for clarity

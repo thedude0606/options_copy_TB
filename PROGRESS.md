@@ -30,13 +30,17 @@
   - Technical Indicators tab with interactive charts
   - Greeks Analysis tab with 3D visualizations
   - Main application layout integrating all components
+- **Bug Fixes**: Fixed critical issues in the codebase:
+  - Resolved datetime handling error ("Can only use .dt accessor with datetimelike values")
+  - Implemented consistent handling of 'daysToExpiration' column across multiple components
+  - Added robust type checking for timedelta objects to prevent accessor errors
 
 ## Current Work in Progress
 
 - Integrating the existing real-time data streaming functionality with the new components
 - Finalizing the UI components and ensuring they work together seamlessly
-- Implementing error handling and edge cases
 - Testing the platform with real data
+- Enhancing error handling for edge cases
 
 ## Known Issues/Challenges
 
@@ -44,6 +48,7 @@
 - Optimization needed for handling large options chains efficiently
 - Need to validate the accuracy of the probability calculations and Greeks estimations
 - Ensuring the UI is responsive and user-friendly across different screen sizes
+- Handling edge cases in datetime processing for options with unusual expiration formats
 
 ## Next Steps
 

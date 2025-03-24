@@ -268,7 +268,19 @@ class OptionsAnalysis:
         if 'expirationDate' in result.columns:
             # Assuming expirationDate is in format 'YYYY-MM-DD'
             result['daysToExpiration'] = pd.to_datetime(result['expirationDate']) - pd.Timestamp.now()
-            result['timeToExpiration'] = result['daysToExpiration'].dt.days / 365
+            
+            # Create a numeric days column to avoid .dt accessor issues
+            def get_days(x):
+                if isinstance(x, pd.Timedelta):
+                    return x.days
+                elif pd.isna(x):
+                    return 0
+                else:
+                    return float(x)
+            
+            # Apply the function to create a numeric days column
+            result['days_numeric'] = result['daysToExpiration'].apply(get_days)
+            result['timeToExpiration'] = result['days_numeric'] / 365
         
         # Get underlying price
         if 'underlyingPrice' in result.columns:
@@ -288,22 +300,31 @@ class OptionsAnalysis:
             try:
                 # Extract parameters
                 K = row['strikePrice']
-                T = max(row['timeToExpiration'], 0.00001)  # Avoid division by zero
+                
+                # Use days_numeric instead of .dt.days
+                if 'days_numeric' in row and not pd.isna(row['days_numeric']):
+                    T = row['days_numeric'] / 365  # Convert days to years
+                else:
+                    T = 0.01  # Default to a small positive value
+                
+                if T <= 0:
+                    T = 0.01  # Avoid division by zero
+                
+                sigma = row['volatility'] / 100 if 'volatility' in row else 0.3  # Convert percentage to decimal
                 r = risk_free_rate
-                sigma = row['volatility'] / 100 if row['volatility'] > 1 else row['volatility']  # Convert to decimal if needed
-                option_type = row['optionType'].lower()
+                option_type = row['optionType'].lower() if 'optionType' in row else 'call'
                 
                 # Calculate Greeks
-                result.loc[idx, 'delta'] = OptionsAnalysis.calculate_delta(S[idx], K, T, r, sigma, option_type)
-                result.loc[idx, 'gamma'] = OptionsAnalysis.calculate_gamma(S[idx], K, T, r, sigma)
-                result.loc[idx, 'theta'] = OptionsAnalysis.calculate_theta(S[idx], K, T, r, sigma, option_type)
-                result.loc[idx, 'vega'] = OptionsAnalysis.calculate_vega(S[idx], K, T, r, sigma)
-                result.loc[idx, 'rho'] = OptionsAnalysis.calculate_rho(S[idx], K, T, r, sigma, option_type)
+                result.at[idx, 'delta'] = OptionsAnalysis.calculate_delta(S.iloc[idx], K, T, r, sigma, option_type)
+                result.at[idx, 'gamma'] = OptionsAnalysis.calculate_gamma(S.iloc[idx], K, T, r, sigma)
+                result.at[idx, 'theta'] = OptionsAnalysis.calculate_theta(S.iloc[idx], K, T, r, sigma, option_type)
+                result.at[idx, 'vega'] = OptionsAnalysis.calculate_vega(S.iloc[idx], K, T, r, sigma)
+                result.at[idx, 'rho'] = OptionsAnalysis.calculate_rho(S.iloc[idx], K, T, r, sigma, option_type)
                 
-                # Calculate implied volatility if not provided
-                if pd.isna(row['volatility']) and 'last' in row and row['last'] > 0:
-                    result.loc[idx, 'impliedVolatility'] = OptionsAnalysis.calculate_implied_volatility(
-                        row['last'], S[idx], K, T, r, option_type
+                # Calculate implied volatility if market price is available
+                if 'last' in row and row['last'] > 0:
+                    result.at[idx, 'impliedVolatility'] = OptionsAnalysis.calculate_implied_volatility(
+                        row['last'], S.iloc[idx], K, T, r, option_type
                     )
             except Exception as e:
                 print(f"Error calculating Greeks for row {idx}: {str(e)}")
@@ -329,7 +350,7 @@ class OptionsAnalysis:
         result = options_data.copy()
         
         # Check if required columns exist
-        required_cols = ['strikePrice', 'expirationDate', 'optionType', 'volatility']
+        required_cols = ['strikePrice', 'expirationDate', 'optionType', 'last', 'underlyingPrice']
         missing_cols = [col for col in required_cols if col not in result.columns]
         
         if missing_cols:
@@ -340,65 +361,75 @@ class OptionsAnalysis:
         if 'expirationDate' in result.columns:
             # Assuming expirationDate is in format 'YYYY-MM-DD'
             result['daysToExpiration'] = pd.to_datetime(result['expirationDate']) - pd.Timestamp.now()
-            result['timeToExpiration'] = result['daysToExpiration'].dt.days / 365
-        
-        # Get underlying price
-        if 'underlyingPrice' in result.columns:
-            S = result['underlyingPrice']
-        elif 'underlying' in result.columns:
-            S = result['underlying']
-        else:
-            # If no underlying price column, try to use a single value if available
-            if 'underlyingPrice' in options_data.iloc[0]:
-                S = pd.Series([options_data.iloc[0]['underlyingPrice']] * len(result))
-            else:
-                print("No underlying price available")
-                return result
+            
+            # Create a numeric days column to avoid .dt accessor issues
+            def get_days(x):
+                if isinstance(x, pd.Timedelta):
+                    return x.days
+                elif pd.isna(x):
+                    return 0
+                else:
+                    return float(x)
+            
+            # Apply the function to create a numeric days column
+            result['days_numeric'] = result['daysToExpiration'].apply(get_days)
+            result['timeToExpiration'] = result['days_numeric'] / 365
         
         # Calculate probability of profit
         for idx, row in result.iterrows():
             try:
                 # Extract parameters
+                S = row['underlyingPrice']
                 K = row['strikePrice']
-                T = max(row['timeToExpiration'], 0.00001)  # Avoid division by zero
-                r = risk_free_rate
-                sigma = row['volatility'] / 100 if row['volatility'] > 1 else row['volatility']  # Convert to decimal if needed
-                option_type = row['optionType'].lower()
                 
-                # For long options
+                # Use days_numeric instead of .dt.days
+                if 'days_numeric' in row and not pd.isna(row['days_numeric']):
+                    T = row['days_numeric'] / 365  # Convert days to years
+                else:
+                    T = 0.01  # Default to a small positive value
+                
+                if T <= 0:
+                    T = 0.01  # Avoid division by zero
+                
+                # Use implied volatility if available, otherwise use historical volatility
+                if 'impliedVolatility' in row and not pd.isna(row['impliedVolatility']):
+                    sigma = row['impliedVolatility']
+                elif 'volatility' in row and not pd.isna(row['volatility']):
+                    sigma = row['volatility'] / 100  # Convert percentage to decimal
+                else:
+                    sigma = 0.3  # Default volatility
+                
+                option_type = row['optionType'].lower() if 'optionType' in row else 'call'
+                option_price = row['last'] if 'last' in row else 0
+                
+                # Calculate probability of profit
                 if option_type == 'call':
-                    # Probability that stock price will be above strike at expiration
-                    d2 = (np.log(S[idx] / K) + (r - 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-                    prob_profit = norm.cdf(d2)
+                    # For long call, stock price needs to be above strike + premium
+                    breakeven = K + option_price
+                    # Calculate probability that stock will be above breakeven at expiration
+                    d = (np.log(S / breakeven) + (risk_free_rate + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+                    pop = norm.cdf(d)
                 else:  # put
-                    # Probability that stock price will be below strike at expiration
-                    d2 = (np.log(S[idx] / K) + (r - 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-                    prob_profit = norm.cdf(-d2)
+                    # For long put, stock price needs to be below strike - premium
+                    breakeven = K - option_price
+                    # Calculate probability that stock will be below breakeven at expiration
+                    d = (np.log(S / breakeven) + (risk_free_rate + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+                    pop = 1 - norm.cdf(d)
                 
-                result.loc[idx, 'probabilityOfProfit'] = prob_profit
-                
-                # Calculate expected profit
-                option_price = row['last'] if 'last' in row else row['mark'] if 'mark' in row else 0
-                if option_price > 0:
-                    if option_type == 'call':
-                        expected_profit = prob_profit * (S[idx] * np.exp(r * T) - K) - option_price
-                    else:  # put
-                        expected_profit = prob_profit * (K - S[idx] * np.exp(r * T)) - option_price
-                    
-                    result.loc[idx, 'expectedProfit'] = expected_profit
+                result.at[idx, 'probabilityOfProfit'] = pop
+                result.at[idx, 'breakeven'] = breakeven
             except Exception as e:
                 print(f"Error calculating probability of profit for row {idx}: {str(e)}")
         
         return result
     
     @staticmethod
-    def calculate_risk_reward_ratio(options_data, target_price=None):
+    def calculate_risk_reward_ratio(options_data):
         """
         Calculate risk-reward ratio for options
         
         Args:
             options_data (pd.DataFrame): Options data with required fields
-            target_price (float): Target price for the underlying asset
             
         Returns:
             pd.DataFrame: Options data with risk-reward ratio
@@ -409,64 +440,55 @@ class OptionsAnalysis:
         # Make a copy to avoid modifying the original
         result = options_data.copy()
         
-        # Check if required columns exist
-        required_cols = ['strikePrice', 'optionType', 'last']
-        missing_cols = [col for col in required_cols if col not in result.columns]
-        
-        if missing_cols:
-            print(f"Missing required columns: {missing_cols}")
-            return result
-        
-        # Get underlying price
-        if 'underlyingPrice' in result.columns:
-            S = result['underlyingPrice']
-        elif 'underlying' in result.columns:
-            S = result['underlying']
-        else:
-            # If no underlying price column, try to use a single value if available
-            if 'underlyingPrice' in options_data.iloc[0]:
-                S = pd.Series([options_data.iloc[0]['underlyingPrice']] * len(result))
-            else:
-                print("No underlying price available")
-                return result
-        
-        # Use target price if provided, otherwise use 20% move
-        if target_price is None:
-            target_prices = S * 1.2  # 20% upside for calls
-        else:
-            target_prices = pd.Series([target_price] * len(result))
-        
         # Calculate risk-reward ratio
         for idx, row in result.iterrows():
             try:
-                # Extract parameters
-                K = row['strikePrice']
-                option_type = row['optionType'].lower()
-                option_price = row['last'] if 'last' in row else row['mark'] if 'mark' in row else 0
+                option_type = row['optionType'].lower() if 'optionType' in row else 'call'
+                option_price = row['last'] if 'last' in row else 0
                 
                 if option_price <= 0:
+                    result.at[idx, 'riskRewardRatio'] = 0
                     continue
                 
-                # Calculate potential reward and risk
+                # Calculate maximum potential profit and loss
                 if option_type == 'call':
-                    # Potential reward: target price - strike (if positive)
-                    potential_reward = max(0, target_prices[idx] - K)
-                    # Risk: option price paid
-                    risk = option_price
+                    # For long call, max loss is premium paid
+                    max_loss = option_price
+                    # Max profit is theoretically unlimited, but we'll use a reasonable estimate
+                    # based on implied volatility and time to expiration
+                    if 'impliedVolatility' in row and not pd.isna(row['impliedVolatility']) and 'timeToExpiration' in row:
+                        # Estimate potential upside move based on volatility
+                        sigma = row['impliedVolatility']
+                        T = row['timeToExpiration']
+                        S = row['underlyingPrice']
+                        K = row['strikePrice']
+                        
+                        # Estimate potential price move (1 standard deviation)
+                        potential_move = S * sigma * np.sqrt(T)
+                        potential_price = S + potential_move
+                        
+                        # Calculate potential profit
+                        potential_profit = max(0, potential_price - K) - option_price
+                        max_profit = potential_profit
+                    else:
+                        # Simple estimate: 2x the premium
+                        max_profit = option_price * 2
                 else:  # put
-                    # Potential reward: strike - target price (if positive)
-                    potential_reward = max(0, K - target_prices[idx])
-                    # Risk: option price paid
-                    risk = option_price
+                    # For long put, max loss is premium paid
+                    max_loss = option_price
+                    # Max profit is strike price - premium (if stock goes to zero)
+                    K = row['strikePrice']
+                    max_profit = max(0, K - option_price)
                 
                 # Calculate risk-reward ratio
-                if risk > 0 and potential_reward > 0:
-                    risk_reward_ratio = potential_reward / risk
-                    result.loc[idx, 'riskRewardRatio'] = risk_reward_ratio
-                    
-                    # Calculate percentage returns
-                    percent_return = (potential_reward - risk) / risk * 100
-                    result.loc[idx, 'potentialReturnPercent'] = percent_return
+                if max_loss > 0:
+                    risk_reward = max_profit / max_loss
+                else:
+                    risk_reward = 0
+                
+                result.at[idx, 'riskRewardRatio'] = risk_reward
+                result.at[idx, 'maxProfit'] = max_profit
+                result.at[idx, 'maxLoss'] = max_loss
             except Exception as e:
                 print(f"Error calculating risk-reward ratio for row {idx}: {str(e)}")
         

@@ -238,16 +238,26 @@ def update_greeks_chart(update_clicks, analyze_clicks,
         
         # Filter by expiration range
         if expiration_range != "all":
-            days_to_expiration = options_data['daysToExpiration'].dt.days
+            # Handle daysToExpiration which could be a Timedelta or a numeric value
+            def get_days(x):
+                if isinstance(x, pd.Timedelta):
+                    return x.days
+                elif pd.isna(x):
+                    return 0
+                else:
+                    return float(x)
+            
+            # Apply the function to create a numeric days column
+            options_data['days_numeric'] = options_data['daysToExpiration'].apply(get_days)
             
             if expiration_range == "weekly":
-                options_data = options_data[days_to_expiration < 7]
+                options_data = options_data[options_data['days_numeric'] < 7]
             elif expiration_range == "short":
-                options_data = options_data[(days_to_expiration >= 7) & (days_to_expiration <= 30)]
+                options_data = options_data[(options_data['days_numeric'] >= 7) & (options_data['days_numeric'] <= 30)]
             elif expiration_range == "medium":
-                options_data = options_data[(days_to_expiration > 30) & (days_to_expiration <= 90)]
+                options_data = options_data[(options_data['days_numeric'] > 30) & (options_data['days_numeric'] <= 90)]
             elif expiration_range == "long":
-                options_data = options_data[days_to_expiration > 90]
+                options_data = options_data[options_data['days_numeric'] > 90]
         
         # Filter by strike range
         if strike_range != "all" and 'underlyingPrice' in options_data.columns:
@@ -325,7 +335,21 @@ def create_greek_plot(fig, options_data, greek, plot_type, row=1, col=1):
     """
     # Get unique strikes and expirations
     strikes = sorted(options_data['strikePrice'].unique())
-    expirations = sorted(options_data['daysToExpiration'].dt.days.unique())
+    
+    # Handle daysToExpiration which could be a Timedelta or a numeric value
+    def get_days(x):
+        if isinstance(x, pd.Timedelta):
+            return x.days
+        elif pd.isna(x):
+            return 0
+        else:
+            return float(x)
+    
+    # Apply the function to create a numeric days column if it doesn't exist
+    if 'days_numeric' not in options_data.columns:
+        options_data['days_numeric'] = options_data['daysToExpiration'].apply(get_days)
+    
+    expirations = sorted(options_data['days_numeric'].unique())
     
     # Create meshgrid for surface plot
     strike_grid, expiry_grid = np.meshgrid(strikes, expirations)
@@ -339,7 +363,7 @@ def create_greek_plot(fig, options_data, greek, plot_type, row=1, col=1):
         for j, strike in enumerate(strikes):
             matching_options = options_data[
                 (options_data['strikePrice'] == strike) & 
-                (options_data['daysToExpiration'].dt.days == expiry)
+                (options_data['days_numeric'] == expiry)
             ]
             
             if not matching_options.empty and greek in matching_options.columns:

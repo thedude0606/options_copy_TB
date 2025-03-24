@@ -292,16 +292,29 @@ def generate_recommendations(generate_clicks, search_clicks,
                 recommendations = recommendations[recommendations['optionType'] == option_type]
             
             # Filter by time horizon
-            if time_horizon == "short":
-                # Short-term: < 14 days
-                recommendations = recommendations[recommendations['daysToExpiration'].dt.days < 14]
-            elif time_horizon == "medium":
-                # Medium-term: 14-42 days
-                recommendations = recommendations[(recommendations['daysToExpiration'].dt.days >= 14) & 
-                                                (recommendations['daysToExpiration'].dt.days <= 42)]
-            else:  # long
-                # Long-term: > 42 days
-                recommendations = recommendations[recommendations['daysToExpiration'].dt.days > 42]
+            # Handle daysToExpiration which could be a Timedelta or a numeric value
+            def get_days(x):
+                if isinstance(x, pd.Timedelta):
+                    return x.days
+                elif pd.isna(x):
+                    return 0
+                else:
+                    return float(x)
+                
+            # Apply the function to create a numeric days column
+            if 'daysToExpiration' in recommendations.columns:
+                recommendations['days_numeric'] = recommendations['daysToExpiration'].apply(get_days)
+                
+                if time_horizon == "short":
+                    # Short-term: < 14 days
+                    recommendations = recommendations[recommendations['days_numeric'] < 14]
+                elif time_horizon == "medium":
+                    # Medium-term: 14-42 days
+                    recommendations = recommendations[(recommendations['days_numeric'] >= 14) & 
+                                                    (recommendations['days_numeric'] <= 42)]
+                else:  # long
+                    # Long-term: > 42 days
+                    recommendations = recommendations[recommendations['days_numeric'] > 42]
             
             # Filter by risk-reward threshold
             if 'riskRewardRatio' in recommendations.columns:
