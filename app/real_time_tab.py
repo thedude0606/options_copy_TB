@@ -414,10 +414,10 @@ def register_real_time_callbacks(app):
                         
                         # Determine color based on price change
                         color = "inherit"
-                        if "change" in data_point:
-                            if data_point["change"] > 0:
+                        if "change" in data_point and data_point["change"] is not None:
+                            if float(data_point["change"]) > 0:
                                 color = "green"
-                            elif data_point["change"] < 0:
+                            elif float(data_point["change"]) < 0:
                                 color = "red"
                         
                         # Create list item
