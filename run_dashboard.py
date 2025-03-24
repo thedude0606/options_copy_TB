@@ -17,6 +17,10 @@ import random
 import math
 import dash_bootstrap_components as dbc
 
+# Import custom modules
+from app.streaming_data import StreamingDataManager
+from app.stream_data_handler import StreamDataHandler
+
 # Load environment variables
 load_dotenv()
 
