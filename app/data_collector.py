@@ -59,15 +59,15 @@ class DataCollector:
             # Get historical price data with retry logic
             history = None
             
-            # Try with primary parameters
+            # Try with primary parameters - using camelCase parameter names
             try:
                 history = self.client.price_history(
                     symbol=symbol,
-                    period_type=period_type,
+                    periodType=period_type,
                     period=period,
-                    frequency_type=frequency_type,
+                    frequencyType=frequency_type,
                     frequency=frequency,
-                    need_extended_hours_data=need_extended_hours_data
+                    needExtendedHoursData=need_extended_hours_data
                 )
             except Exception as e:
                 print(f"Primary parameters failed: {str(e)}")
@@ -75,28 +75,39 @@ class DataCollector:
             # If primary parameters failed, try alternative configurations
             if not history:
                 try:
-                    # Try with daily frequency
+                    # Try with daily frequency - using camelCase parameter names
                     history = self.client.price_history(
                         symbol=symbol,
-                        period_type='month',
+                        periodType='month',
                         period=1,
-                        frequency_type='daily',
+                        frequencyType='daily',
                         frequency=1,
-                        need_extended_hours_data=need_extended_hours_data
+                        needExtendedHoursData=need_extended_hours_data
                     )
                 except Exception as e:
                     print(f"Alternative parameters failed: {str(e)}")
             
             # Process historical data
-            if history and 'candles' in history:
-                # Convert to DataFrame
-                df = pd.DataFrame(history['candles'])
+            if history and hasattr(history, 'json'):
+                history_data = history.json()
+                candles = history_data.get('candles', [])
                 
-                # Convert datetime
-                if 'datetime' in df.columns:
-                    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-                
-                return df
+                if candles:
+                    # Convert to DataFrame
+                    df = pd.DataFrame(candles)
+                    
+                    # Convert datetime
+                    if 'datetime' in df.columns:
+                        df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+                    
+                    # Set datetime as index
+                    if 'datetime' in df.columns:
+                        df.set_index('datetime', inplace=True)
+                    
+                    return df
+                else:
+                    print(f"No candles data in response for {symbol}")
+                    return pd.DataFrame()
             else:
                 print(f"No valid historical data returned for {symbol}")
                 return pd.DataFrame()
@@ -202,6 +213,15 @@ class DataCollector:
             # Convert to DataFrame
             if options_data:
                 df = pd.DataFrame(options_data)
+                
+                # Convert expiration date to datetime
+                if 'expirationDate' in df.columns:
+                    df['expirationDate'] = pd.to_datetime(df['expirationDate'])
+                    
+                # Calculate days to expiration
+                if 'expirationDate' in df.columns:
+                    df['daysToExpiration'] = df['expirationDate'] - pd.Timestamp.now()
+                
                 return df
             else:
                 return pd.DataFrame()
