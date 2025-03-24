@@ -193,6 +193,9 @@ class OptionsDataRetriever:
             start_ms = int(start_date.timestamp() * 1000)
             end_ms = int(end_date.timestamp() * 1000)
             
+            print(f"Fetching historical data for {symbol} from {start_date} to {end_date}")
+            print(f"Period: {period}, FrequencyType: {period_mapping[period]['frequencyType']}, Frequency: {period_mapping[period]['frequency']}")
+            
             # Get price history
             price_history_response = self.client.price_history(
                 symbol=symbol,
@@ -203,15 +206,24 @@ class OptionsDataRetriever:
                 periodType="day"
             )
             
+            print(f"API Response type: {type(price_history_response)}")
+            
             if hasattr(price_history_response, 'json'):
                 price_history = price_history_response.json()
+                print(f"Price history JSON keys: {price_history.keys() if price_history else 'None'}")
             else:
                 price_history = {}
+                print(f"Price history response has no json method. Response: {price_history_response}")
             
             # Process the price history data
             candles = price_history.get('candles', [])
             
+            print(f"Number of candles received: {len(candles)}")
+            if candles and len(candles) > 0:
+                print(f"First candle: {candles[0]}")
+            
             if not candles:
+                print("No candles data received from API")
                 return pd.DataFrame()
             
             # Convert to DataFrame
@@ -226,9 +238,17 @@ class OptionsDataRetriever:
                     "volume": candle.get('volume', 0)
                 })
             
-            return pd.DataFrame(data)
+            df = pd.DataFrame(data)
+            print(f"Created DataFrame with {len(df)} rows")
+            print(f"DataFrame columns: {df.columns}")
+            if not df.empty:
+                print(f"DataFrame head: {df.head()}")
+            
+            return df
         except Exception as e:
             print(f"Error retrieving historical data: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
 
 # Initialize data retriever
@@ -562,11 +582,24 @@ def update_greeks(options_data, expiration):
      Input("time-period", "value")]
 )
 def update_historical_chart(historical_data, time_period):
+    print(f"update_historical_chart called with time_period: {time_period}")
+    print(f"historical_data type: {type(historical_data)}")
+    print(f"historical_data length: {len(historical_data) if historical_data else 0}")
+    
     if not historical_data:
+        print("No historical data available")
         return go.Figure()
     
     # Convert to DataFrame
     df = pd.DataFrame(historical_data)
+    print(f"DataFrame created with shape: {df.shape}")
+    print(f"DataFrame columns: {df.columns.tolist()}")
+    
+    if df.empty:
+        print("DataFrame is empty")
+        return go.Figure()
+        
+    print(f"DataFrame head: \n{df.head()}")
     
     # Create candlestick chart
     fig = go.Figure()
@@ -580,6 +613,15 @@ def update_historical_chart(historical_data, time_period):
         name="Price"
     ))
     
+    # Add a line chart for daily close prices
+    fig.add_trace(go.Scatter(
+        x=df["date"],
+        y=df["close"],
+        mode='lines',
+        name='Daily Close',
+        line=dict(color='blue', width=1)
+    ))
+    
     fig.update_layout(
         title=f"Historical Price Data - {time_period}",
         xaxis_title="Date",
@@ -587,6 +629,7 @@ def update_historical_chart(historical_data, time_period):
         xaxis_rangeslider_visible=False
     )
     
+    print("Historical chart figure created successfully")
     return fig
 
 # Run the app
