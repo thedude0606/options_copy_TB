@@ -5,8 +5,13 @@ Handles retrieving market data from Schwab API for technical indicators and opti
 import os
 import pandas as pd
 import numpy as np
+import traceback
+import json
 from datetime import datetime, timedelta
 from app.auth import get_client
+
+# Enable debug mode
+DEBUG_MODE = True
 
 class DataCollector:
     """
@@ -20,6 +25,9 @@ class DataCollector:
             interactive_auth (bool): Whether to allow interactive authentication
         """
         self.client = get_client(interactive=interactive_auth)
+        if DEBUG_MODE:
+            print(f"DataCollector initialized with interactive_auth={interactive_auth}")
+            print(f"Client type: {type(self.client)}")
     
     def get_option_chain(self, symbol):
         """
@@ -32,11 +40,24 @@ class DataCollector:
             dict: Option chain data
         """
         try:
+            if DEBUG_MODE:
+                print(f"Requesting option chain for symbol: {symbol}")
+            
             # Get option chain data
             option_chain = self.client.option_chains(symbol)
+            
+            if DEBUG_MODE:
+                if option_chain:
+                    print(f"Option chain received for {symbol}, keys: {list(option_chain.keys() if isinstance(option_chain, dict) else [])}")
+                else:
+                    print(f"No option chain data received for {symbol}")
+            
             return option_chain
         except Exception as e:
             print(f"Error retrieving option chain for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return None
     
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', 
@@ -56,11 +77,19 @@ class DataCollector:
             pd.DataFrame: Historical price data
         """
         try:
+            if DEBUG_MODE:
+                print(f"\n=== HISTORICAL DATA REQUEST ===")
+                print(f"Symbol: {symbol}")
+                print(f"Parameters: periodType={period_type}, period={period}, frequencyType={frequency_type}, frequency={frequency}")
+            
             # Get historical price data with retry logic
             history = None
             
             # Try with primary parameters - using camelCase parameter names
             try:
+                if DEBUG_MODE:
+                    print(f"Attempting primary request with camelCase parameters...")
+                
                 history = self.client.price_history(
                     symbol=symbol,
                     periodType=period_type,
@@ -69,12 +98,23 @@ class DataCollector:
                     frequency=frequency,
                     needExtendedHoursData=need_extended_hours_data
                 )
+                
+                if DEBUG_MODE:
+                    print(f"Primary request response type: {type(history)}")
+                    if hasattr(history, 'status_code'):
+                        print(f"Status code: {history.status_code}")
             except Exception as e:
                 print(f"Primary parameters failed: {str(e)}")
+                if DEBUG_MODE:
+                    print(f"Exception type: {type(e)}")
+                    print(f"Traceback: {traceback.format_exc()}")
             
             # If primary parameters failed, try alternative configurations
             if not history:
                 try:
+                    if DEBUG_MODE:
+                        print(f"Attempting alternative request with daily frequency...")
+                    
                     # Try with daily frequency - using camelCase parameter names
                     history = self.client.price_history(
                         symbol=symbol,
@@ -84,17 +124,77 @@ class DataCollector:
                         frequency=1,
                         needExtendedHoursData=need_extended_hours_data
                     )
+                    
+                    if DEBUG_MODE:
+                        print(f"Alternative request response type: {type(history)}")
+                        if hasattr(history, 'status_code'):
+                            print(f"Status code: {history.status_code}")
                 except Exception as e:
                     print(f"Alternative parameters failed: {str(e)}")
+                    if DEBUG_MODE:
+                        print(f"Exception type: {type(e)}")
+                        print(f"Traceback: {traceback.format_exc()}")
+            
+            # Try a third approach with minimal parameters
+            if not history:
+                try:
+                    if DEBUG_MODE:
+                        print(f"Attempting minimal parameter request...")
+                    
+                    # Try with minimal parameters
+                    history = self.client.price_history(symbol=symbol)
+                    
+                    if DEBUG_MODE:
+                        print(f"Minimal request response type: {type(history)}")
+                        if hasattr(history, 'status_code'):
+                            print(f"Status code: {history.status_code}")
+                except Exception as e:
+                    print(f"Minimal parameters failed: {str(e)}")
+                    if DEBUG_MODE:
+                        print(f"Exception type: {type(e)}")
+                        print(f"Traceback: {traceback.format_exc()}")
             
             # Process historical data
-            if history and hasattr(history, 'json'):
-                history_data = history.json()
-                candles = history_data.get('candles', [])
+            if history:
+                if DEBUG_MODE:
+                    print(f"Processing history response...")
+                    print(f"Response has json method: {hasattr(history, 'json')}")
+                    print(f"Response has text attribute: {hasattr(history, 'text')}")
+                
+                history_data = None
+                
+                # Try to get JSON data
+                if hasattr(history, 'json'):
+                    try:
+                        history_data = history.json()
+                        if DEBUG_MODE:
+                            print(f"JSON data keys: {list(history_data.keys() if isinstance(history_data, dict) else [])}")
+                    except Exception as e:
+                        if DEBUG_MODE:
+                            print(f"Error parsing JSON: {str(e)}")
+                            if hasattr(history, 'text'):
+                                print(f"Response text: {history.text[:500]}...")
+                
+                # If we couldn't get JSON data but have a dict, use it directly
+                if not history_data and isinstance(history, dict):
+                    history_data = history
+                    if DEBUG_MODE:
+                        print(f"Using dict response directly, keys: {list(history_data.keys())}")
+                
+                # Extract candles
+                candles = []
+                if history_data:
+                    candles = history_data.get('candles', [])
+                    if DEBUG_MODE:
+                        print(f"Found {len(candles)} candles")
                 
                 if candles:
                     # Convert to DataFrame
                     df = pd.DataFrame(candles)
+                    
+                    if DEBUG_MODE:
+                        print(f"DataFrame columns: {list(df.columns)}")
+                        print(f"DataFrame shape: {df.shape}")
                     
                     # Convert datetime
                     if 'datetime' in df.columns:
@@ -107,6 +207,8 @@ class DataCollector:
                     return df
                 else:
                     print(f"No candles data in response for {symbol}")
+                    if DEBUG_MODE and history_data:
+                        print(f"Response data: {json.dumps(history_data, indent=2)[:500]}...")
                     return pd.DataFrame()
             else:
                 print(f"No valid historical data returned for {symbol}")
@@ -114,6 +216,9 @@ class DataCollector:
                 
         except Exception as e:
             print(f"Error retrieving historical data for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
     def get_quote(self, symbol):
@@ -127,11 +232,30 @@ class DataCollector:
             dict: Quote data
         """
         try:
+            if DEBUG_MODE:
+                print(f"Requesting quote for symbol: {symbol}")
+            
             # Get quote data
             quote = self.client.quote(symbol)
+            
+            if DEBUG_MODE:
+                if quote:
+                    print(f"Quote received for {symbol}")
+                    if hasattr(quote, 'json'):
+                        try:
+                            quote_data = quote.json()
+                            print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
+                        except:
+                            print("Could not parse quote JSON")
+                else:
+                    print(f"No quote data received for {symbol}")
+            
             return quote
         except Exception as e:
             print(f"Error retrieving quote for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return None
     
     def get_market_hours(self, market='EQUITY'):
@@ -145,11 +269,24 @@ class DataCollector:
             dict: Market hours data
         """
         try:
+            if DEBUG_MODE:
+                print(f"Requesting market hours for: {market}")
+            
             # Get market hours
             hours = self.client.get_market_hours(market=market)
+            
+            if DEBUG_MODE:
+                if hours:
+                    print(f"Market hours received for {market}")
+                else:
+                    print(f"No market hours data received for {market}")
+            
             return hours
         except Exception as e:
             print(f"Error retrieving market hours: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return None
     
     def get_option_data(self, symbol, option_type='ALL', strike=None, expiration=None):
@@ -166,9 +303,15 @@ class DataCollector:
             pd.DataFrame: Options data with Greeks
         """
         try:
+            if DEBUG_MODE:
+                print(f"\n=== OPTIONS DATA REQUEST ===")
+                print(f"Symbol: {symbol}")
+                print(f"Parameters: option_type={option_type}, strike={strike}, expiration={expiration}")
+            
             # Get option chain
             option_chain = self.get_option_chain(symbol)
             if not option_chain:
+                print(f"No options data available for {symbol}")
                 return pd.DataFrame()
             
             # Extract options data
@@ -176,6 +319,9 @@ class DataCollector:
             
             # Process call options
             if option_type in ['CALL', 'ALL'] and 'callExpDateMap' in option_chain:
+                if DEBUG_MODE:
+                    print(f"Processing call options, expiration dates: {len(option_chain['callExpDateMap'])}")
+                
                 for exp_date, strikes in option_chain['callExpDateMap'].items():
                     # Skip if not matching expiration filter
                     if expiration and expiration not in exp_date:
@@ -194,6 +340,9 @@ class DataCollector:
             
             # Process put options
             if option_type in ['PUT', 'ALL'] and 'putExpDateMap' in option_chain:
+                if DEBUG_MODE:
+                    print(f"Processing put options, expiration dates: {len(option_chain['putExpDateMap'])}")
+                
                 for exp_date, strikes in option_chain['putExpDateMap'].items():
                     # Skip if not matching expiration filter
                     if expiration and expiration not in exp_date:
@@ -212,6 +361,9 @@ class DataCollector:
             
             # Convert to DataFrame
             if options_data:
+                if DEBUG_MODE:
+                    print(f"Found {len(options_data)} options")
+                
                 df = pd.DataFrame(options_data)
                 
                 # Convert expiration date to datetime
@@ -222,12 +374,20 @@ class DataCollector:
                 if 'expirationDate' in df.columns:
                     df['daysToExpiration'] = df['expirationDate'] - pd.Timestamp.now()
                 
+                if DEBUG_MODE:
+                    print(f"DataFrame columns: {list(df.columns)}")
+                    print(f"DataFrame shape: {df.shape}")
+                
                 return df
             else:
+                print(f"No options data found for {symbol}")
                 return pd.DataFrame()
                 
         except Exception as e:
             print(f"Error retrieving options data for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
     def get_put_call_ratio(self, symbol):
@@ -241,6 +401,9 @@ class DataCollector:
             float: Put/Call ratio
         """
         try:
+            if DEBUG_MODE:
+                print(f"Calculating put/call ratio for: {symbol}")
+            
             # Get option chain
             option_chain = self.get_option_chain(symbol)
             if not option_chain:
@@ -266,14 +429,25 @@ class DataCollector:
                             if 'totalVolume' in option:
                                 put_volume += option['totalVolume']
             
+            if DEBUG_MODE:
+                print(f"Call volume: {call_volume}, Put volume: {put_volume}")
+            
             # Calculate ratio
             if call_volume > 0:
-                return put_volume / call_volume
+                ratio = put_volume / call_volume
+                if DEBUG_MODE:
+                    print(f"Put/Call ratio: {ratio}")
+                return ratio
             else:
+                if DEBUG_MODE:
+                    print("Call volume is zero, cannot calculate ratio")
                 return None
                 
         except Exception as e:
             print(f"Error calculating put/call ratio for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return None
     
     def get_open_interest(self, symbol, option_type='ALL'):
@@ -288,6 +462,9 @@ class DataCollector:
             pd.DataFrame: Open interest data
         """
         try:
+            if DEBUG_MODE:
+                print(f"Getting open interest data for: {symbol}, type: {option_type}")
+            
             # Get option data
             options_df = self.get_option_data(symbol, option_type=option_type)
             if options_df.empty:
@@ -296,12 +473,21 @@ class DataCollector:
             # Extract open interest data
             if 'openInterest' in options_df.columns:
                 oi_data = options_df[['strikePrice', 'expirationDate', 'optionType', 'openInterest']]
+                
+                if DEBUG_MODE:
+                    print(f"Open interest data shape: {oi_data.shape}")
+                
                 return oi_data
             else:
+                if DEBUG_MODE:
+                    print("No openInterest column found in options data")
                 return pd.DataFrame()
                 
         except Exception as e:
             print(f"Error retrieving open interest data for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
     def get_streaming_data(self, symbols, fields=None):
@@ -316,6 +502,9 @@ class DataCollector:
             object: Streaming data handler
         """
         try:
+            if DEBUG_MODE:
+                print(f"Setting up streaming data for symbols: {symbols}")
+            
             # Default fields if none provided
             if not fields:
                 fields = [
@@ -327,9 +516,15 @@ class DataCollector:
             # Initialize streamer
             streamer = self.client.stream
             
+            if DEBUG_MODE:
+                print(f"Streamer initialized: {type(streamer)}")
+            
             # Return streamer for further configuration
             return streamer
                 
         except Exception as e:
             print(f"Error setting up streaming data: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
             return None
