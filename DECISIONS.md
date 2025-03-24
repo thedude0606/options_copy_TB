@@ -56,3 +56,8 @@
   - Changed `client.get_quote` to `client.quote`
   
   This decision was based on examining the Schwabdev documentation and examples which showed that the library uses shorter method names without the "get_" prefix. This ensures compatibility with the latest version of the Schwabdev library and follows its established naming conventions.
+
+- **Parameter Name Correction**: Updated the parameter name in the option_chains() method call:
+  - Changed `includeQuotes` to `includeUnderlyingQuote`
+  
+  This decision was based on examining the Schwabdev library's client.py file, which revealed that the correct parameter name is 'includeUnderlyingQuote' rather than 'includeQuotes'. This ensures compatibility with the Schwabdev library's API and resolves the error: "Client.option_chains() got an unexpected keyword argument 'includeQuotes'".

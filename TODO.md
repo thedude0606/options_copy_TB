@@ -7,6 +7,7 @@
 - [x] Update client.get_option_chain to client.option_chains in options_data.py
 - [x] Update client.get_price_history to client.price_history in options_data.py
 - [x] Update client.get_quote to client.quote in options_data.py
+- [x] Fix parameter name in option_chains() method (change 'includeQuotes' to 'includeUnderlyingQuote')
 
 ## Documentation Updates
 - [x] Update PROGRESS.md with completed tasks and current status

@@ -82,7 +82,7 @@ class OptionsDataRetriever:
                 symbol=symbol,
                 contractType="ALL",
                 strikeCount=10,  # Get options around the current price
-                includeQuotes=True,
+                includeUnderlyingQuote=True,
                 strategy="SINGLE"
             )
             

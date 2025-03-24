@@ -11,6 +11,7 @@
 - Fixed import issues in app.py
 - Updated requirements.txt for better compatibility across Python versions
 - Fixed API method names to match Schwabdev library (client.get_option_chain → client.option_chains, client.get_price_history → client.price_history, client.get_quote → client.quote)
+- Fixed parameter name in option_chains() method call (changed 'includeQuotes' to 'includeUnderlyingQuote')
 
 ## Current Work in Progress
 - Testing the updated API method implementations
