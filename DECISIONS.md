@@ -66,3 +66,16 @@
   - Added `periodType="day"` to the price_history() method parameters
   
   This decision was based on examining the Schwabdev library's client.py file, which revealed that the price_history() method requires a 'periodType' parameter that was missing in our implementation. Adding this parameter ensures compatibility with the Schwabdev library's API and enables the historical data tab to properly display price history data.
+
+- **Enhanced Debugging for Historical Data**: Added extensive debugging code to the historical data retrieval and visualization:
+  - Added detailed print statements throughout the get_historical_data method
+  - Added comprehensive logging in the update_historical_chart callback
+  - Implemented traceback printing for better error diagnosis
+  
+  This decision was made to help diagnose issues with the historical data tab not displaying data properly. The debugging code provides visibility into the API request parameters, response structure, data processing, and visualization rendering, making it easier to identify and fix any issues.
+
+- **Improved Historical Data Visualization**: Enhanced the historical data visualization with a daily close price line chart:
+  - Added a blue line chart showing daily close prices alongside the candlestick chart
+  - Maintained the candlestick chart for detailed open/high/low/close visualization
+  
+  This decision was made to provide a clearer view of daily price trends as requested by the user, while still maintaining the detailed information available in the candlestick chart. The line chart makes it easier to follow the overall price movement over time, while the candlestick chart provides detailed information about price volatility within each day.

@@ -13,6 +13,8 @@
 - Fixed API method names to match Schwabdev library (client.get_option_chain → client.option_chains, client.get_price_history → client.price_history, client.get_quote → client.quote)
 - Fixed parameter name in option_chains() method call (changed 'includeQuotes' to 'includeUnderlyingQuote')
 - Fixed historical data retrieval by adding required 'periodType' parameter to price_history() method call
+- Added extensive debugging code to historical data retrieval and visualization
+- Enhanced historical data visualization with daily close price line chart alongside candlestick chart
 
 ## Current Work in Progress
 - Testing the updated API method implementations
