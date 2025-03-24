@@ -20,6 +20,7 @@ import dash_bootstrap_components as dbc
 # Import custom modules
 from app.streaming_data import StreamingDataManager
 from app.stream_data_handler import StreamDataHandler
+from app.real_time_tab import register_real_time_callbacks
 
 # Load environment variables
 load_dotenv()
