@@ -196,14 +196,22 @@ class StreamDataHandler:
                     self.data_store[symbol] = []
                 
                 # Process fields
-                fields = item.get("fields", {})
-                print(f"DEBUG - Raw fields for {symbol}: {fields}")
+                # The fields are directly in the item, not in a nested "fields" property
+                print(f"DEBUG - Raw fields for {symbol}: {item}")
                 processed_fields = {}
                 
-                for field_id, value in fields.items():
-                    if field_id in field_map:
-                        field_name = field_map[field_id]
+                # Process each key-value pair in the item
+                for field_id, value in item.items():
+                    # Skip the "key" field as it's the symbol
+                    if field_id == "key" or field_id == "delayed" or field_id == "assetMainType" or field_id == "assetSubType" or field_id == "cusip":
+                        continue
+                        
+                    # Convert field_id to string if it's not already
+                    field_id_str = str(field_id)
+                    if field_id_str in field_map:
+                        field_name = field_map[field_id_str]
                         processed_fields[field_name] = value
+                        print(f"DEBUG - Processed field: {field_id_str} -> {field_name} = {value}")
                 
                 print(f"DEBUG - Processed fields for {symbol}: {processed_fields}")
                 
