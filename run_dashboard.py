@@ -70,17 +70,26 @@ class OptionsDataRetriever:
         """
         try:
             # Get the current price of the underlying
-            quote = self.client.get_quote(symbol)
-            current_price = quote.get('lastPrice', 0)
+            quote_response = self.client.quote(symbol)
+            if hasattr(quote_response, 'json'):
+                quote_data = quote_response.json()
+                current_price = quote_data.get('lastPrice', 0)
+            else:
+                current_price = 0
             
             # Get option chain data
-            option_chain_data = self.client.get_option_chain(
+            option_chain_response = self.client.option_chains(
                 symbol=symbol,
-                contract_type="ALL",
-                strike_count=10,  # Get options around the current price
-                include_quotes=True,
+                contractType="ALL",
+                strikeCount=10,  # Get options around the current price
+                includeQuotes=True,
                 strategy="SINGLE"
             )
+            
+            if hasattr(option_chain_response, 'json'):
+                option_chain_data = option_chain_response.json()
+            else:
+                option_chain_data = {}
             
             # Process the option chain data
             expiration_dates = []
@@ -185,13 +194,18 @@ class OptionsDataRetriever:
             end_ms = int(end_date.timestamp() * 1000)
             
             # Get price history
-            price_history = self.client.get_price_history(
+            price_history_response = self.client.price_history(
                 symbol=symbol,
-                start_date=start_ms,
-                end_date=end_ms,
-                frequency_type=period_mapping[period]["frequencyType"],
+                startDate=start_ms,
+                endDate=end_ms,
+                frequencyType=period_mapping[period]["frequencyType"],
                 frequency=period_mapping[period]["frequency"]
             )
+            
+            if hasattr(price_history_response, 'json'):
+                price_history = price_history_response.json()
+            else:
+                price_history = {}
             
             # Process the price history data
             candles = price_history.get('candles', [])
