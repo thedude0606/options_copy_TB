@@ -195,20 +195,41 @@ class RecommendationEngine:
         # Bollinger Bands signals
         if all(k in indicators for k in ['bollinger_middle', 'bollinger_upper', 'bollinger_lower']):
             if not indicators['bollinger_middle'].empty:
-                close = indicators['bollinger_middle'].index[-1]  # Assuming close price is the index
+                # Get the last close price from the historical data
+                # Instead of using the index, get the actual close price value
+                if isinstance(indicators['bollinger_middle'], pd.Series):
+                    close_price = indicators['bollinger_middle'].iloc[-1]
+                else:
+                    # If it's a DataFrame, get the close price from the appropriate column
+                    close_price = indicators['bollinger_middle'].iloc[-1]
+                
                 upper = indicators['bollinger_upper'].iloc[-1]
                 lower = indicators['bollinger_lower'].iloc[-1]
                 middle = indicators['bollinger_middle'].iloc[-1]
                 
-                if close < lower:
-                    signals['bullish'] += 1
-                    signals['signal_details']['bollinger'] = f"Bullish (Price: {close:.2f} < Lower: {lower:.2f})"
-                elif close > upper:
-                    signals['bearish'] += 1
-                    signals['signal_details']['bollinger'] = f"Bearish (Price: {close:.2f} > Upper: {upper:.2f})"
-                else:
+                # Make sure all values are numeric before comparison
+                try:
+                    close_price_value = float(close_price)
+                    upper_value = float(upper)
+                    lower_value = float(lower)
+                    middle_value = float(middle)
+                    
+                    if close_price_value < lower_value:
+                        signals['bullish'] += 1
+                        signals['signal_details']['bollinger'] = f"Bullish (Price: {close_price_value:.2f} < Lower: {lower_value:.2f})"
+                    elif close_price_value > upper_value:
+                        signals['bearish'] += 1
+                        signals['signal_details']['bollinger'] = f"Bearish (Price: {close_price_value:.2f} > Upper: {upper_value:.2f})"
+                    else:
+                        signals['neutral'] += 1
+                        signals['signal_details']['bollinger'] = f"Neutral (Price: {close_price_value:.2f}, Middle: {middle_value:.2f})"
+                except (ValueError, TypeError) as e:
+                    print(f"Error converting Bollinger Band values to float: {e}")
+                    print(f"close_price type: {type(close_price)}, value: {close_price}")
+                    print(f"upper type: {type(upper)}, value: {upper}")
+                    print(f"lower type: {type(lower)}, value: {lower}")
                     signals['neutral'] += 1
-                    signals['signal_details']['bollinger'] = f"Neutral (Price: {close:.2f}, Middle: {middle:.2f})"
+                    signals['signal_details']['bollinger'] = "Neutral (Error in Bollinger calculation)"
         
         # IMI signals
         if 'imi' in indicators and not indicators['imi'].empty:
@@ -238,44 +259,61 @@ class RecommendationEngine:
         
         # FVG signals
         if 'fvg' in indicators and not indicators['fvg'].empty:
-            recent_fvgs = indicators['fvg'][indicators['fvg']['datetime'] >= (datetime.now() - timedelta(days=5))]
+            # Convert datetime.now() to pandas Timestamp for consistent comparison
+            current_time = pd.Timestamp(datetime.now())
+            five_days_ago = current_time - pd.Timedelta(days=5)
             
-            if not recent_fvgs.empty:
-                bullish_fvgs = recent_fvgs[recent_fvgs['type'] == 'bullish']
-                bearish_fvgs = recent_fvgs[recent_fvgs['type'] == 'bearish']
+            # Filter FVGs from the last 5 days
+            if 'datetime' in indicators['fvg'].columns:
+                recent_fvgs = indicators['fvg'][indicators['fvg']['datetime'] >= five_days_ago]
                 
-                if len(bullish_fvgs) > len(bearish_fvgs):
-                    signals['bullish'] += 1
-                    signals['signal_details']['fvg'] = f"Bullish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
-                elif len(bearish_fvgs) > len(bullish_fvgs):
-                    signals['bearish'] += 1
-                    signals['signal_details']['fvg'] = f"Bearish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
-                else:
-                    signals['neutral'] += 1
-                    signals['signal_details']['fvg'] = f"Neutral (Equal FVGs)"
+                if not recent_fvgs.empty:
+                    bullish_fvgs = recent_fvgs[recent_fvgs['type'] == 'bullish']
+                    bearish_fvgs = recent_fvgs[recent_fvgs['type'] == 'bearish']
+                    
+                    if len(bullish_fvgs) > len(bearish_fvgs):
+                        signals['bullish'] += 1
+                        signals['signal_details']['fvg'] = f"Bullish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
+                    elif len(bearish_fvgs) > len(bullish_fvgs):
+                        signals['bearish'] += 1
+                        signals['signal_details']['fvg'] = f"Bearish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
+                    else:
+                        signals['neutral'] += 1
+                        signals['signal_details']['fvg'] = f"Neutral (Equal FVGs)"
         
         # Liquidity Zones signals
         if 'liquidity_zones' in indicators and not indicators['liquidity_zones'].empty:
             zones = indicators['liquidity_zones']
-            current_price = zones['price'].iloc[-1] if 'price' in zones.columns else None
-            
-            if current_price:
-                support_zones = zones[zones['type'] == 'support']
-                resistance_zones = zones[zones['type'] == 'resistance']
+            if 'price' in zones.columns:
+                current_price = zones['price'].iloc[-1]
                 
-                if not support_zones.empty and not resistance_zones.empty:
-                    nearest_support = support_zones.iloc[0]['level']
-                    nearest_resistance = resistance_zones.iloc[0]['level']
+                if pd.notna(current_price):
+                    support_zones = zones[zones['type'] == 'support']
+                    resistance_zones = zones[zones['type'] == 'resistance']
                     
-                    support_distance = abs(current_price - nearest_support) / current_price
-                    resistance_distance = abs(nearest_resistance - current_price) / current_price
-                    
-                    if support_distance < resistance_distance:
-                        signals['bullish'] += 1
-                        signals['signal_details']['liquidity'] = f"Bullish (Closer to support: {nearest_support:.2f})"
-                    else:
-                        signals['bearish'] += 1
-                        signals['signal_details']['liquidity'] = f"Bearish (Closer to resistance: {nearest_resistance:.2f})"
+                    if not support_zones.empty and not resistance_zones.empty:
+                        nearest_support = support_zones.iloc[0]['level']
+                        nearest_resistance = resistance_zones.iloc[0]['level']
+                        
+                        # Convert to float for safe comparison
+                        try:
+                            current_price_value = float(current_price)
+                            support_value = float(nearest_support)
+                            resistance_value = float(nearest_resistance)
+                            
+                            support_distance = abs(current_price_value - support_value) / current_price_value
+                            resistance_distance = abs(resistance_value - current_price_value) / current_price_value
+                            
+                            if support_distance < resistance_distance:
+                                signals['bullish'] += 1
+                                signals['signal_details']['liquidity'] = f"Bullish (Closer to support: {support_value:.2f})"
+                            else:
+                                signals['bearish'] += 1
+                                signals['signal_details']['liquidity'] = f"Bearish (Closer to resistance: {resistance_value:.2f})"
+                        except (ValueError, TypeError) as e:
+                            print(f"Error converting Liquidity Zone values to float: {e}")
+                            signals['neutral'] += 1
+                            signals['signal_details']['liquidity'] = "Neutral (Error in Liquidity Zone calculation)"
         
         # Moving Averages signals
         if 'moving_averages' in indicators:
