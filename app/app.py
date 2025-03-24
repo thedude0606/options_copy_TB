@@ -1,192 +1,186 @@
+"""
+Main application layout for options recommendation platform.
+Integrates all components and tabs into a cohesive dashboard.
+"""
 import dash
-from dash import dcc, html, Input, Output, State
-import plotly.graph_objs as go
-import pandas as pd
-import os
-from dotenv import load_dotenv
-from app.options_data import OptionsDataRetriever
+from dash import html, dcc, callback, Input, Output
+import dash_bootstrap_components as dbc
+from app.components.recommendations_tab import create_recommendations_tab
+from app.components.trade_card import create_trade_cards_container
 
-# Load environment variables
-load_dotenv()
+# Initialize Dash app with Bootstrap theme
+app = dash.Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    suppress_callback_exceptions=True
+)
 
-# Initialize the Dash app
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
-server = app.server
-
-# Initialize the options data retriever
-options_data = OptionsDataRetriever(interactive_auth=True)
-
-# App layout
-app.layout = html.Div([
-    html.H1("Schwab Options Dashboard"),
+# Define app layout
+app.layout = dbc.Container([
+    # Header
+    dbc.Row([
+        dbc.Col([
+            html.H1("Options Recommendation Platform", className="dashboard-title"),
+            html.P("Powered by Schwab API", className="dashboard-subtitle")
+        ], width=12, className="header-container")
+    ], className="header-row mb-4"),
     
-    # Symbol input and submit button
-    html.Div([
-        html.Label("Enter Symbol:"),
-        dcc.Input(id="symbol-input", type="text", value="AAPL", placeholder="Enter stock symbol"),
-        html.Button("Submit", id="submit-button", n_clicks=0),
-    ], style={"margin": "20px"}),
-    
-    # Tabs for different views
-    dcc.Tabs([
-        # Options Chain Tab
-        dcc.Tab(label="Options Chain", children=[
-            html.Div([
-                # Expiration date dropdown
-                html.Label("Expiration Date:"),
-                dcc.Dropdown(id="expiration-dropdown", placeholder="Select expiration date"),
-                
-                # Option type radio buttons
-                html.Label("Option Type:"),
-                dcc.RadioItems(
-                    id="option-type",
-                    options=[
-                        {"label": "Calls", "value": "CALL"},
-                        {"label": "Puts", "value": "PUT"},
-                        {"label": "Both", "value": "ALL"}
-                    ],
-                    value="ALL",
-                    inline=True
+    # Main content with tabs
+    dbc.Row([
+        dbc.Col([
+            dbc.Tabs([
+                # Recommendations Tab
+                dbc.Tab(
+                    create_recommendations_tab(),
+                    label="Recommendations",
+                    tab_id="tab-recommendations"
                 ),
                 
-                # Options chain table
-                html.Div(id="options-chain-container")
-            ])
-        ]),
-        
-        # Greeks Tab
-        dcc.Tab(label="Greeks", children=[
-            html.Div([
-                # Greeks visualization
-                html.Div(id="greeks-container")
-            ])
-        ]),
-        
-        # Historical Data Tab
-        dcc.Tab(label="Historical Data", children=[
-            html.Div([
-                # Time period selection
-                html.Label("Time Period:"),
-                dcc.Dropdown(
-                    id="time-period",
-                    options=[
-                        {"label": "1 Day", "value": "1D"},
-                        {"label": "1 Week", "value": "1W"},
-                        {"label": "1 Month", "value": "1M"},
-                        {"label": "3 Months", "value": "3M"},
-                        {"label": "1 Year", "value": "1Y"}
-                    ],
-                    value="1M"
+                # Real-Time Data Tab (from existing code)
+                dbc.Tab(
+                    html.Div(id="real-time-tab-content"),
+                    label="Real-Time Data",
+                    tab_id="tab-real-time"
                 ),
                 
-                # Candle chart
-                dcc.Graph(id="historical-chart")
-            ])
-        ])
+                # Technical Indicators Tab
+                dbc.Tab(
+                    html.Div(id="indicators-tab-content"),
+                    label="Technical Indicators",
+                    tab_id="tab-indicators"
+                ),
+                
+                # Greeks Analysis Tab
+                dbc.Tab(
+                    html.Div(id="greeks-tab-content"),
+                    label="Greeks Analysis",
+                    tab_id="tab-greeks"
+                ),
+                
+                # Historical Data Tab (from existing code)
+                dbc.Tab(
+                    html.Div(id="historical-tab-content"),
+                    label="Historical Data",
+                    tab_id="tab-historical"
+                )
+            ], id="main-tabs", active_tab="tab-recommendations")
+        ], width=12)
     ]),
     
-    # Store component for holding data
+    # Footer
+    dbc.Row([
+        dbc.Col([
+            html.Hr(),
+            html.P("Options Recommendation Platform © 2025", className="text-center text-muted")
+        ], width=12)
+    ], className="mt-4"),
+    
+    # Store components for holding data
     dcc.Store(id="options-data"),
     dcc.Store(id="historical-data"),
-    dcc.Store(id="quote-data")
-])
+    dcc.Store(id="quote-data"),
+    dcc.Store(id="recommendations-data")
+], fluid=True, className="dashboard-container")
 
-# Callback to fetch data when symbol is submitted
-@app.callback(
-    [Output("options-data", "data"),
-     Output("historical-data", "data"),
-     Output("quote-data", "data"),
-     Output("expiration-dropdown", "options")],
-    [Input("submit-button", "n_clicks")],
-    [State("symbol-input", "value")]
-)
-def fetch_data(n_clicks, symbol):
-    if n_clicks == 0:
-        # Default data for initial load
-        return None, None, None, []
-    
-    if not symbol:
-        return None, None, None, []
-    
-    # Get option chain
-    option_chain = options_data.get_option_chain(symbol)
-    
-    # Get historical data
-    historical_data = options_data.get_historical_data(symbol)
-    
-    # Get current quote
-    quote = options_data.get_quote(symbol)
-    
-    # Extract expiration dates for dropdown
-    expiration_dates = []
-    if option_chain:
-        # This will need to be adapted based on the actual API response structure
-        # Placeholder for expiration dates extraction
-        expiration_dates = [{"label": "2023-04-21", "value": "2023-04-21"}]
-    
-    return option_chain, historical_data, quote, expiration_dates
-
-# Callback to update options chain display
-@app.callback(
-    Output("options-chain-container", "children"),
-    [Input("options-data", "data"),
-     Input("expiration-dropdown", "value"),
-     Input("option-type", "value")]
-)
-def update_options_chain(options_data, expiration, option_type):
-    if not options_data or not expiration:
-        return html.Div("No data available. Please enter a symbol and select an expiration date.")
-    
-    # Filter options data by expiration and type
-    # This will need to be adapted based on the actual data structure
-    
-    # Create table to display options data
-    return html.Div("Options chain will be displayed here")
-
-# Callback to update Greeks visualization
-@app.callback(
-    Output("greeks-container", "children"),
-    [Input("options-data", "data"),
-     Input("expiration-dropdown", "value")]
-)
-def update_greeks(options_data, expiration):
-    if not options_data or not expiration:
-        return html.Div("No data available. Please enter a symbol and select an expiration date.")
-    
-    # Create visualizations for Greeks
-    return html.Div("Greeks visualization will be displayed here")
-
-# Callback to update historical chart
-@app.callback(
-    Output("historical-chart", "figure"),
-    [Input("historical-data", "data"),
-     Input("time-period", "value")]
-)
-def update_historical_chart(historical_data, time_period):
-    if not historical_data:
-        return go.Figure()
-    
-    # Create candlestick chart
-    fig = go.Figure()
-    
-    # This will need to be adapted based on the actual data structure
-    fig.add_trace(go.Candlestick(
-        x=[1, 2, 3, 4, 5],
-        open=[10, 11, 12, 11, 10],
-        high=[12, 13, 14, 13, 12],
-        low=[9, 10, 11, 10, 9],
-        close=[11, 12, 13, 12, 11],
-        name="Price"
-    ))
-    
-    fig.update_layout(
-        title=f"Historical Price Data",
-        xaxis_title="Date",
-        yaxis_title="Price",
-        xaxis_rangeslider_visible=False
-    )
-    
-    return fig
+# Add custom CSS
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>Options Recommendation Platform</title>
+        {%favicon%}
+        {%css%}
+        <style>
+            /* Dashboard styles */
+            .dashboard-container {
+                padding: 20px;
+            }
+            .dashboard-title {
+                color: #2c3e50;
+                font-weight: 700;
+            }
+            .dashboard-subtitle {
+                color: #7f8c8d;
+                font-size: 1.2rem;
+            }
+            
+            /* Trade card styles */
+            .trade-card {
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                transition: transform 0.3s ease;
+            }
+            .trade-card:hover {
+                transform: translateY(-5px);
+            }
+            .trade-card .section {
+                margin-bottom: 15px;
+            }
+            .trade-card .section-title {
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 8px;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 5px;
+            }
+            .trade-card .label {
+                font-weight: 600;
+                color: #555;
+            }
+            .trade-card .value {
+                font-weight: 400;
+                color: #333;
+            }
+            
+            /* Filter container styles */
+            .filter-container {
+                background-color: #f8f9fa;
+                padding: 15px;
+                border-radius: 5px;
+                border: 1px solid #e9ecef;
+            }
+            
+            /* Status message styles */
+            .status-message {
+                padding: 10px;
+                border-radius: 5px;
+            }
+            .text-success {
+                background-color: #d4edda;
+                color: #155724;
+            }
+            .text-warning {
+                background-color: #fff3cd;
+                color: #856404;
+            }
+            .text-danger {
+                background-color: #f8d7da;
+                color: #721c24;
+            }
+            
+            /* Sidebar styles */
+            .sidebar {
+                background-color: #f8f9fa;
+                padding: 20px;
+                border-radius: 5px;
+            }
+            
+            /* Recommendations container */
+            .recommendations-container {
+                min-height: 400px;
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
 
 # Run the app
 if __name__ == "__main__":
