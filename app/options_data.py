@@ -28,7 +28,7 @@ class OptionsDataRetriever:
         """
         try:
             # Get option chain data
-            option_chain = self.client.get_option_chain(symbol)
+            option_chain = self.client.option_chains(symbol)
             return option_chain
         except Exception as e:
             print(f"Error retrieving option chain for {symbol}: {str(e)}")
@@ -81,7 +81,7 @@ class OptionsDataRetriever:
         """
         try:
             # Get historical price data
-            history = self.client.get_price_history(
+            history = self.client.price_history(
                 symbol=symbol,
                 period_type=period_type,
                 period=period,
@@ -113,7 +113,7 @@ class OptionsDataRetriever:
         """
         try:
             # Get quote data
-            quote = self.client.get_quote(symbol)
+            quote = self.client.quote(symbol)
             return quote
         except Exception as e:
             print(f"Error retrieving quote for {symbol}: {str(e)}")

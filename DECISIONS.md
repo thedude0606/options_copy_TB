@@ -49,3 +49,10 @@
 - **Flexible Dependencies**: Changed from strict version requirements to more flexible version specifications to prevent installation issues across different environments and Python versions.
 
 - **Standalone Script Approach**: After encountering persistent import issues with the package-based structure, switched to a self-contained script approach that eliminates import complexities while maintaining all functionality.
+
+- **API Method Naming Conventions**: Updated API method calls to match the Schwabdev library's actual method names:
+  - Changed `client.get_option_chain` to `client.option_chains` 
+  - Changed `client.get_price_history` to `client.price_history`
+  - Changed `client.get_quote` to `client.quote`
+  
+  This decision was based on examining the Schwabdev documentation and examples which showed that the library uses shorter method names without the "get_" prefix. This ensures compatibility with the latest version of the Schwabdev library and follows its established naming conventions.
