@@ -21,6 +21,9 @@ import dash_bootstrap_components as dbc
 from app.streaming_data import StreamingDataManager
 from app.stream_data_handler import StreamDataHandler
 from app.real_time_tab import register_real_time_callbacks
+from app.components.indicators_tab import register_indicators_callbacks
+from app.components.greeks_tab import register_greeks_callbacks
+from app.historical_tab import register_historical_callbacks
 
 # Load environment variables
 load_dotenv()
@@ -289,8 +292,11 @@ stream_handler = StreamDataHandler()
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
 
-# Register real-time callbacks
+# Register callbacks
 register_real_time_callbacks(app)
+register_indicators_callbacks(app)
+register_greeks_callbacks(app)
+register_historical_callbacks(app)
 
 # Define callback to handle stream data
 @app.callback(

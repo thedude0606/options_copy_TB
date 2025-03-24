@@ -83,6 +83,16 @@
 - **Rationale**: Prevents errors when accessing .dt attributes on non-datetime columns
 - **Benefits**: Improved reliability, consistent behavior across different data types, prevention of runtime errors
 
+### Underlying Price Handling
+- **Decision**: Modified the options data retrieval process to extract and include the underlying price
+- **Rationale**: The underlying price is essential for accurate options analysis and Greeks calculations
+- **Benefits**: Enables proper calculation of risk metrics, improves recommendation accuracy, prevents data-related errors
+
+### UI Component Registration
+- **Decision**: Implemented a systematic callback registration approach for all dashboard tabs
+- **Rationale**: Ensures all UI components are properly connected to their data processing functions
+- **Benefits**: Consistent user experience across all tabs, proper functionality of all dashboard features, modular code organization
+
 ### Visualization Techniques
 - **Decision**: Used specialized visualization techniques for different data types
 - **Rationale**: Different data requires different visualization approaches for clarity

@@ -15,6 +15,9 @@
 - [x] Build Greeks analysis tab
 - [x] Update main application layout
 - [x] Fix datetime handling error in options analysis
+- [x] Fix missing 'underlyingPrice' issue in options data retrieval
+- [x] Implement proper callback registrations for all dashboard tabs
+- [x] Create missing Historical Data tab functionality
 - [ ] Integrate real-time data streaming with new components
 - [ ] Test platform with real data
 - [ ] Add user documentation

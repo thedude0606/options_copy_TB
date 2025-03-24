@@ -34,6 +34,9 @@
   - Resolved datetime handling error ("Can only use .dt accessor with datetimelike values")
   - Implemented consistent handling of 'daysToExpiration' column across multiple components
   - Added robust type checking for timedelta objects to prevent accessor errors
+  - Fixed missing 'underlyingPrice' issue in options data retrieval
+  - Implemented proper callback registrations for all dashboard tabs
+  - Created missing Historical Data tab functionality
 
 ## Current Work in Progress
 

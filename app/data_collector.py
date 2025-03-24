@@ -391,6 +391,21 @@ class DataCollector:
                 
                 df = pd.DataFrame(options_data)
                 
+                # Add underlying price to all options
+                if 'underlyingPrice' in option_chain:
+                    underlying_price = option_chain['underlyingPrice']
+                    if DEBUG_MODE:
+                        print(f"Adding underlying price: {underlying_price}")
+                    df['underlyingPrice'] = underlying_price
+                else:
+                    if DEBUG_MODE:
+                        print(f"No underlying price available")
+                    # Check if we have other fields that might contain the underlying price
+                    if 'underlying' in option_chain:
+                        df['underlyingPrice'] = option_chain['underlying']
+                    else:
+                        print(f"Missing required columns: ['underlyingPrice']")
+                
                 # Convert expiration date to datetime
                 if 'expirationDate' in df.columns:
                     df['expirationDate'] = pd.to_datetime(df['expirationDate'])
@@ -398,6 +413,18 @@ class DataCollector:
                 # Calculate days to expiration
                 if 'expirationDate' in df.columns:
                     df['daysToExpiration'] = df['expirationDate'] - pd.Timestamp.now()
+                    
+                    # Create a numeric days column to avoid .dt accessor issues
+                    def get_days(x):
+                        if isinstance(x, pd.Timedelta):
+                            return x.days
+                        elif pd.isna(x):
+                            return 0
+                        else:
+                            return float(x)
+                    
+                    # Apply the function to create a numeric days column
+                    df['days_numeric'] = df['daysToExpiration'].apply(get_days)
                 
                 if DEBUG_MODE:
                     print(f"DataFrame columns: {list(df.columns)}")
