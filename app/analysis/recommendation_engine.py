@@ -73,6 +73,8 @@ class RecommendationEngine:
             
         except Exception as e:
             print(f"Error generating recommendations for {symbol}: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return pd.DataFrame()
     
     def _calculate_indicators(self, historical_data):
@@ -250,44 +252,57 @@ class RecommendationEngine:
                     signals['signal_details']['fvg'] = f"Bearish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
                 else:
                     signals['neutral'] += 1
-                    signals['signal_details']['fvg'] = f"Neutral (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
+                    signals['signal_details']['fvg'] = f"Neutral (Equal FVGs)"
+        
+        # Liquidity Zones signals
+        if 'liquidity_zones' in indicators and not indicators['liquidity_zones'].empty:
+            zones = indicators['liquidity_zones']
+            current_price = zones['price'].iloc[-1] if 'price' in zones.columns else None
+            
+            if current_price:
+                support_zones = zones[zones['type'] == 'support']
+                resistance_zones = zones[zones['type'] == 'resistance']
+                
+                if not support_zones.empty and not resistance_zones.empty:
+                    nearest_support = support_zones.iloc[0]['level']
+                    nearest_resistance = resistance_zones.iloc[0]['level']
+                    
+                    support_distance = abs(current_price - nearest_support) / current_price
+                    resistance_distance = abs(nearest_resistance - current_price) / current_price
+                    
+                    if support_distance < resistance_distance:
+                        signals['bullish'] += 1
+                        signals['signal_details']['liquidity'] = f"Bullish (Closer to support: {nearest_support:.2f})"
+                    else:
+                        signals['bearish'] += 1
+                        signals['signal_details']['liquidity'] = f"Bearish (Closer to resistance: {nearest_resistance:.2f})"
         
         # Moving Averages signals
         if 'moving_averages' in indicators:
-            ma_dict = indicators['moving_averages']
-            if 'SMA_20' in ma_dict and 'SMA_50' in ma_dict and not ma_dict['SMA_20'].empty and not ma_dict['SMA_50'].empty:
-                sma_20 = ma_dict['SMA_20'].iloc[-1]
-                sma_50 = ma_dict['SMA_50'].iloc[-1]
+            ma_data = indicators['moving_averages']
+            if not ma_data.empty and 'ma_20' in ma_data.columns and 'ma_50' in ma_data.columns:
+                ma_20 = ma_data['ma_20'].iloc[-1]
+                ma_50 = ma_data['ma_50'].iloc[-1]
                 
-                if sma_20 > sma_50:
+                if ma_20 > ma_50:
                     signals['bullish'] += 1
-                    signals['signal_details']['moving_averages'] = f"Bullish (SMA20: {sma_20:.2f} > SMA50: {sma_50:.2f})"
-                elif sma_20 < sma_50:
-                    signals['bearish'] += 1
-                    signals['signal_details']['moving_averages'] = f"Bearish (SMA20: {sma_20:.2f} < SMA50: {sma_50:.2f})"
+                    signals['signal_details']['moving_averages'] = f"Bullish (MA20: {ma_20:.2f} > MA50: {ma_50:.2f})"
                 else:
-                    signals['neutral'] += 1
-                    signals['signal_details']['moving_averages'] = f"Neutral (SMA20: {sma_20:.2f}, SMA50: {sma_50:.2f})"
+                    signals['bearish'] += 1
+                    signals['signal_details']['moving_averages'] = f"Bearish (MA20: {ma_20:.2f} < MA50: {ma_50:.2f})"
         
-        # Calculate overall signal
-        total_signals = signals['bullish'] + signals['bearish'] + signals['neutral']
-        if total_signals > 0:
-            signals['bullish_pct'] = signals['bullish'] / total_signals
-            signals['bearish_pct'] = signals['bearish'] / total_signals
-            signals['neutral_pct'] = signals['neutral'] / total_signals
+        # Volatility signals
+        if 'volatility' in indicators and not indicators['volatility'].empty:
+            volatility = indicators['volatility'].iloc[-1]
+            historical_vol = indicators['volatility'].mean()
             
-            if signals['bullish_pct'] > 0.5:
-                signals['overall'] = 'bullish'
-                signals['confidence'] = signals['bullish_pct']
-            elif signals['bearish_pct'] > 0.5:
-                signals['overall'] = 'bearish'
-                signals['confidence'] = signals['bearish_pct']
-            else:
-                signals['overall'] = 'neutral'
-                signals['confidence'] = signals['neutral_pct']
-        else:
-            signals['overall'] = 'neutral'
-            signals['confidence'] = 0
+            if volatility < historical_vol * 0.8:
+                signals['neutral'] += 1
+                signals['signal_details']['volatility'] = f"Low volatility ({volatility:.2f})"
+            elif volatility > historical_vol * 1.2:
+                # High volatility favors options sellers
+                signals['bearish'] += 1
+                signals['signal_details']['volatility'] = f"High volatility ({volatility:.2f})"
         
         return signals
     
@@ -301,57 +316,75 @@ class RecommendationEngine:
             confidence_threshold (float): Minimum confidence score for recommendations
             
         Returns:
-            pd.DataFrame: Scored options with recommendations
+            pd.DataFrame: Scored options recommendations
         """
         if options_data.empty:
             return pd.DataFrame()
         
-        # Make a copy to avoid modifying the original
-        recommendations = options_data.copy()
+        # Determine overall market direction
+        bullish_signals = signals['bullish']
+        bearish_signals = signals['bearish']
+        neutral_signals = signals['neutral']
         
-        # Filter based on overall signal
-        overall_signal = signals['overall']
-        confidence = signals['confidence']
-        
-        if confidence < confidence_threshold:
-            # Not enough confidence for a recommendation
+        total_signals = bullish_signals + bearish_signals + neutral_signals
+        if total_signals == 0:
             return pd.DataFrame()
         
-        # Filter options based on signal
-        if overall_signal == 'bullish':
-            # For bullish signal, recommend calls
-            filtered_options = recommendations[recommendations['optionType'].str.lower() == 'call']
-        elif overall_signal == 'bearish':
-            # For bearish signal, recommend puts
-            filtered_options = recommendations[recommendations['optionType'].str.lower() == 'put']
+        bullish_score = bullish_signals / total_signals
+        bearish_score = bearish_signals / total_signals
+        neutral_score = neutral_signals / total_signals
+        
+        market_direction = 'neutral'
+        if bullish_score > 0.5 and bullish_score > bearish_score:
+            market_direction = 'bullish'
+        elif bearish_score > 0.5 and bearish_score > bullish_score:
+            market_direction = 'bearish'
+        
+        # Filter options based on market direction
+        if market_direction == 'bullish':
+            # For bullish market, recommend calls or put credit spreads
+            filtered_options = options_data[options_data['optionType'] == 'CALL']
+        elif market_direction == 'bearish':
+            # For bearish market, recommend puts or call credit spreads
+            filtered_options = options_data[options_data['optionType'] == 'PUT']
         else:
-            # For neutral signal, no clear recommendation
-            return pd.DataFrame()
+            # For neutral market, recommend iron condors or straddles
+            filtered_options = options_data
         
         if filtered_options.empty:
             return pd.DataFrame()
         
-        # Score options based on multiple factors
-        for idx, row in filtered_options.iterrows():
+        # Score each option
+        scores = []
+        for _, row in filtered_options.iterrows():
             score = 0
+            
+            # Base score from market direction
+            if market_direction == 'bullish' and row['optionType'] == 'CALL':
+                score += bullish_score * 30  # 30% weight
+            elif market_direction == 'bearish' and row['optionType'] == 'PUT':
+                score += bearish_score * 30  # 30% weight
+            elif market_direction == 'neutral':
+                score += neutral_score * 30  # 30% weight
             
             # Score based on probability of profit
             if 'probabilityOfProfit' in row and not pd.isna(row['probabilityOfProfit']):
-                score += row['probabilityOfProfit'] * 40  # 40% weight
+                pop_score = row['probabilityOfProfit']
+                score += pop_score * 30  # 30% weight
             
             # Score based on risk-reward ratio
             if 'riskRewardRatio' in row and not pd.isna(row['riskRewardRatio']):
-                # Cap risk-reward at 5 for scoring
-                capped_rr = min(row['riskRewardRatio'], 5)
-                score += (capped_rr / 5) * 30  # 30% weight
+                rr_ratio = row['riskRewardRatio']
+                if rr_ratio > 0:
+                    rr_score = min(rr_ratio / 3, 1)  # Cap at 1
+                    score += rr_score * 20  # 20% weight
             
-            # Score based on delta (for directional alignment)
+            # Score based on delta (prefer 0.3-0.7 range)
             if 'delta' in row and not pd.isna(row['delta']):
-                if overall_signal == 'bullish':
-                    # For calls, prefer delta around 0.5-0.7
-                    delta_score = 1 - abs(row['delta'] - 0.6)
+                delta = abs(row['delta'])
+                if 0.3 <= delta <= 0.7:
+                    delta_score = 1 - abs(delta - 0.5) / 0.5
                 else:
-                    # For puts, prefer delta around -0.5 to -0.7
                     delta_score = 1 - abs(row['delta'] + 0.6)
                 
                 score += delta_score * 20  # 20% weight
@@ -359,41 +392,66 @@ class RecommendationEngine:
             # Score based on days to expiration
             if 'daysToExpiration' in row and not pd.isna(row['daysToExpiration']):
                 # Prefer 30-45 DTE
-                days = row['daysToExpiration'].days
+                # Convert Timestamp to days if it's a Timestamp object
+                if isinstance(row['daysToExpiration'], pd.Timedelta):
+                    days = row['daysToExpiration'].days
+                else:
+                    # If it's already a number, use it directly
+                    days = float(row['daysToExpiration'])
+                
                 if 20 <= days <= 60:
                     dte_score = 1 - abs(days - 40) / 40
                 else:
                     dte_score = 0.2  # Lower score for very short or long DTE
                 
-                score += dte_score * 10  # 10% weight
+                score += dte_score * 20  # 20% weight
             
-            # Store the score
-            filtered_options.loc[idx, 'score'] = score
+            # Add to scores list
+            scores.append({
+                'symbol': row['symbol'] if 'symbol' in row else '',
+                'optionType': row['optionType'],
+                'strikePrice': row['strikePrice'] if 'strikePrice' in row else 0,
+                'expirationDate': row['expirationDate'] if 'expirationDate' in row else '',
+                'bid': row['bid'] if 'bid' in row else 0,
+                'ask': row['ask'] if 'ask' in row else 0,
+                'delta': row['delta'] if 'delta' in row else 0,
+                'gamma': row['gamma'] if 'gamma' in row else 0,
+                'theta': row['theta'] if 'theta' in row else 0,
+                'vega': row['vega'] if 'vega' in row else 0,
+                'probabilityOfProfit': row['probabilityOfProfit'] if 'probabilityOfProfit' in row else 0,
+                'riskRewardRatio': row['riskRewardRatio'] if 'riskRewardRatio' in row else 0,
+                'daysToExpiration': days if 'daysToExpiration' in row and not pd.isna(row['daysToExpiration']) else 0,
+                'score': score,
+                'confidence': score / 100,  # Convert to 0-1 scale
+                'marketDirection': market_direction,
+                'signalDetails': signals['signal_details']
+            })
         
-        # Sort by score and take top recommendations
-        top_recommendations = filtered_options.sort_values('score', ascending=False).head(5)
+        # Convert to DataFrame and filter by confidence threshold
+        recommendations_df = pd.DataFrame(scores)
+        if not recommendations_df.empty:
+            recommendations_df = recommendations_df[recommendations_df['confidence'] >= confidence_threshold]
+            recommendations_df = recommendations_df.sort_values('confidence', ascending=False)
         
-        # Add recommendation details
-        for idx, row in top_recommendations.iterrows():
-            # Format recommendation details
-            details = {
-                'type': row['optionType'],
-                'strike': row['strikePrice'],
-                'expiration': row['expirationDate'],
-                'current_price': row['last'] if 'last' in row else row['mark'] if 'mark' in row else 0,
-                'underlying_price': row['underlyingPrice'] if 'underlyingPrice' in row else None,
-                'probability_of_profit': row['probabilityOfProfit'] if 'probabilityOfProfit' in row else None,
-                'risk_reward_ratio': row['riskRewardRatio'] if 'riskRewardRatio' in row else None,
-                'potential_return_pct': row['potentialReturnPercent'] if 'potentialReturnPercent' in row else None,
-                'delta': row['delta'] if 'delta' in row else None,
-                'gamma': row['gamma'] if 'gamma' in row else None,
-                'theta': row['theta'] if 'theta' in row else None,
-                'vega': row['vega'] if 'vega' in row else None,
-                'confidence_score': confidence,
-                'signal_details': signals['signal_details'],
-                'overall_score': row['score']
-            }
+        return recommendations_df
+    
+    def get_underlying_price(self, symbol):
+        """
+        Get the current price of the underlying asset
+        
+        Args:
+            symbol (str): The stock symbol
             
-            top_recommendations.loc[idx, 'recommendation_details'] = str(details)
-        
-        return top_recommendations
+        Returns:
+            float: Current price
+        """
+        try:
+            quote = self.data_collector.get_quote(symbol)
+            if quote and 'lastPrice' in quote:
+                return quote['lastPrice']
+            else:
+                print("No underlying price available")
+                return None
+        except Exception as e:
+            print(f"Error retrieving underlying price: {str(e)}")
+            return None
