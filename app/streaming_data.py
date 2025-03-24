@@ -143,7 +143,16 @@ class StreamingDataManager:
         
         # Create subscription
         fields = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52"
-        self.streamer.add_level1_equity_subscription(symbols, fields=fields.split(','))
+        # Use basic_request instead of add_level1_equity_subscription
+        request = self.streamer.basic_request(
+            service="LEVELONE_EQUITIES", 
+            command="ADD", 
+            parameters={
+                "keys": ",".join(symbols),
+                "fields": fields
+            }
+        )
+        self.streamer.send(request)
         
         self.logger.info(f"Subscribed to Level 1 quotes for: {', '.join(symbols)}")
     
@@ -165,7 +174,16 @@ class StreamingDataManager:
         
         # Create subscription
         fields = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42"
-        self.streamer.add_level1_option_subscription(symbols, fields=fields.split(','))
+        # Use basic_request instead of add_level1_option_subscription
+        request = self.streamer.basic_request(
+            service="LEVELONE_OPTIONS", 
+            command="ADD", 
+            parameters={
+                "keys": ",".join(symbols),
+                "fields": fields
+            }
+        )
+        self.streamer.send(request)
         
         self.logger.info(f"Subscribed to Level 1 option quotes for: {', '.join(symbols)}")
     
@@ -173,7 +191,29 @@ class StreamingDataManager:
         """
         Unsubscribe from all data streams
         """
-        self.streamer.remove_level1_equity_subscription(self.symbols)
+        # Use basic_request instead of remove_level1_equity_subscription
+        if self.symbols:
+            # Unsubscribe from LEVELONE_EQUITIES
+            request = self.streamer.basic_request(
+                service="LEVELONE_EQUITIES", 
+                command="REMOVE", 
+                parameters={
+                    "keys": ",".join(self.symbols)
+                }
+            )
+            self.streamer.send(request)
+            
+            # Unsubscribe from LEVELONE_OPTIONS if we have any option subscriptions
+            if "LEVELONE_OPTIONS" in self.callbacks:
+                request = self.streamer.basic_request(
+                    service="LEVELONE_OPTIONS", 
+                    command="REMOVE", 
+                    parameters={
+                        "keys": ",".join(self.symbols)
+                    }
+                )
+                self.streamer.send(request)
+                
         self.symbols = []
         self.callbacks = {}
         self.logger.info("Unsubscribed from all data streams")
