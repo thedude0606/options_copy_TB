@@ -584,7 +584,7 @@ def update_auth_status(auth_id):
         
         # Get account details
         try:
-            accounts_response = client.accounts()
+            accounts_response = client.account_details_all()
             if hasattr(accounts_response, 'json'):
                 accounts_data = accounts_response.json()
                 
