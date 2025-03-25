@@ -10,8 +10,12 @@ import json
 from datetime import datetime, timedelta
 from app.auth import get_client
 
-# Enable debug mode
+# Enable debug mode with enhanced logging
 DEBUG_MODE = True
+
+# Add more detailed debugging levels
+VERBOSE_DEBUG = True  # For even more detailed debugging information
+LOG_API_RESPONSES = True  # Log full API responses for troubleshooting
 
 class DataCollector:
     """
@@ -106,6 +110,48 @@ class DataCollector:
                 print(f"\n=== HISTORICAL DATA REQUEST ===")
                 print(f"Symbol: {symbol}")
                 print(f"Parameters: periodType={period_type}, period={period}, frequencyType={frequency_type}, frequency={frequency}")
+            
+            # Validate and correct parameters before API call
+            # Ensure period_type is valid
+            valid_period_types = ['day', 'month', 'year', 'ytd']
+            if period_type not in valid_period_types:
+                if DEBUG_MODE:
+                    print(f"Warning: Invalid period_type '{period_type}'. Defaulting to 'day'")
+                period_type = 'day'
+                
+            # Ensure frequency_type is valid and compatible with period_type
+            valid_frequency_types = {
+                'day': ['minute'],
+                'month': ['daily', 'weekly'],
+                'year': ['daily', 'weekly', 'monthly'],
+                'ytd': ['daily', 'weekly']
+            }
+            
+            if frequency_type not in valid_frequency_types.get(period_type, []):
+                if DEBUG_MODE:
+                    print(f"Warning: Incompatible frequency_type '{frequency_type}' for period_type '{period_type}'")
+                # Set compatible defaults
+                if period_type == 'day':
+                    frequency_type = 'minute'
+                else:
+                    frequency_type = 'daily'
+                    
+            # Ensure frequency is valid for the frequency_type
+            valid_frequencies = {
+                'minute': [1, 5, 10, 15, 30],
+                'daily': [1],
+                'weekly': [1],
+                'monthly': [1]
+            }
+            
+            if frequency not in valid_frequencies.get(frequency_type, []):
+                if DEBUG_MODE:
+                    print(f"Warning: Invalid frequency '{frequency}' for frequency_type '{frequency_type}'")
+                # Set to default valid frequency
+                frequency = valid_frequencies.get(frequency_type, [1])[0]
+                
+            if VERBOSE_DEBUG:
+                print(f"Validated parameters: periodType={period_type}, period={period}, frequencyType={frequency_type}, frequency={frequency}")
             
             # Get historical price data with retry logic
             history = None
@@ -333,104 +379,242 @@ class DataCollector:
                 print(f"Symbol: {symbol}")
                 print(f"Parameters: option_type={option_type}, strike={strike}, expiration={expiration}")
             
+            # Validate symbol
+            if not symbol or not isinstance(symbol, str):
+                print(f"Error: Invalid symbol: {symbol}")
+                return pd.DataFrame()
+                
             # Get option chain
             option_chain = self.get_option_chain(symbol)
+            
+            # Enhanced error handling and debugging for option chain
             if not option_chain:
                 print(f"No options data available for {symbol}")
                 return pd.DataFrame()
+                
+            if VERBOSE_DEBUG:
+                print(f"Option chain type: {type(option_chain)}")
+                if isinstance(option_chain, dict):
+                    print(f"Option chain keys: {list(option_chain.keys())}")
+                    
+                    # Check for expected keys
+                    expected_keys = ['callExpDateMap', 'putExpDateMap', 'underlyingPrice']
+                    missing_keys = [key for key in expected_keys if key not in option_chain]
+                    if missing_keys:
+                        print(f"Warning: Missing expected keys in option chain: {missing_keys}")
+                        
+                    # Log underlying price if available
+                    if 'underlyingPrice' in option_chain:
+                        print(f"Underlying price: {option_chain['underlyingPrice']}")
+                    elif 'underlying' in option_chain and 'mark' in option_chain['underlying']:
+                        print(f"Underlying price from 'underlying.mark': {option_chain['underlying']['mark']}")
+                    else:
+                        print("Warning: No underlying price found in option chain")
             
             # Extract options data
             options_data = []
             
-            # Process call options
+            # Process call options with enhanced error handling
             if option_type in ['CALL', 'ALL'] and 'callExpDateMap' in option_chain:
                 if DEBUG_MODE:
                     print(f"Processing call options, expiration dates: {len(option_chain['callExpDateMap'])}")
                 
-                for exp_date, strikes in option_chain['callExpDateMap'].items():
-                    # Skip if not matching expiration filter
-                    if expiration and expiration not in exp_date:
-                        continue
-                    
-                    for strike_price, options in strikes.items():
-                        # Skip if not matching strike filter
-                        if strike and float(strike_price) != float(strike):
+                try:
+                    for exp_date, strikes in option_chain['callExpDateMap'].items():
+                        # Skip if not matching expiration filter
+                        if expiration and expiration not in exp_date:
                             continue
                         
-                        for option in options:
-                            option['optionType'] = 'CALL'
-                            option['expirationDate'] = exp_date.split(':')[0]
-                            option['strikePrice'] = float(strike_price)
-                            options_data.append(option)
+                        if not isinstance(strikes, dict):
+                            if DEBUG_MODE:
+                                print(f"Warning: Strikes is not a dictionary for expiration {exp_date}, type: {type(strikes)}")
+                            continue
+                            
+                        for strike_price, options in strikes.items():
+                            # Skip if not matching strike filter
+                            try:
+                                if strike and float(strike_price) != float(strike):
+                                    continue
+                                    
+                                if not isinstance(options, list):
+                                    if DEBUG_MODE:
+                                        print(f"Warning: Options is not a list for strike {strike_price}, type: {type(options)}")
+                                    continue
+                                
+                                for option in options:
+                                    try:
+                                        option['optionType'] = 'CALL'
+                                        option['expirationDate'] = exp_date.split(':')[0]
+                                        option['strikePrice'] = float(strike_price)
+                                        options_data.append(option)
+                                    except Exception as e:
+                                        if DEBUG_MODE:
+                                            print(f"Error processing call option: {str(e)}")
+                                            print(f"Option data: {option}")
+                            except ValueError as e:
+                                if DEBUG_MODE:
+                                    print(f"Error converting strike price: {str(e)}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error processing call options: {str(e)}")
+                        print(traceback.format_exc())
             
-            # Process put options
+            # Process put options with enhanced error handling
             if option_type in ['PUT', 'ALL'] and 'putExpDateMap' in option_chain:
                 if DEBUG_MODE:
                     print(f"Processing put options, expiration dates: {len(option_chain['putExpDateMap'])}")
                 
-                for exp_date, strikes in option_chain['putExpDateMap'].items():
-                    # Skip if not matching expiration filter
-                    if expiration and expiration not in exp_date:
-                        continue
-                    
-                    for strike_price, options in strikes.items():
-                        # Skip if not matching strike filter
-                        if strike and float(strike_price) != float(strike):
+                try:
+                    for exp_date, strikes in option_chain['putExpDateMap'].items():
+                        # Skip if not matching expiration filter
+                        if expiration and expiration not in exp_date:
                             continue
                         
-                        for option in options:
-                            option['optionType'] = 'PUT'
-                            option['expirationDate'] = exp_date.split(':')[0]
-                            option['strikePrice'] = float(strike_price)
-                            options_data.append(option)
+                        if not isinstance(strikes, dict):
+                            if DEBUG_MODE:
+                                print(f"Warning: Strikes is not a dictionary for expiration {exp_date}, type: {type(strikes)}")
+                            continue
+                            
+                        for strike_price, options in strikes.items():
+                            # Skip if not matching strike filter
+                            try:
+                                if strike and float(strike_price) != float(strike):
+                                    continue
+                                    
+                                if not isinstance(options, list):
+                                    if DEBUG_MODE:
+                                        print(f"Warning: Options is not a list for strike {strike_price}, type: {type(options)}")
+                                    continue
+                                
+                                for option in options:
+                                    try:
+                                        option['optionType'] = 'PUT'
+                                        option['expirationDate'] = exp_date.split(':')[0]
+                                        option['strikePrice'] = float(strike_price)
+                                        options_data.append(option)
+                                    except Exception as e:
+                                        if DEBUG_MODE:
+                                            print(f"Error processing put option: {str(e)}")
+                                            print(f"Option data: {option}")
+                            except ValueError as e:
+                                if DEBUG_MODE:
+                                    print(f"Error converting strike price: {str(e)}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error processing put options: {str(e)}")
+                        print(traceback.format_exc())
             
-            # Convert to DataFrame
+            # Convert to DataFrame with enhanced error handling
             if options_data:
                 if DEBUG_MODE:
                     print(f"Found {len(options_data)} options")
                 
-                df = pd.DataFrame(options_data)
-                
-                # Add underlying price to all options
-                if 'underlyingPrice' in option_chain:
-                    underlying_price = option_chain['underlyingPrice']
-                    if DEBUG_MODE:
-                        print(f"Adding underlying price: {underlying_price}")
-                    df['underlyingPrice'] = underlying_price
-                else:
-                    if DEBUG_MODE:
-                        print(f"No underlying price available")
-                    # Check if we have other fields that might contain the underlying price
-                    if 'underlying' in option_chain:
-                        df['underlyingPrice'] = option_chain['underlying']
+                try:
+                    df = pd.DataFrame(options_data)
+                    
+                    # Add underlying price to all options with fallback mechanisms
+                    underlying_price = None
+                    
+                    # Try different ways to get the underlying price
+                    if 'underlyingPrice' in option_chain:
+                        underlying_price = option_chain['underlyingPrice']
+                        if DEBUG_MODE:
+                            print(f"Using underlying price from 'underlyingPrice': {underlying_price}")
+                    elif 'underlying' in option_chain and isinstance(option_chain['underlying'], dict):
+                        if 'mark' in option_chain['underlying']:
+                            underlying_price = option_chain['underlying']['mark']
+                            if DEBUG_MODE:
+                                print(f"Using underlying price from 'underlying.mark': {underlying_price}")
+                        elif 'last' in option_chain['underlying']:
+                            underlying_price = option_chain['underlying']['last']
+                            if DEBUG_MODE:
+                                print(f"Using underlying price from 'underlying.last': {underlying_price}")
+                    
+                    # If we still don't have a price, try to get a quote
+                    if underlying_price is None:
+                        if DEBUG_MODE:
+                            print(f"No underlying price in option chain, trying to get quote")
+                        quote = self.get_quote(symbol)
+                        if quote and isinstance(quote, dict):
+                            if 'mark' in quote:
+                                underlying_price = quote['mark']
+                                if DEBUG_MODE:
+                                    print(f"Using underlying price from quote 'mark': {underlying_price}")
+                            elif 'lastPrice' in quote:
+                                underlying_price = quote['lastPrice']
+                                if DEBUG_MODE:
+                                    print(f"Using underlying price from quote 'lastPrice': {underlying_price}")
+                    
+                    # Set the underlying price in the DataFrame
+                    if underlying_price is not None:
+                        df['underlyingPrice'] = underlying_price
                     else:
-                        print(f"Missing required columns: ['underlyingPrice']")
-                
-                # Convert expiration date to datetime
-                if 'expirationDate' in df.columns:
-                    df['expirationDate'] = pd.to_datetime(df['expirationDate'])
+                        if DEBUG_MODE:
+                            print(f"Warning: Could not determine underlying price")
+                        # Set a placeholder value to avoid errors
+                        df['underlyingPrice'] = 0.0
+                        
+                    # Convert expiration date to datetime with error handling
+                    if 'expirationDate' in df.columns:
+                        try:
+                            df['expirationDate'] = pd.to_datetime(df['expirationDate'])
+                        except Exception as e:
+                            if DEBUG_MODE:
+                                print(f"Error converting expiration dates: {str(e)}")
+                                print(f"Expiration date values: {df['expirationDate'].unique()}")
+                            # Try a different format or set to NaT
+                            try:
+                                df['expirationDate'] = pd.to_datetime(df['expirationDate'], format='%Y-%m-%d')
+                            except:
+                                df['expirationDate'] = pd.NaT
                     
-                # Calculate days to expiration
-                if 'expirationDate' in df.columns:
-                    df['daysToExpiration'] = df['expirationDate'] - pd.Timestamp.now()
+                    # Calculate days to expiration with error handling
+                    if 'expirationDate' in df.columns:
+                        try:
+                            df['daysToExpiration'] = (df['expirationDate'] - pd.Timestamp.now())
+                            
+                            # Create a numeric days column to avoid .dt accessor issues
+                            def get_days(x):
+                                try:
+                                    if isinstance(x, pd.Timedelta):
+                                        return x.days
+                                    elif pd.isna(x):
+                                        return 0
+                                    else:
+                                        return float(x)
+                                except:
+                                    return 0
+                            
+                            # Apply the function to create a numeric days column
+                            df['days_numeric'] = df['daysToExpiration'].apply(get_days)
+                        except Exception as e:
+                            if DEBUG_MODE:
+                                print(f"Error calculating days to expiration: {str(e)}")
+                            # Set default values
+                            df['days_numeric'] = 0
                     
-                    # Create a numeric days column to avoid .dt accessor issues
-                    def get_days(x):
-                        if isinstance(x, pd.Timedelta):
-                            return x.days
-                        elif pd.isna(x):
-                            return 0
-                        else:
-                            return float(x)
+                    if DEBUG_MODE:
+                        print(f"DataFrame columns: {list(df.columns)}")
+                        print(f"DataFrame shape: {df.shape}")
                     
-                    # Apply the function to create a numeric days column
-                    df['days_numeric'] = df['daysToExpiration'].apply(get_days)
-                
-                if DEBUG_MODE:
-                    print(f"DataFrame columns: {list(df.columns)}")
-                    print(f"DataFrame shape: {df.shape}")
-                
-                return df
+                    if VERBOSE_DEBUG:
+                        # Print sample data for debugging
+                        print("\nSample data (first 2 rows):")
+                        if len(df) > 0:
+                            print(df.head(2).to_string())
+                        
+                        # Check for missing critical columns
+                        critical_columns = ['strikePrice', 'underlyingPrice', 'expirationDate', 'optionType']
+                        missing_columns = [col for col in critical_columns if col not in df.columns]
+                        if missing_columns:
+                            print(f"Warning: Missing critical columns: {missing_columns}")
+                    
+                    return df
+                except Exception as e:
+                    print(f"Error creating DataFrame from options data: {str(e)}")
+                    if DEBUG_MODE:
+                        print(traceback.format_exc())
+                    return pd.DataFrame()
             else:
                 print(f"No options data found for {symbol}")
                 return pd.DataFrame()

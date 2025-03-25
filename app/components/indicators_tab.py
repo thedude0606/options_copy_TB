@@ -360,7 +360,7 @@ def update_indicators_chart(update_clicks, analyze_clicks,
         return go.Figure()
     
     try:
-        # Map period to API parameters
+        # Map period to API parameters with improved mapping
         period_mapping = {
             '1w': ('day', 7, 'minute', 30),
             '1m': ('month', 1, 'daily', 1),
@@ -369,23 +369,27 @@ def update_indicators_chart(update_clicks, analyze_clicks,
             '1y': ('year', 1, 'daily', 1)
         }
         
-        # Map timeframe to API parameters
+        # Map timeframe to API parameters with correct frequency values
         timeframe_mapping = {
-            '1m': 'minute',
-            '5m': 'minute',
-            '15m': 'minute',
-            '1h': 'minute',
-            '1d': 'daily',
-            '1wk': 'weekly'
+            '1m': ('minute', 1),
+            '5m': ('minute', 5),
+            '15m': ('minute', 15),
+            '1h': ('minute', 60),
+            '1d': ('daily', 1),
+            '1wk': ('weekly', 1)
         }
         
-        # Get period parameters
+        # Get period parameters with better error handling
         period_type, period_value, freq_type, freq_value = period_mapping.get(period, ('month', 1, 'daily', 1))
         
-        # Adjust frequency based on timeframe
-        if timeframe in ['1m', '5m', '15m', '1h']:
-            freq_type = 'minute'
-            freq_value = int(timeframe.replace('m', '').replace('h', '60'))
+        # Get timeframe parameters with better error handling
+        if timeframe in timeframe_mapping:
+            freq_type, freq_value = timeframe_mapping[timeframe]
+        else:
+            print(f"Warning: Unknown timeframe '{timeframe}', defaulting to daily")
+            freq_type, freq_value = 'daily', 1
+            
+        print(f"Using period_type={period_type}, period_value={period_value}, freq_type={freq_type}, freq_value={freq_value}")
         
         # Get historical data
         data_collector = DataCollector()

@@ -115,3 +115,35 @@
 - **Decision**: Used specialized visualization techniques for different data types
 - **Rationale**: Different data requires different visualization approaches for clarity
 - **Benefits**: More intuitive data presentation, better insights for users
+
+## Recent Technical Decisions (March 2025)
+
+### Enhanced Debugging System
+- **Decision**: Implemented a multi-level debugging system with DEBUG_MODE, VERBOSE_DEBUG, and LOG_API_RESPONSES flags
+- **Rationale**: Different debugging needs require different levels of detail and verbosity
+- **Benefits**: More targeted debugging, ability to trace specific issues without overwhelming logs, easier troubleshooting
+- **Implementation**: Added conditional logging throughout the codebase with appropriate verbosity levels
+
+### Parameter Validation Strategy
+- **Decision**: Implemented comprehensive parameter validation for API requests
+- **Rationale**: Schwab API requires specific parameter combinations and values; invalid parameters cause silent failures
+- **Benefits**: Prevents API errors, ensures data quality, provides meaningful error messages
+- **Implementation**: Added validation for period types, frequency types, and frequency values with automatic correction of invalid values
+
+### Timeframe Mapping Approach
+- **Decision**: Redesigned timeframe mapping in indicators_tab.py to use tuple-based mapping
+- **Rationale**: Previous implementation had inconsistent handling of timeframes between UI and API calls
+- **Benefits**: Consistent timeframe handling, proper display of different time intervals, improved user experience
+- **Implementation**: Created a comprehensive mapping dictionary with proper frequency type and value pairs
+
+### Fallback Mechanism for Data Retrieval
+- **Decision**: Implemented multiple fallback mechanisms for retrieving critical data like underlying price
+- **Rationale**: Different API responses may contain data in different formats or locations
+- **Benefits**: More robust data retrieval, fewer missing data errors, improved reliability
+- **Implementation**: Added cascading checks for data in various locations with clear logging of data source
+
+### Type Checking and Exception Handling
+- **Decision**: Added extensive type checking and exception handling throughout the data processing pipeline
+- **Rationale**: Unexpected data types or structures from API responses can cause cascading failures
+- **Benefits**: More robust application, better error messages, graceful handling of unexpected data
+- **Implementation**: Wrapped critical operations in try-except blocks with appropriate fallback behavior and logging
