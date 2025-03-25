@@ -214,6 +214,24 @@ class TechnicalIndicators:
         return macd_line, signal_line, histogram
     
     @staticmethod
+    def calculate_sma(data, period=20, price_col='close'):
+        """
+        Calculate Simple Moving Average (SMA)
+        
+        Args:
+            data (pd.DataFrame): Historical price data
+            period (int): Period for SMA calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: SMA values
+        """
+        if data.empty or len(data) < period:
+            return pd.Series()
+        
+        return data[price_col].rolling(window=period).mean()
+    
+    @staticmethod
     def calculate_bollinger_bands(data, period=20, std_dev=2, price_col='close'):
         """
         Calculate Bollinger Bands

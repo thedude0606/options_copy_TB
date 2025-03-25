@@ -62,6 +62,7 @@
   - Fixed logic flow in recommendation engine to properly implement the fallback mechanism for displaying recommendations
   - Fixed UI display issue by updating trade card component to handle the current recommendation data format
   - Implemented symbol validation and correction for historical data to handle common ticker symbol mistakes
+  - Added missing calculate_sma method to technical indicators module to fix indicators chart display
 
 ## Current Work in Progress
 

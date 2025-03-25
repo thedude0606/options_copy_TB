@@ -177,3 +177,9 @@
 - **Rationale**: Users may enter incorrect ticker symbols (e.g., "APPL" instead of "AAPL") leading to no data being displayed
 - **Benefits**: Improves user experience, reduces errors, ensures historical data is displayed even with common symbol typos
 - **Implementation**: Added a dictionary of common symbol corrections and logic to automatically correct known symbol mistakes
+
+### Technical Indicators Module Enhancement
+- **Decision**: Added missing calculate_sma method to technical indicators module
+- **Rationale**: The indicators chart was failing to display due to a missing static method that was being called in the indicators tab
+- **Benefits**: Fixes indicators chart display, ensures all technical indicators are properly calculated and displayed
+- **Implementation**: Added a static calculate_sma method following the same pattern as other static methods in the class
