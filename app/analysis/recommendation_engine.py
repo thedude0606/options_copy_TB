@@ -23,6 +23,8 @@ class RecommendationEngine:
         self.data_collector = data_collector
         self.technical_indicators = TechnicalIndicators()
         self.options_analysis = OptionsAnalysis()
+        # Enable debug mode
+        self.debug = True
     
     def generate_recommendations(self, symbol, lookback_days=30, confidence_threshold=0.6):
         """
@@ -37,6 +39,12 @@ class RecommendationEngine:
             pd.DataFrame: Recommendations with details
         """
         try:
+            if self.debug:
+                print(f"\n=== RECOMMENDATION ENGINE DEBUG ===")
+                print(f"Generating recommendations for {symbol}")
+                print(f"Lookback days: {lookback_days}")
+                print(f"Confidence threshold: {confidence_threshold}")
+            
             # Get historical data
             historical_data = self.data_collector.get_historical_data(
                 symbol=symbol,
@@ -46,6 +54,9 @@ class RecommendationEngine:
                 frequency=1
             )
             
+            if self.debug:
+                print(f"Historical data shape: {historical_data.shape if not historical_data.empty else 'Empty'}")
+            
             if historical_data.empty:
                 print(f"No historical data available for {symbol}")
                 return pd.DataFrame()
@@ -53,21 +64,61 @@ class RecommendationEngine:
             # Get options data
             options_data = self.data_collector.get_option_data(symbol)
             
+            if self.debug:
+                print(f"Options data shape: {options_data.shape if not options_data.empty else 'Empty'}")
+                if not options_data.empty:
+                    print(f"Options data columns: {options_data.columns.tolist()}")
+                    print(f"Sample option data (first row):")
+                    print(options_data.iloc[0])
+            
             if options_data.empty:
                 print(f"No options data available for {symbol}")
                 return pd.DataFrame()
             
             # Calculate technical indicators
+            if self.debug:
+                print(f"Calculating technical indicators...")
+            
             indicators = self._calculate_indicators(historical_data)
             
+            if self.debug:
+                print(f"Indicators calculated: {list(indicators.keys())}")
+            
             # Calculate options Greeks and probabilities
+            if self.debug:
+                print(f"Analyzing options data...")
+            
             options_analysis = self._analyze_options(options_data)
             
+            if self.debug:
+                print(f"Options analysis shape: {options_analysis.shape if not options_analysis.empty else 'Empty'}")
+                if not options_analysis.empty:
+                    print(f"Options analysis columns: {options_analysis.columns.tolist()}")
+            
             # Generate signals based on technical indicators
+            if self.debug:
+                print(f"Generating signals from indicators...")
+            
             signals = self._generate_signals(indicators)
             
+            if self.debug:
+                print(f"Signal summary: Bullish={signals['bullish']}, Bearish={signals['bearish']}, Neutral={signals['neutral']}")
+                print(f"Signal details: {signals['signal_details']}")
+            
             # Score options based on signals and options analysis
+            if self.debug:
+                print(f"Scoring options based on signals and analysis...")
+            
             recommendations = self._score_options(options_analysis, signals, confidence_threshold)
+            
+            if self.debug:
+                print(f"Recommendations shape: {recommendations.shape if not recommendations.empty else 'Empty'}")
+                if not recommendations.empty:
+                    print(f"Recommendations columns: {recommendations.columns.tolist()}")
+                    print(f"Top recommendation:")
+                    print(recommendations.iloc[0])
+                else:
+                    print(f"No recommendations generated that meet the confidence threshold")
             
             return recommendations
             
@@ -134,14 +185,40 @@ class RecommendationEngine:
         Returns:
             pd.DataFrame: Analyzed options data
         """
+        if self.debug:
+            print(f"Analyzing options with Greeks calculation...")
+        
         # Calculate Greeks
         options_with_greeks = self.options_analysis.calculate_all_greeks(options_data)
         
+        if self.debug:
+            print(f"Options with Greeks shape: {options_with_greeks.shape if not options_with_greeks.empty else 'Empty'}")
+            if not options_with_greeks.empty:
+                print(f"Greek columns: {[col for col in options_with_greeks.columns if col in ['delta', 'gamma', 'theta', 'vega']]}")
+        
         # Calculate probability of profit
+        if self.debug:
+            print(f"Calculating probability of profit...")
+        
         options_with_prob = self.options_analysis.calculate_probability_of_profit(options_with_greeks)
         
+        if self.debug:
+            if 'probabilityOfProfit' in options_with_prob.columns:
+                print(f"Probability of profit stats: min={options_with_prob['probabilityOfProfit'].min()}, max={options_with_prob['probabilityOfProfit'].max()}, mean={options_with_prob['probabilityOfProfit'].mean()}")
+            else:
+                print(f"Warning: probabilityOfProfit column not found after calculation")
+        
         # Calculate risk-reward ratio
+        if self.debug:
+            print(f"Calculating risk-reward ratio...")
+        
         analyzed_options = self.options_analysis.calculate_risk_reward_ratio(options_with_prob)
+        
+        if self.debug:
+            if 'riskRewardRatio' in analyzed_options.columns:
+                print(f"Risk-reward ratio stats: min={analyzed_options['riskRewardRatio'].min()}, max={analyzed_options['riskRewardRatio'].max()}, mean={analyzed_options['riskRewardRatio'].mean()}")
+            else:
+                print(f"Warning: riskRewardRatio column not found after calculation")
         
         return analyzed_options
     
@@ -226,156 +303,6 @@ class RecommendationEngine:
                 except (ValueError, TypeError) as e:
                     print(f"Error converting Bollinger Band values to float: {e}")
                     print(f"close_price type: {type(close_price)}, value: {close_price}")
-                    print(f"upper type: {type(upper)}, value: {upper}")
-                    print(f"lower type: {type(lower)}, value: {lower}")
-                    signals['neutral'] += 1
-                    signals['signal_details']['bollinger'] = "Neutral (Error in Bollinger calculation)"
-        
-        # IMI signals
-        if 'imi' in indicators and not indicators['imi'].empty:
-            imi = indicators['imi'].iloc[-1]
-            if imi > 70:
-                signals['bullish'] += 1
-                signals['signal_details']['imi'] = f"Bullish (IMI: {imi:.2f} > 70)"
-            elif imi < 30:
-                signals['bearish'] += 1
-                signals['signal_details']['imi'] = f"Bearish (IMI: {imi:.2f} < 30)"
-            else:
-                signals['neutral'] += 1
-                signals['signal_details']['imi'] = f"Neutral (IMI: {imi:.2f})"
-        
-        # MFI signals
-        if 'mfi' in indicators and not indicators['mfi'].empty:
-            mfi = indicators['mfi'].iloc[-1]
-            if mfi < 20:
-                signals['bullish'] += 1
-                signals['signal_details']['mfi'] = f"Bullish (MFI: {mfi:.2f} < 20)"
-            elif mfi > 80:
-                signals['bearish'] += 1
-                signals['signal_details']['mfi'] = f"Bearish (MFI: {mfi:.2f} > 80)"
-            else:
-                signals['neutral'] += 1
-                signals['signal_details']['mfi'] = f"Neutral (MFI: {mfi:.2f})"
-        
-        # FVG signals
-        if 'fvg' in indicators and not indicators['fvg'].empty:
-            # Convert datetime.now() to pandas Timestamp for consistent comparison
-            current_time = pd.Timestamp(datetime.now())
-            five_days_ago = current_time - pd.Timedelta(days=5)
-            
-            # Filter FVGs from the last 5 days
-            if 'datetime' in indicators['fvg'].columns:
-                recent_fvgs = indicators['fvg'][indicators['fvg']['datetime'] >= five_days_ago]
-                
-                if not recent_fvgs.empty:
-                    bullish_fvgs = recent_fvgs[recent_fvgs['type'] == 'bullish']
-                    bearish_fvgs = recent_fvgs[recent_fvgs['type'] == 'bearish']
-                    
-                    if len(bullish_fvgs) > len(bearish_fvgs):
-                        signals['bullish'] += 1
-                        signals['signal_details']['fvg'] = f"Bullish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
-                    elif len(bearish_fvgs) > len(bullish_fvgs):
-                        signals['bearish'] += 1
-                        signals['signal_details']['fvg'] = f"Bearish (Bullish FVGs: {len(bullish_fvgs)}, Bearish FVGs: {len(bearish_fvgs)})"
-                    else:
-                        signals['neutral'] += 1
-                        signals['signal_details']['fvg'] = f"Neutral (Equal FVGs)"
-        
-        # Liquidity Zones signals
-        if 'liquidity_zones' in indicators and not indicators['liquidity_zones'].empty:
-            zones = indicators['liquidity_zones']
-            if 'price' in zones.columns:
-                current_price = zones['price'].iloc[-1]
-                
-                if pd.notna(current_price):
-                    support_zones = zones[zones['type'] == 'support']
-                    resistance_zones = zones[zones['type'] == 'resistance']
-                    
-                    if not support_zones.empty and not resistance_zones.empty:
-                        nearest_support = support_zones.iloc[0]['level']
-                        nearest_resistance = resistance_zones.iloc[0]['level']
-                        
-                        # Convert to float for safe comparison
-                        try:
-                            current_price_value = float(current_price)
-                            support_value = float(nearest_support)
-                            resistance_value = float(nearest_resistance)
-                            
-                            support_distance = abs(current_price_value - support_value) / current_price_value
-                            resistance_distance = abs(resistance_value - current_price_value) / current_price_value
-                            
-                            if support_distance < resistance_distance:
-                                signals['bullish'] += 1
-                                signals['signal_details']['liquidity'] = f"Bullish (Closer to support: {support_value:.2f})"
-                            else:
-                                signals['bearish'] += 1
-                                signals['signal_details']['liquidity'] = f"Bearish (Closer to resistance: {resistance_value:.2f})"
-                        except (ValueError, TypeError) as e:
-                            print(f"Error converting Liquidity Zone values to float: {e}")
-                            signals['neutral'] += 1
-                            signals['signal_details']['liquidity'] = "Neutral (Error in Liquidity Zone calculation)"
-        
-        # Moving Averages signals
-        if 'moving_averages' in indicators:
-            ma_data = indicators['moving_averages']
-            
-            # Check if ma_data is a DataFrame or a dictionary
-            if isinstance(ma_data, pd.DataFrame):
-                # If it's a DataFrame, check if it's empty and has the required columns
-                if not ma_data.empty and 'ma_20' in ma_data.columns and 'ma_50' in ma_data.columns:
-                    ma_20 = ma_data['ma_20'].iloc[-1]
-                    ma_50 = ma_data['ma_50'].iloc[-1]
-                    
-                    if ma_20 > ma_50:
-                        signals['bullish'] += 1
-                        signals['signal_details']['moving_averages'] = f"Bullish (MA20: {ma_20:.2f} > MA50: {ma_50:.2f})"
-                    else:
-                        signals['bearish'] += 1
-                        signals['signal_details']['moving_averages'] = f"Bearish (MA20: {ma_20:.2f} < MA50: {ma_50:.2f})"
-            elif isinstance(ma_data, dict):
-                # If it's a dictionary, check if it has the required keys
-                if 'ma_20' in ma_data and 'ma_50' in ma_data:
-                    # Get the last values from the Series or use the values directly if they're scalars
-                    if isinstance(ma_data['ma_20'], pd.Series) and not ma_data['ma_20'].empty:
-                        ma_20 = ma_data['ma_20'].iloc[-1]
-                    else:
-                        ma_20 = ma_data['ma_20']
-                        
-                    if isinstance(ma_data['ma_50'], pd.Series) and not ma_data['ma_50'].empty:
-                        ma_50 = ma_data['ma_50'].iloc[-1]
-                    else:
-                        ma_50 = ma_data['ma_50']
-                    
-                    # Convert to float for safe comparison
-                    try:
-                        ma_20_value = float(ma_20)
-                        ma_50_value = float(ma_50)
-                        
-                        if ma_20_value > ma_50_value:
-                            signals['bullish'] += 1
-                            signals['signal_details']['moving_averages'] = f"Bullish (MA20: {ma_20_value:.2f} > MA50: {ma_50_value:.2f})"
-                        else:
-                            signals['bearish'] += 1
-                            signals['signal_details']['moving_averages'] = f"Bearish (MA20: {ma_20_value:.2f} < MA50: {ma_50_value:.2f})"
-                    except (ValueError, TypeError) as e:
-                        print(f"Error converting Moving Average values to float: {e}")
-                        signals['neutral'] += 1
-                        signals['signal_details']['moving_averages'] = "Neutral (Error in Moving Average calculation)"
-            else:
-                print(f"Unexpected type for moving_averages: {type(ma_data)}")
-        
-        # Volatility signals
-        if 'volatility' in indicators and not indicators['volatility'].empty:
-            volatility = indicators['volatility'].iloc[-1]
-            historical_vol = indicators['volatility'].mean()
-            
-            if volatility < historical_vol * 0.8:
-                signals['neutral'] += 1
-                signals['signal_details']['volatility'] = f"Low volatility ({volatility:.2f})"
-            elif volatility > historical_vol * 1.2:
-                # High volatility favors options sellers
-                signals['bearish'] += 1
-                signals['signal_details']['volatility'] = f"High volatility ({volatility:.2f})"
         
         return signals
     
@@ -391,7 +318,17 @@ class RecommendationEngine:
         Returns:
             pd.DataFrame: Scored options recommendations
         """
+        if self.debug:
+            print(f"Scoring options with confidence threshold: {confidence_threshold}")
+            print(f"Options data shape before scoring: {options_data.shape if not options_data.empty else 'Empty'}")
+            if not options_data.empty:
+                print(f"Options data columns: {options_data.columns.tolist()}")
+                print(f"First option before scoring:")
+                print(options_data.iloc[0])
+        
         if options_data.empty:
+            if self.debug:
+                print(f"Error: Options data is empty, cannot score")
             return pd.DataFrame()
         
         # Determine overall market direction
@@ -401,11 +338,16 @@ class RecommendationEngine:
         
         total_signals = bullish_signals + bearish_signals + neutral_signals
         if total_signals == 0:
+            if self.debug:
+                print(f"Error: No signals available (total_signals=0)")
             return pd.DataFrame()
         
         bullish_score = bullish_signals / total_signals
         bearish_score = bearish_signals / total_signals
         neutral_score = neutral_signals / total_signals
+        
+        if self.debug:
+            print(f"Market direction scores: Bullish={bullish_score:.2f}, Bearish={bearish_score:.2f}, Neutral={neutral_score:.2f}")
         
         market_direction = 'neutral'
         if bullish_score > 0.5 and bullish_score > bearish_score:
@@ -413,37 +355,66 @@ class RecommendationEngine:
         elif bearish_score > 0.5 and bearish_score > bullish_score:
             market_direction = 'bearish'
         
+        if self.debug:
+            print(f"Determined market direction: {market_direction}")
+        
         # Filter options based on market direction
         if market_direction == 'bullish':
             # For bullish market, recommend calls or put credit spreads
             filtered_options = options_data[options_data['optionType'] == 'CALL']
+            if self.debug:
+                print(f"Filtered for CALL options in bullish market")
         elif market_direction == 'bearish':
             # For bearish market, recommend puts or call credit spreads
             filtered_options = options_data[options_data['optionType'] == 'PUT']
+            if self.debug:
+                print(f"Filtered for PUT options in bearish market")
         else:
             # For neutral market, recommend iron condors or straddles
             filtered_options = options_data
+            if self.debug:
+                print(f"Using all options in neutral market")
         
         if filtered_options.empty:
+            if self.debug:
+                print(f"Error: No options left after filtering by market direction")
             return pd.DataFrame()
+        
+        if self.debug:
+            print(f"Options data shape after filtering: {filtered_options.shape}")
         
         # Score each option
         scores = []
-        for _, row in filtered_options.iterrows():
+        for idx, row in filtered_options.iterrows():
+            if self.debug and idx == 0:
+                print(f"Scoring first option (index {idx}):")
+                print(f"Option: {row['symbol'] if 'symbol' in row else 'Unknown'}, Type: {row['optionType'] if 'optionType' in row else 'Unknown'}, Strike: {row['strikePrice'] if 'strikePrice' in row else 'Unknown'}")
+            
             score = 0
             
             # Base score from market direction
             if market_direction == 'bullish' and row['optionType'] == 'CALL':
                 score += bullish_score * 30  # 30% weight
+                if self.debug and idx == 0:
+                    print(f"  Added bullish score: +{bullish_score * 30:.2f}")
             elif market_direction == 'bearish' and row['optionType'] == 'PUT':
                 score += bearish_score * 30  # 30% weight
+                if self.debug and idx == 0:
+                    print(f"  Added bearish score: +{bearish_score * 30:.2f}")
             elif market_direction == 'neutral':
                 score += neutral_score * 30  # 30% weight
+                if self.debug and idx == 0:
+                    print(f"  Added neutral score: +{neutral_score * 30:.2f}")
             
             # Score based on probability of profit
             if 'probabilityOfProfit' in row and not pd.isna(row['probabilityOfProfit']):
                 pop_score = row['probabilityOfProfit']
                 score += pop_score * 30  # 30% weight
+                if self.debug and idx == 0:
+                    print(f"  Added probability score: +{pop_score * 30:.2f} (POP: {pop_score:.2f})")
+            else:
+                if self.debug and idx == 0:
+                    print(f"  Warning: probabilityOfProfit not available")
             
             # Score based on risk-reward ratio
             if 'riskRewardRatio' in row and not pd.isna(row['riskRewardRatio']):
@@ -451,6 +422,11 @@ class RecommendationEngine:
                 if rr_ratio > 0:
                     rr_score = min(rr_ratio / 3, 1)  # Cap at 1
                     score += rr_score * 20  # 20% weight
+                    if self.debug and idx == 0:
+                        print(f"  Added risk-reward score: +{rr_score * 20:.2f} (RR: {rr_ratio:.2f})")
+            else:
+                if self.debug and idx == 0:
+                    print(f"  Warning: riskRewardRatio not available")
             
             # Score based on delta (prefer 0.3-0.7 range)
             if 'delta' in row and not pd.isna(row['delta']):
@@ -458,9 +434,14 @@ class RecommendationEngine:
                 if 0.3 <= delta <= 0.7:
                     delta_score = 1 - abs(delta - 0.5) / 0.5
                 else:
-                    delta_score = 1 - abs(row['delta'] + 0.6)
+                    delta_score = 0.2  # Lower score for very low or high delta
                 
                 score += delta_score * 20  # 20% weight
+                if self.debug and idx == 0:
+                    print(f"  Added delta score: +{delta_score * 20:.2f} (Delta: {delta:.2f})")
+            else:
+                if self.debug and idx == 0:
+                    print(f"  Warning: delta not available")
             
             # Score based on days to expiration
             if 'daysToExpiration' in row and not pd.isna(row['daysToExpiration']):
@@ -470,7 +451,12 @@ class RecommendationEngine:
                     days = row['daysToExpiration'].days
                 else:
                     # If it's already a number, use it directly
-                    days = float(row['daysToExpiration'])
+                    try:
+                        days = float(row['daysToExpiration'])
+                    except (ValueError, TypeError):
+                        days = 0
+                        if self.debug and idx == 0:
+                            print(f"  Warning: Could not convert daysToExpiration to float: {row['daysToExpiration']}")
                 
                 if 20 <= days <= 60:
                     dte_score = 1 - abs(days - 40) / 40
@@ -478,21 +464,42 @@ class RecommendationEngine:
                     dte_score = 0.2  # Lower score for very short or long DTE
                 
                 score += dte_score * 20  # 20% weight
+                if self.debug and idx == 0:
+                    print(f"  Added DTE score: +{dte_score * 20:.2f} (Days: {days})")
+            else:
+                if self.debug and idx == 0:
+                    print(f"  Warning: daysToExpiration not available")
+            
+            if self.debug and idx == 0:
+                print(f"  Final score: {score:.2f}, Confidence: {score / 100:.2f}")
+            
+            # Get underlying price
+            underlying_price = 0
+            if 'underlyingPrice' in row and not pd.isna(row['underlyingPrice']):
+                underlying_price = row['underlyingPrice']
+            
+            # Calculate entry price (mid price)
+            entry_price = 0
+            if 'bid' in row and 'ask' in row and not pd.isna(row['bid']) and not pd.isna(row['ask']):
+                entry_price = (row['bid'] + row['ask']) / 2
             
             # Add to scores list
             scores.append({
                 'symbol': row['symbol'] if 'symbol' in row else '',
-                'optionType': row['optionType'],
+                'optionType': row['optionType'] if 'optionType' in row else 'UNKNOWN',
                 'strikePrice': row['strikePrice'] if 'strikePrice' in row else 0,
-                'expirationDate': row['expirationDate'] if 'expirationDate' in row else '',
+                'expirationDate': row['expirationDate'] if 'expirationDate' in row else 'UNKNOWN',
                 'bid': row['bid'] if 'bid' in row else 0,
                 'ask': row['ask'] if 'ask' in row else 0,
+                'entryPrice': entry_price,
+                'underlyingPrice': underlying_price,
                 'delta': row['delta'] if 'delta' in row else 0,
                 'gamma': row['gamma'] if 'gamma' in row else 0,
                 'theta': row['theta'] if 'theta' in row else 0,
                 'vega': row['vega'] if 'vega' in row else 0,
                 'probabilityOfProfit': row['probabilityOfProfit'] if 'probabilityOfProfit' in row else 0,
                 'riskRewardRatio': row['riskRewardRatio'] if 'riskRewardRatio' in row else 0,
+                'potentialReturn': row['potentialReturn'] if 'potentialReturn' in row else 0,
                 'daysToExpiration': days if 'daysToExpiration' in row and not pd.isna(row['daysToExpiration']) else 0,
                 'score': score,
                 'confidence': score / 100,  # Convert to 0-1 scale
@@ -502,11 +509,32 @@ class RecommendationEngine:
         
         # Convert to DataFrame and filter by confidence threshold
         recommendations_df = pd.DataFrame(scores)
-        if not recommendations_df.empty:
-            recommendations_df = recommendations_df[recommendations_df['confidence'] >= confidence_threshold]
-            recommendations_df = recommendations_df.sort_values('confidence', ascending=False)
         
-        return recommendations_df
+        if self.debug:
+            print(f"Created recommendations DataFrame with {len(scores)} rows")
+            if not recommendations_df.empty:
+                print(f"Recommendations columns: {recommendations_df.columns.tolist()}")
+        
+        if not recommendations_df.empty:
+            # Filter by confidence threshold
+            filtered_recommendations = recommendations_df[recommendations_df['confidence'] >= confidence_threshold]
+            
+            if self.debug:
+                print(f"Filtered recommendations by confidence >= {confidence_threshold}: {len(filtered_recommendations)} rows remaining")
+            
+            # Sort by confidence
+            sorted_recommendations = filtered_recommendations.sort_values('confidence', ascending=False)
+            
+            if self.debug and not sorted_recommendations.empty:
+                print(f"Top recommendation after sorting:")
+                print(sorted_recommendations.iloc[0])
+            
+            return sorted_recommendations
+        else:
+            if self.debug:
+                print(f"No recommendations generated")
+            
+            return pd.DataFrame()
     
     def get_underlying_price(self, symbol):
         """

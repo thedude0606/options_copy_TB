@@ -51,6 +51,12 @@
   - Enhanced error handling for date/time conversions and calculations
   - Added detailed logging for API responses and data processing steps
   - Fixed issues with recommendation data not being populated correctly
+  - Implemented dynamic timeframe selection based on period compatibility requirements
+  - Added compatibility validation between period types and frequency types according to Schwab API requirements
+  - Created a new callback function to ensure users can only select compatible timeframe/period combinations
+  - Enhanced recommendation engine with comprehensive debugging and improved data flow tracing
+  - Fixed option data processing to properly extract and use underlying price information
+  - Improved the scoring algorithm to handle edge cases better in the recommendation engine
 
 ## Current Work in Progress
 
@@ -67,9 +73,7 @@
 - Handling edge cases in datetime processing for options with unusual expiration formats
 - Potential performance bottlenecks when processing large option chains
 - Inconsistent data formats in Schwab API responses requiring additional validation
-- Timeframe selection sometimes requires multiple attempts to display correctly
 - Recommendation data may show incomplete information for certain symbols or market conditions
-- Technical indicators may not display properly for all timeframes and periods
 
 ## Next Steps
 

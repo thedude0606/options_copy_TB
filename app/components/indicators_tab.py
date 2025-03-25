@@ -30,23 +30,7 @@ def create_indicators_tab():
                     dbc.Button("Analyze", id="indicator-analyze-button", color="primary")
                 ], className="mb-3"),
                 
-                # Time frame selection
-                html.Label("Time Frame:"),
-                dbc.Select(
-                    id="indicator-timeframe",
-                    options=[
-                        {"label": "1 Minute", "value": "1m"},
-                        {"label": "5 Minutes", "value": "5m"},
-                        {"label": "15 Minutes", "value": "15m"},
-                        {"label": "1 Hour", "value": "1h"},
-                        {"label": "Daily", "value": "1d"},
-                        {"label": "Weekly", "value": "1wk"}
-                    ],
-                    value="1d",
-                    className="mb-3"
-                ),
-                
-                # Period selection
+                # Period selection (first, as it affects timeframe options)
                 html.Label("Period:"),
                 dbc.Select(
                     id="indicator-period",
@@ -58,6 +42,18 @@ def create_indicators_tab():
                         {"label": "1 Year", "value": "1y"}
                     ],
                     value="1m",
+                    className="mb-3"
+                ),
+                
+                # Time frame selection
+                html.Label("Time Frame:"),
+                dbc.Select(
+                    id="indicator-timeframe",
+                    options=[
+                        {"label": "Daily", "value": "1d"},
+                        {"label": "Weekly", "value": "1wk"}
+                    ],
+                    value="1d",
                     className="mb-3"
                 ),
                 
@@ -98,156 +94,138 @@ def create_indicators_tab():
                                 dbc.Input(
                                     id="rsi-period",
                                     type="number",
-                                    min=2,
-                                    max=30,
-                                    step=1,
                                     value=14,
+                                    min=2,
+                                    max=50,
+                                    step=1,
                                     className="mb-2"
                                 ),
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Label("Overbought:"),
-                                        dbc.Input(
-                                            id="rsi-overbought",
-                                            type="number",
-                                            min=50,
-                                            max=90,
-                                            step=1,
-                                            value=70
-                                        )
-                                    ], width=6),
-                                    dbc.Col([
-                                        html.Label("Oversold:"),
-                                        dbc.Input(
-                                            id="rsi-oversold",
-                                            type="number",
-                                            min=10,
-                                            max=50,
-                                            step=1,
-                                            value=30
-                                        )
-                                    ], width=6)
-                                ], className="mb-3")
+                                html.Label("Overbought Level:"),
+                                dbc.Input(
+                                    id="rsi-overbought",
+                                    type="number",
+                                    value=70,
+                                    min=50,
+                                    max=95,
+                                    step=1,
+                                    className="mb-2"
+                                ),
+                                html.Label("Oversold Level:"),
+                                dbc.Input(
+                                    id="rsi-oversold",
+                                    type="number",
+                                    value=30,
+                                    min=5,
+                                    max=50,
+                                    step=1,
+                                    className="mb-3"
+                                )
                             ]),
                             
                             # MACD parameters
                             html.Div([
                                 html.H6("MACD Parameters", className="mb-2"),
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Label("Fast Period:"),
-                                        dbc.Input(
-                                            id="macd-fast-period",
-                                            type="number",
-                                            min=5,
-                                            max=20,
-                                            step=1,
-                                            value=12
-                                        )
-                                    ], width=4),
-                                    dbc.Col([
-                                        html.Label("Slow Period:"),
-                                        dbc.Input(
-                                            id="macd-slow-period",
-                                            type="number",
-                                            min=10,
-                                            max=40,
-                                            step=1,
-                                            value=26
-                                        )
-                                    ], width=4),
-                                    dbc.Col([
-                                        html.Label("Signal Period:"),
-                                        dbc.Input(
-                                            id="macd-signal-period",
-                                            type="number",
-                                            min=2,
-                                            max=15,
-                                            step=1,
-                                            value=9
-                                        )
-                                    ], width=4)
-                                ], className="mb-3")
+                                html.Label("Fast Period:"),
+                                dbc.Input(
+                                    id="macd-fast",
+                                    type="number",
+                                    value=12,
+                                    min=2,
+                                    max=50,
+                                    step=1,
+                                    className="mb-2"
+                                ),
+                                html.Label("Slow Period:"),
+                                dbc.Input(
+                                    id="macd-slow",
+                                    type="number",
+                                    value=26,
+                                    min=5,
+                                    max=100,
+                                    step=1,
+                                    className="mb-2"
+                                ),
+                                html.Label("Signal Period:"),
+                                dbc.Input(
+                                    id="macd-signal",
+                                    type="number",
+                                    value=9,
+                                    min=2,
+                                    max=50,
+                                    step=1,
+                                    className="mb-3"
+                                )
                             ]),
                             
                             # Bollinger Bands parameters
                             html.Div([
                                 html.H6("Bollinger Bands Parameters", className="mb-2"),
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Label("Period:"),
-                                        dbc.Input(
-                                            id="bb-period",
-                                            type="number",
-                                            min=5,
-                                            max=50,
-                                            step=1,
-                                            value=20
-                                        )
-                                    ], width=6),
-                                    dbc.Col([
-                                        html.Label("Standard Deviations:"),
-                                        dbc.Input(
-                                            id="bb-std",
-                                            type="number",
-                                            min=1,
-                                            max=4,
-                                            step=0.5,
-                                            value=2
-                                        )
-                                    ], width=6)
-                                ], className="mb-3")
+                                html.Label("Period:"),
+                                dbc.Input(
+                                    id="bb-period",
+                                    type="number",
+                                    value=20,
+                                    min=5,
+                                    max=50,
+                                    step=1,
+                                    className="mb-2"
+                                ),
+                                html.Label("Standard Deviations:"),
+                                dbc.Input(
+                                    id="bb-std",
+                                    type="number",
+                                    value=2,
+                                    min=0.5,
+                                    max=4,
+                                    step=0.1,
+                                    className="mb-3"
+                                )
                             ]),
                             
                             # Moving Averages parameters
                             html.Div([
                                 html.H6("Moving Averages Parameters", className="mb-2"),
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Label("SMA 1:"),
-                                        dbc.Input(
-                                            id="sma1-period",
-                                            type="number",
-                                            min=5,
-                                            max=100,
-                                            step=1,
-                                            value=20
-                                        )
-                                    ], width=4),
-                                    dbc.Col([
-                                        html.Label("SMA 2:"),
-                                        dbc.Input(
-                                            id="sma2-period",
-                                            type="number",
-                                            min=5,
-                                            max=200,
-                                            step=1,
-                                            value=50
-                                        )
-                                    ], width=4),
-                                    dbc.Col([
-                                        html.Label("EMA:"),
-                                        dbc.Input(
-                                            id="ema-period",
-                                            type="number",
-                                            min=5,
-                                            max=100,
-                                            step=1,
-                                            value=20
-                                        )
-                                    ], width=4)
-                                ], className="mb-3")
+                                html.Label("SMA 1 Period:"),
+                                dbc.Input(
+                                    id="sma1-period",
+                                    type="number",
+                                    value=20,
+                                    min=5,
+                                    max=200,
+                                    step=1,
+                                    className="mb-2"
+                                ),
+                                html.Label("SMA 2 Period:"),
+                                dbc.Input(
+                                    id="sma2-period",
+                                    type="number",
+                                    value=50,
+                                    min=10,
+                                    max=200,
+                                    step=1,
+                                    className="mb-2"
+                                ),
+                                html.Label("EMA Period:"),
+                                dbc.Input(
+                                    id="ema-period",
+                                    type="number",
+                                    value=20,
+                                    min=5,
+                                    max=200,
+                                    step=1,
+                                    className="mb-3"
+                                )
                             ]),
                             
                             # Reset button
                             dbc.Button(
                                 "Reset to Defaults",
-                                id="reset-indicator-params",
+                                id="reset-params-button",
                                 color="secondary",
                                 size="sm",
                                 className="mt-2"
                             )
-                        ])
+                        ]),
                     ),
                     id="indicator-params-collapse",
                     is_open=False
@@ -311,6 +289,57 @@ def reset_indicator_params(n_clicks):
     return dash.no_update, dash.no_update, dash.no_update, dash.no_update, \
            dash.no_update, dash.no_update, dash.no_update, dash.no_update, \
            dash.no_update, dash.no_update, dash.no_update
+
+# Callback to update timeframe options based on selected period
+def update_timeframe_options(period):
+    """
+    Update timeframe options based on selected period to ensure compatibility
+    
+    Args:
+        period (str): Selected period value
+        
+    Returns:
+        tuple: Updated timeframe options and default value
+    """
+    # Define compatible timeframes for each period
+    period_compatible_timeframes = {
+        '1w': [
+            {"label": "1 Minute", "value": "1m"},
+            {"label": "5 Minutes", "value": "5m"},
+            {"label": "15 Minutes", "value": "15m"},
+            {"label": "1 Hour", "value": "1h"}
+        ],
+        '1m': [
+            {"label": "Daily", "value": "1d"},
+            {"label": "Weekly", "value": "1wk"}
+        ],
+        '3m': [
+            {"label": "Daily", "value": "1d"},
+            {"label": "Weekly", "value": "1wk"}
+        ],
+        '6m': [
+            {"label": "Daily", "value": "1d"},
+            {"label": "Weekly", "value": "1wk"}
+        ],
+        '1y': [
+            {"label": "Daily", "value": "1d"},
+            {"label": "Weekly", "value": "1wk"}
+        ]
+    }
+    
+    # Get compatible timeframes for selected period
+    if period in period_compatible_timeframes:
+        options = period_compatible_timeframes[period]
+        # Set default value to first option
+        default_value = options[0]["value"]
+        return options, default_value
+    
+    # Default options if period not recognized
+    default_options = [
+        {"label": "Daily", "value": "1d"},
+        {"label": "Weekly", "value": "1wk"}
+    ]
+    return default_options, "1d"
 
 # Callback to update indicators chart
 def update_indicators_chart(update_clicks, analyze_clicks, 
@@ -380,11 +409,24 @@ def update_indicators_chart(update_clicks, analyze_clicks,
         }
         
         # Get period parameters with better error handling
-        period_type, period_value, freq_type, freq_value = period_mapping.get(period, ('month', 1, 'daily', 1))
+        period_type, period_value, default_freq_type, default_freq_value = period_mapping.get(period, ('month', 1, 'daily', 1))
+        
+        # Check compatibility between period type and frequency type
+        compatible_freq_types = {
+            'day': ['minute'],
+            'month': ['daily', 'weekly'],
+            'year': ['daily', 'weekly', 'monthly']
+        }
         
         # Get timeframe parameters with better error handling
         if timeframe in timeframe_mapping:
             freq_type, freq_value = timeframe_mapping[timeframe]
+            
+            # Check if the selected frequency type is compatible with the period type
+            if period_type in compatible_freq_types and freq_type not in compatible_freq_types[period_type]:
+                print(f"Warning: Incompatible frequency_type '{freq_type}' for period_type '{period_type}'")
+                print(f"Using default frequency type '{default_freq_type}' instead")
+                freq_type, freq_value = default_freq_type, default_freq_value
         else:
             print(f"Warning: Unknown timeframe '{timeframe}', defaulting to daily")
             freq_type, freq_value = 'daily', 1
@@ -405,22 +447,18 @@ def update_indicators_chart(update_clicks, analyze_clicks,
             return go.Figure()
         
         # Create technical indicators
-        ti = TechnicalIndicators(historical_data)
+        tech_indicators = TechnicalIndicators()
         
-        # Create subplots
-        fig = make_subplots(
-            rows=4, 
-            cols=1, 
-            shared_xaxes=True,
-            vertical_spacing=0.05,
-            row_heights=[0.5, 0.2, 0.15, 0.15],
-            subplot_titles=("Price", "Volume", "", "")
-        )
+        # Create figure with subplots
+        fig = make_subplots(rows=4, cols=1, 
+                           shared_xaxes=True, 
+                           vertical_spacing=0.02, 
+                           row_heights=[0.5, 0.2, 0.15, 0.15])
         
         # Add price candlestick chart
         fig.add_trace(
             go.Candlestick(
-                x=historical_data.index if hasattr(historical_data, 'index') else historical_data['datetime'],
+                x=historical_data.index,
                 open=historical_data['open'],
                 high=historical_data['high'],
                 low=historical_data['low'],
@@ -430,213 +468,240 @@ def update_indicators_chart(update_clicks, analyze_clicks,
             row=1, col=1
         )
         
-        # Add volume chart
+        # Add volume as bar chart
         fig.add_trace(
             go.Bar(
-                x=historical_data.index if hasattr(historical_data, 'index') else historical_data['datetime'],
+                x=historical_data.index,
                 y=historical_data['volume'],
                 name="Volume",
-                marker_color='rgba(0, 0, 255, 0.5)'
+                marker_color='rgba(0, 0, 255, 0.3)'
             ),
             row=2, col=1
         )
         
         # Add selected indicators
-        subplot_row = 3  # Start additional indicators from row 3
-        
-        # Add Bollinger Bands
         if 'bollinger' in indicators:
-            bb = ti.bollinger_bands(period=bb_period, std_dev=bb_std)
+            middle_band, upper_band, lower_band = tech_indicators.calculate_bollinger_bands(
+                historical_data, period=bb_period, num_std=bb_std
+            )
             
             fig.add_trace(
                 go.Scatter(
-                    x=bb.index if hasattr(bb, 'index') else historical_data['datetime'],
-                    y=bb['middle_band'],
+                    x=historical_data.index,
+                    y=middle_band,
                     name=f"BB Middle ({bb_period})",
-                    line=dict(color='rgba(0, 0, 255, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=bb.index if hasattr(bb, 'index') else historical_data['datetime'],
-                    y=bb['upper_band'],
-                    name=f"BB Upper ({bb_period}, {bb_std}σ)",
-                    line=dict(color='rgba(0, 0, 255, 0.3)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=bb.index if hasattr(bb, 'index') else historical_data['datetime'],
-                    y=bb['lower_band'],
-                    name=f"BB Lower ({bb_period}, {bb_std}σ)",
-                    line=dict(color='rgba(0, 0, 255, 0.3)'),
-                    fill='tonexty'
-                ),
-                row=1, col=1
-            )
-        
-        # Add Moving Averages
-        if 'ma' in indicators:
-            sma1 = ti.sma(period=sma1_period)
-            sma2 = ti.sma(period=sma2_period)
-            ema = ti.ema(period=ema_period)
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=sma1.index if hasattr(sma1, 'index') else historical_data['datetime'],
-                    y=sma1,
-                    name=f"SMA ({sma1_period})",
-                    line=dict(color='rgba(255, 0, 0, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=sma2.index if hasattr(sma2, 'index') else historical_data['datetime'],
-                    y=sma2,
-                    name=f"SMA ({sma2_period})",
-                    line=dict(color='rgba(0, 255, 0, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=ema.index if hasattr(ema, 'index') else historical_data['datetime'],
-                    y=ema,
-                    name=f"EMA ({ema_period})",
                     line=dict(color='rgba(255, 165, 0, 0.7)')
                 ),
                 row=1, col=1
             )
-        
-        # Add RSI
-        if 'rsi' in indicators:
-            rsi = ti.rsi(period=rsi_period)
             
             fig.add_trace(
                 go.Scatter(
-                    x=rsi.index if hasattr(rsi, 'index') else historical_data['datetime'],
+                    x=historical_data.index,
+                    y=upper_band,
+                    name=f"BB Upper ({bb_period}, {bb_std}σ)",
+                    line=dict(color='rgba(0, 128, 0, 0.7)')
+                ),
+                row=1, col=1
+            )
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=historical_data.index,
+                    y=lower_band,
+                    name=f"BB Lower ({bb_period}, {bb_std}σ)",
+                    line=dict(color='rgba(255, 0, 0, 0.7)')
+                ),
+                row=1, col=1
+            )
+        
+        if 'ma' in indicators:
+            # Calculate SMAs
+            sma1 = tech_indicators.calculate_sma(historical_data, period=sma1_period)
+            sma2 = tech_indicators.calculate_sma(historical_data, period=sma2_period)
+            ema = tech_indicators.calculate_ema(historical_data, period=ema_period)
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=historical_data.index,
+                    y=sma1,
+                    name=f"SMA ({sma1_period})",
+                    line=dict(color='rgba(255, 0, 255, 0.7)')
+                ),
+                row=1, col=1
+            )
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=historical_data.index,
+                    y=sma2,
+                    name=f"SMA ({sma2_period})",
+                    line=dict(color='rgba(0, 255, 255, 0.7)')
+                ),
+                row=1, col=1
+            )
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=historical_data.index,
+                    y=ema,
+                    name=f"EMA ({ema_period})",
+                    line=dict(color='rgba(128, 0, 128, 0.7)')
+                ),
+                row=1, col=1
+            )
+        
+        if 'rsi' in indicators:
+            # Calculate RSI
+            rsi = tech_indicators.calculate_rsi(historical_data, period=rsi_period)
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=historical_data.index,
                     y=rsi,
                     name=f"RSI ({rsi_period})",
-                    line=dict(color='purple')
+                    line=dict(color='rgba(75, 0, 130, 0.7)')
                 ),
-                row=subplot_row, col=1
+                row=3, col=1
             )
             
             # Add overbought/oversold lines
             fig.add_trace(
                 go.Scatter(
-                    x=rsi.index if hasattr(rsi, 'index') else historical_data['datetime'],
-                    y=[rsi_overbought] * len(rsi),
+                    x=[historical_data.index[0], historical_data.index[-1]],
+                    y=[rsi_overbought, rsi_overbought],
                     name=f"Overbought ({rsi_overbought})",
-                    line=dict(color='red', dash='dash')
+                    line=dict(color='rgba(255, 0, 0, 0.5)', dash='dash')
                 ),
-                row=subplot_row, col=1
+                row=3, col=1
             )
             
             fig.add_trace(
                 go.Scatter(
-                    x=rsi.index if hasattr(rsi, 'index') else historical_data['datetime'],
-                    y=[rsi_oversold] * len(rsi),
+                    x=[historical_data.index[0], historical_data.index[-1]],
+                    y=[rsi_oversold, rsi_oversold],
                     name=f"Oversold ({rsi_oversold})",
-                    line=dict(color='green', dash='dash')
+                    line=dict(color='rgba(0, 128, 0, 0.5)', dash='dash')
                 ),
-                row=subplot_row, col=1
+                row=3, col=1
             )
             
-            # Update y-axis range
-            fig.update_yaxes(range=[0, 100], row=subplot_row, col=1, title_text="RSI")
-            
-            subplot_row += 1
+            # Add midline
+            fig.add_trace(
+                go.Scatter(
+                    x=[historical_data.index[0], historical_data.index[-1]],
+                    y=[50, 50],
+                    name="RSI Midline",
+                    line=dict(color='rgba(128, 128, 128, 0.5)', dash='dash')
+                ),
+                row=3, col=1
+            )
         
-        # Add MACD
         if 'macd' in indicators:
-            macd_data = ti.macd(fast_period=macd_fast, slow_period=macd_slow, signal_period=macd_signal)
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=macd_data.index if hasattr(macd_data, 'index') else historical_data['datetime'],
-                    y=macd_data['macd'],
-                    name=f"MACD ({macd_fast},{macd_slow},{macd_signal})",
-                    line=dict(color='blue')
-                ),
-                row=subplot_row, col=1
+            # Calculate MACD
+            macd_line, signal_line, histogram = tech_indicators.calculate_macd(
+                historical_data, fast_period=macd_fast, slow_period=macd_slow, signal_period=macd_signal
             )
             
             fig.add_trace(
                 go.Scatter(
-                    x=macd_data.index if hasattr(macd_data, 'index') else historical_data['datetime'],
-                    y=macd_data['signal'],
+                    x=historical_data.index,
+                    y=macd_line,
+                    name=f"MACD ({macd_fast}, {macd_slow})",
+                    line=dict(color='rgba(0, 0, 255, 0.7)')
+                ),
+                row=4, col=1
+            )
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=historical_data.index,
+                    y=signal_line,
                     name=f"Signal ({macd_signal})",
-                    line=dict(color='red')
+                    line=dict(color='rgba(255, 165, 0, 0.7)')
                 ),
-                row=subplot_row, col=1
+                row=4, col=1
             )
             
-            # Add histogram
+            # Add histogram as bar chart
+            colors = ['rgba(0, 255, 0, 0.7)' if val >= 0 else 'rgba(255, 0, 0, 0.7)' for val in histogram]
+            
             fig.add_trace(
                 go.Bar(
-                    x=macd_data.index if hasattr(macd_data, 'index') else historical_data['datetime'],
-                    y=macd_data['histogram'],
-                    name="Histogram",
-                    marker_color='rgba(0, 255, 0, 0.5)'
+                    x=historical_data.index,
+                    y=histogram,
+                    name="MACD Histogram",
+                    marker_color=colors
                 ),
-                row=subplot_row, col=1
+                row=4, col=1
             )
-            
-            fig.update_yaxes(title_text="MACD", row=subplot_row, col=1)
-            
-            subplot_row += 1
         
-        # Add MFI
-        if 'mfi' in indicators and subplot_row <= 4:
-            mfi = ti.money_flow_index(period=14)
+        if 'mfi' in indicators:
+            # Calculate MFI
+            mfi = tech_indicators.calculate_mfi(historical_data)
             
-            fig.add_trace(
-                go.Scatter(
-                    x=mfi.index if hasattr(mfi, 'index') else historical_data['datetime'],
-                    y=mfi,
-                    name="MFI (14)",
-                    line=dict(color='orange')
-                ),
-                row=subplot_row, col=1
-            )
+            if not mfi.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=historical_data.index,
+                        y=mfi,
+                        name="MFI",
+                        line=dict(color='rgba(255, 69, 0, 0.7)')
+                    ),
+                    row=3, col=1
+                )
+        
+        if 'imi' in indicators:
+            # Calculate IMI
+            imi = tech_indicators.calculate_imi(historical_data)
             
-            # Add overbought/oversold lines
-            fig.add_trace(
-                go.Scatter(
-                    x=mfi.index if hasattr(mfi, 'index') else historical_data['datetime'],
-                    y=[80] * len(mfi),
-                    name="Overbought (80)",
-                    line=dict(color='red', dash='dash')
-                ),
-                row=subplot_row, col=1
-            )
+            if not imi.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=historical_data.index,
+                        y=imi,
+                        name="IMI",
+                        line=dict(color='rgba(0, 128, 128, 0.7)')
+                    ),
+                    row=3, col=1
+                )
+        
+        if 'fvg' in indicators:
+            # Calculate Fair Value Gap
+            fvg = tech_indicators.calculate_fair_value_gap(historical_data)
             
-            fig.add_trace(
-                go.Scatter(
-                    x=mfi.index if hasattr(mfi, 'index') else historical_data['datetime'],
-                    y=[20] * len(mfi),
-                    name="Oversold (20)",
-                    line=dict(color='green', dash='dash')
-                ),
-                row=subplot_row, col=1
-            )
+            if not fvg.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=historical_data.index,
+                        y=fvg,
+                        name="FVG",
+                        line=dict(color='rgba(139, 0, 139, 0.7)')
+                    ),
+                    row=1, col=1
+                )
+        
+        if 'liquidity' in indicators:
+            # Calculate Liquidity Zones
+            liquidity_zones = tech_indicators.calculate_liquidity_zones(historical_data)
             
-            fig.update_yaxes(range=[0, 100], title_text="MFI", row=subplot_row, col=1)
-            
-            subplot_row += 1
+            if not liquidity_zones.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=historical_data.index,
+                        y=liquidity_zones,
+                        name="Liquidity Zones",
+                        line=dict(color='rgba(0, 100, 0, 0.7)')
+                    ),
+                    row=1, col=1
+                )
         
         # Update layout
         fig.update_layout(
-            title=f"Technical Analysis for {symbol}",
+            title=f"{symbol} Technical Analysis ({period}, {timeframe})",
             xaxis_title="Date",
+            yaxis_title="Price",
+            height=800,
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
@@ -644,86 +709,92 @@ def update_indicators_chart(update_clicks, analyze_clicks,
                 xanchor="right",
                 x=1
             ),
-            height=800,
             margin=dict(l=50, r=50, t=80, b=50)
         )
         
-        # Hide weekends and after hours
+        # Update y-axis labels
+        fig.update_yaxes(title_text="Price", row=1, col=1)
+        fig.update_yaxes(title_text="Volume", row=2, col=1)
+        
+        if 'rsi' in indicators or 'mfi' in indicators or 'imi' in indicators:
+            fig.update_yaxes(title_text="Oscillators", row=3, col=1)
+        
+        if 'macd' in indicators:
+            fig.update_yaxes(title_text="MACD", row=4, col=1)
+        
+        # Update x-axis
         fig.update_xaxes(
+            rangeslider_visible=False,
             rangebreaks=[
-                dict(bounds=["sat", "mon"]),  # Hide weekends
-                dict(bounds=[16, 9.5], pattern="hour")  # Hide after hours
+                dict(bounds=["sat", "mon"]),  # hide weekends
+                dict(bounds=[16, 9.5], pattern="hour")  # hide non-trading hours
             ]
         )
         
         return fig
-    
+        
     except Exception as e:
         print(f"Error updating indicators chart: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return go.Figure()
 
-def register_indicators_callbacks(app):
+# Register callbacks
+def register_callbacks(app):
     """
-    Register callback functions for the indicators tab
+    Register all callbacks for the indicators tab
     
     Args:
-        app: The Dash app instance
+        app: Dash app instance
     """
-    # Callback to toggle indicator parameters collapse
-    @app.callback(
+    app.callback(
         Output("indicator-params-collapse", "is_open"),
         [Input("indicator-params-toggle", "n_clicks")],
         [State("indicator-params-collapse", "is_open")]
-    )
-    def toggle_params_callback(n_clicks, is_open):
-        return toggle_indicator_params(n_clicks, is_open)
+    )(toggle_indicator_params)
     
-    # Callback to reset indicator parameters to defaults
-    @app.callback(
-        [Output("rsi-period", "value"),
-         Output("rsi-overbought", "value"),
-         Output("rsi-oversold", "value"),
-         Output("macd-fast-period", "value"),
-         Output("macd-slow-period", "value"),
-         Output("macd-signal-period", "value"),
-         Output("bb-period", "value"),
-         Output("bb-std", "value"),
-         Output("sma1-period", "value"),
-         Output("sma2-period", "value"),
-         Output("ema-period", "value")],
-        [Input("reset-indicator-params", "n_clicks")]
-    )
-    def reset_params_callback(n_clicks):
-        return reset_indicator_params(n_clicks)
+    app.callback(
+        Output("rsi-period", "value"),
+        Output("rsi-overbought", "value"),
+        Output("rsi-oversold", "value"),
+        Output("macd-fast", "value"),
+        Output("macd-slow", "value"),
+        Output("macd-signal", "value"),
+        Output("bb-period", "value"),
+        Output("bb-std", "value"),
+        Output("sma1-period", "value"),
+        Output("sma2-period", "value"),
+        Output("ema-period", "value"),
+        Input("reset-params-button", "n_clicks")
+    )(reset_indicator_params)
     
-    # Callback to update indicators chart
-    @app.callback(
+    app.callback(
+        Output("indicator-timeframe", "options"),
+        Output("indicator-timeframe", "value"),
+        Input("indicator-period", "value")
+    )(update_timeframe_options)
+    
+    app.callback(
         Output("indicators-chart", "figure"),
-        [Input("update-indicators-button", "n_clicks"),
-         Input("indicator-analyze-button", "n_clicks")],
-        [State("indicator-symbol-input", "value"),
-         State("indicator-timeframe", "value"),
-         State("indicator-period", "value"),
-         State("indicator-selection", "value"),
-         State("rsi-period", "value"),
-         State("rsi-overbought", "value"),
-         State("rsi-oversold", "value"),
-         State("macd-fast-period", "value"),
-         State("macd-slow-period", "value"),
-         State("macd-signal-period", "value"),
-         State("bb-period", "value"),
-         State("bb-std", "value"),
-         State("sma1-period", "value"),
-         State("sma2-period", "value"),
-         State("ema-period", "value")]
-    )
-    def update_chart_callback(update_clicks, analyze_clicks, 
-                             symbol, timeframe, period, indicators,
-                             rsi_period, rsi_overbought, rsi_oversold,
-                             macd_fast, macd_slow, macd_signal,
-                             bb_period, bb_std, sma1_period, sma2_period, ema_period):
-        return update_indicators_chart(update_clicks, analyze_clicks, 
-                                      symbol, timeframe, period, indicators,
-                                      rsi_period, rsi_overbought, rsi_oversold,
-                                      macd_fast, macd_slow, macd_signal,
-                                      bb_period, bb_std, sma1_period, sma2_period, ema_period)
+        [
+            Input("update-indicators-button", "n_clicks"),
+            Input("indicator-analyze-button", "n_clicks")
+        ],
+        [
+            State("indicator-symbol-input", "value"),
+            State("indicator-timeframe", "value"),
+            State("indicator-period", "value"),
+            State("indicator-selection", "value"),
+            State("rsi-period", "value"),
+            State("rsi-overbought", "value"),
+            State("rsi-oversold", "value"),
+            State("macd-fast", "value"),
+            State("macd-slow", "value"),
+            State("macd-signal", "value"),
+            State("bb-period", "value"),
+            State("bb-std", "value"),
+            State("sma1-period", "value"),
+            State("sma2-period", "value"),
+            State("ema-period", "value")
+        ]
+    )(update_indicators_chart)
