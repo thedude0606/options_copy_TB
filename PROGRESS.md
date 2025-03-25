@@ -41,6 +41,7 @@
   - Fixed "name 'frequency_value' is not defined" error in historical_tab.py by correcting variable name mismatch
   - Fixed "TechnicalIndicators() takes no arguments" error by implementing proper class initialization with data parameter
   - Added instance methods to TechnicalIndicators class to handle method calls from indicators_tab.py
+  - Fixed "'TechnicalIndicators' object has no attribute 'macd'" error by implementing missing macd and money_flow_index methods
 
 ## Current Work in Progress
 

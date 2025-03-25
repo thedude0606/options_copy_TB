@@ -99,6 +99,54 @@ class TechnicalIndicators:
         """
         return self.calculate_rsi(self.data, period, price_col)
     
+    def macd(self, fast_period=12, slow_period=26, signal_period=9, price_col='close'):
+        """
+        Calculate Moving Average Convergence Divergence using instance data
+        
+        Args:
+            fast_period (int): Period for fast EMA
+            slow_period (int): Period for slow EMA
+            signal_period (int): Period for signal line
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.DataFrame: DataFrame with MACD, signal, and histogram
+        """
+        if self.data is None or self.data.empty:
+            return pd.DataFrame()
+            
+        macd_line, signal_line, histogram = self.calculate_macd(
+            self.data, 
+            fast_period=fast_period, 
+            slow_period=slow_period, 
+            signal_period=signal_period, 
+            price_col=price_col
+        )
+        
+        # Create DataFrame with results
+        result = pd.DataFrame({
+            'macd': macd_line,
+            'signal': signal_line,
+            'histogram': histogram
+        }, index=self.data.index if hasattr(self.data, 'index') else None)
+        
+        return result
+    
+    def money_flow_index(self, period=14):
+        """
+        Calculate Money Flow Index using instance data
+        
+        Args:
+            period (int): Period for MFI calculation
+            
+        Returns:
+            pd.Series: MFI values
+        """
+        if self.data is None or self.data.empty:
+            return pd.Series()
+            
+        return self.calculate_mfi(self.data, period=period)
+    
     @staticmethod
     def calculate_rsi(data, period=14, price_col='close'):
         """
