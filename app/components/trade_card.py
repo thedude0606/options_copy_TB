@@ -20,26 +20,64 @@ def create_trade_card(recommendation):
         dbc.Card: Trade card component
     """
     try:
-        # Parse recommendation details if it's a string
-        if isinstance(recommendation.get('recommendation_details', ''), str):
-            try:
-                details = ast.literal_eval(recommendation['recommendation_details'])
-            except:
-                details = {}
+        # Extract data directly from recommendation dictionary
+        # First check if we have the old format with recommendation_details
+        if 'recommendation_details' in recommendation:
+            # Parse recommendation details if it's a string
+            if isinstance(recommendation.get('recommendation_details', ''), str):
+                try:
+                    details = ast.literal_eval(recommendation['recommendation_details'])
+                except:
+                    details = {}
+            else:
+                details = recommendation.get('recommendation_details', {})
+            
+            # Extract data from details
+            option_type = details.get('type', 'UNKNOWN').upper()
+            strike = details.get('strike', 0)
+            expiration = details.get('expiration', 'UNKNOWN')
+            current_price = details.get('current_price', 0)
+            underlying_price = details.get('underlying_price', 0)
+            probability = details.get('probability_of_profit', 0)
+            risk_reward = details.get('risk_reward_ratio', 0)
+            potential_return = details.get('potential_return_pct', 0)
+            confidence = details.get('confidence_score', 0)
+            signal_details = details.get('signal_details', {})
+            delta = details.get('delta', 0)
+            gamma = details.get('gamma', 0)
+            theta = details.get('theta', 0)
+            vega = details.get('vega', 0)
         else:
-            details = recommendation.get('recommendation_details', {})
-        
-        # Extract data
-        option_type = details.get('type', 'UNKNOWN').upper()
-        strike = details.get('strike', 0)
-        expiration = details.get('expiration', 'UNKNOWN')
-        current_price = details.get('current_price', 0)
-        underlying_price = details.get('underlying_price', 0)
-        probability = details.get('probability_of_profit', 0)
-        risk_reward = details.get('risk_reward_ratio', 0)
-        potential_return = details.get('potential_return_pct', 0)
-        confidence = details.get('confidence_score', 0)
-        signal_details = details.get('signal_details', {})
+            # New format with direct fields
+            option_type = recommendation.get('optionType', 'UNKNOWN').upper()
+            strike = recommendation.get('strikePrice', 0)
+            expiration = recommendation.get('expirationDate', 'UNKNOWN')
+            current_price = recommendation.get('entryPrice', 0)
+            underlying_price = recommendation.get('underlyingPrice', 0)
+            probability = recommendation.get('probabilityOfProfit', 0)
+            risk_reward = recommendation.get('riskRewardRatio', 0)
+            potential_return = recommendation.get('potentialReturn', 0)
+            confidence = recommendation.get('confidence', 0)
+            
+            # Handle signal details - could be a string, list, or dict
+            signal_details_raw = recommendation.get('signalDetails', {})
+            if isinstance(signal_details_raw, str):
+                try:
+                    signal_details = ast.literal_eval(signal_details_raw)
+                except:
+                    # If it's a string but not a valid Python literal, treat as a single message
+                    signal_details = {"Signal": signal_details_raw}
+            elif isinstance(signal_details_raw, list):
+                # Convert list to dictionary with numbered keys
+                signal_details = {f"Signal {i+1}": item for i, item in enumerate(signal_details_raw)}
+            else:
+                signal_details = signal_details_raw
+            
+            # Extract Greeks
+            delta = recommendation.get('delta', 0)
+            gamma = recommendation.get('gamma', 0)
+            theta = recommendation.get('theta', 0)
+            vega = recommendation.get('vega', 0)
         
         # Format expiration date
         try:
@@ -111,19 +149,19 @@ def create_trade_card(recommendation):
                         html.H5("Greeks", className="section-title"),
                         html.P([
                             html.Span("Delta: ", className="label"),
-                            html.Span(f"{details.get('delta', 0):.3f}", className="value")
+                            html.Span(f"{delta:.3f}", className="value")
                         ]),
                         html.P([
                             html.Span("Gamma: ", className="label"),
-                            html.Span(f"{details.get('gamma', 0):.3f}", className="value")
+                            html.Span(f"{gamma:.3f}", className="value")
                         ]),
                         html.P([
                             html.Span("Theta: ", className="label"),
-                            html.Span(f"{details.get('theta', 0):.3f}", className="value")
+                            html.Span(f"{theta:.3f}", className="value")
                         ]),
                         html.P([
                             html.Span("Vega: ", className="label"),
-                            html.Span(f"{details.get('vega', 0):.3f}", className="value")
+                            html.Span(f"{vega:.3f}", className="value")
                         ])
                     ], className="section"),
                     id=f"collapse-{id(recommendation)}",
@@ -142,9 +180,9 @@ def create_trade_card(recommendation):
                 html.Div([
                     html.H5("Rationale", className="section-title"),
                     html.Div([
-                        html.P(f"{key.upper()}: {value}")
+                        html.P(str(value))
                         for key, value in signal_details.items()
-                    ])
+                    ] if signal_details else [html.P("No signal details available")])
                 ], className="section mt-3")
             ]
         )

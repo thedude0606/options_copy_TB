@@ -165,3 +165,9 @@
 - **Rationale**: Initial implementation had incorrect conditional nesting that prevented the fallback mechanism from working
 - **Benefits**: Ensures recommendations are always displayed, improves reliability of the recommendation system
 - **Implementation**: Properly nested conditional statements to ensure filtered recommendations are correctly processed and returned
+
+### Trade Card Component Data Format Compatibility
+- **Decision**: Updated trade card component to handle both old and new recommendation data formats
+- **Rationale**: The UI component expected a different data structure than what the recommendation engine was providing
+- **Benefits**: Ensures recommendations appear in the UI, improves user experience, maintains backward compatibility
+- **Implementation**: Modified the trade card component to detect and handle both data formats, with proper fallbacks for missing data

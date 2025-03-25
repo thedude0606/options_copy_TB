@@ -60,6 +60,7 @@
   - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
   - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
   - Fixed logic flow in recommendation engine to properly implement the fallback mechanism for displaying recommendations
+  - Fixed UI display issue by updating trade card component to handle the current recommendation data format
 
 ## Current Work in Progress
 
