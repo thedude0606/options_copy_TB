@@ -900,22 +900,36 @@ def update_historical_chart(historical_data, time_period):
     print(f"DataFrame head: \n{df.head()}")
     
     # Convert date strings to datetime objects if they're not already
+    print("Checking for date/datetime columns...")
     if "date" in df.columns:
+        print(f"Found 'date' column. First value: {df['date'].iloc[0]}, type: {type(df['date'].iloc[0])}")
         # Check if dates are in milliseconds (epoch time) and convert if needed
         if isinstance(df["date"].iloc[0], (int, float)) or (isinstance(df["date"].iloc[0], str) and df["date"].iloc[0].isdigit()):
+            print("Converting date from milliseconds to datetime...")
             df["date"] = pd.to_datetime(df["date"].astype(float), unit='ms')
+            print(f"After conversion, first date: {df['date'].iloc[0]}")
         else:
             # Try to parse as datetime if it's a string in a different format
+            print("Parsing date as datetime...")
             df["date"] = pd.to_datetime(df["date"], errors='coerce')
+            print(f"After parsing, first date: {df['date'].iloc[0]}")
     elif "datetime" in df.columns:
+        print(f"Found 'datetime' column. First value: {df['datetime'].iloc[0]}, type: {type(df['datetime'].iloc[0])}")
         # Rename datetime column to date for consistency
         df["date"] = df["datetime"]
+        print(f"Created 'date' column from 'datetime'. First value: {df['date'].iloc[0]}")
         # Check if dates are in milliseconds (epoch time) and convert if needed
         if isinstance(df["date"].iloc[0], (int, float)) or (isinstance(df["date"].iloc[0], str) and df["date"].iloc[0].isdigit()):
+            print("Converting date from milliseconds to datetime...")
             df["date"] = pd.to_datetime(df["date"].astype(float), unit='ms')
+            print(f"After conversion, first date: {df['date'].iloc[0]}")
         else:
             # Try to parse as datetime if it's a string in a different format
+            print("Parsing date as datetime...")
             df["date"] = pd.to_datetime(df["date"], errors='coerce')
+            print(f"After parsing, first date: {df['date'].iloc[0]}")
+    else:
+        print(f"WARNING: Neither 'date' nor 'datetime' column found. Available columns: {df.columns.tolist()}")
     
     # Create candlestick chart
     fig = go.Figure()
