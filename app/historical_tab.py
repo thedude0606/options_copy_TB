@@ -48,6 +48,30 @@ def update_historical_chart(symbol, time_period):
         return go.Figure()
     
     try:
+        # Validate and correct common symbol mistakes
+        symbol = symbol.upper().strip()
+        
+        # Common symbol corrections
+        symbol_corrections = {
+            'APPL': 'AAPL',  # Apple Inc.
+            'GOGL': 'GOOGL',  # Alphabet Inc.
+            'AMZM': 'AMZN',   # Amazon.com Inc.
+            'MSFT': 'MSFT',   # Microsoft (already correct, included for completeness)
+            'TSLA': 'TSLA',   # Tesla (already correct, included for completeness)
+            'NVDA': 'NVDA',   # NVIDIA (already correct, included for completeness)
+            'AMZN': 'AMZN',   # Amazon (already correct, included for completeness)
+            'GOOGL': 'GOOGL', # Alphabet (already correct, included for completeness)
+            'FB': 'META',     # Meta Platforms (formerly Facebook)
+            'TWTR': 'TWTR',   # Twitter (already correct, included for completeness)
+        }
+        
+        # Apply correction if needed
+        if symbol in symbol_corrections:
+            corrected_symbol = symbol_corrections[symbol]
+            if symbol != corrected_symbol:
+                print(f"Symbol corrected from {symbol} to {corrected_symbol}")
+                symbol = corrected_symbol
+        
         # Map time period to API parameters
         period_mapping = {
             '1D': ('day', 1, 'minute', 5),

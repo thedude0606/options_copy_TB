@@ -171,3 +171,9 @@
 - **Rationale**: The UI component expected a different data structure than what the recommendation engine was providing
 - **Benefits**: Ensures recommendations appear in the UI, improves user experience, maintains backward compatibility
 - **Implementation**: Modified the trade card component to detect and handle both data formats, with proper fallbacks for missing data
+
+### Symbol Validation and Correction for Historical Data
+- **Decision**: Implemented symbol validation and correction for historical data to handle common ticker symbol mistakes
+- **Rationale**: Users may enter incorrect ticker symbols (e.g., "APPL" instead of "AAPL") leading to no data being displayed
+- **Benefits**: Improves user experience, reduces errors, ensures historical data is displayed even with common symbol typos
+- **Implementation**: Added a dictionary of common symbol corrections and logic to automatically correct known symbol mistakes
