@@ -482,7 +482,7 @@ def update_indicators_chart(update_clicks, analyze_clicks,
         # Add selected indicators
         if 'bollinger' in indicators:
             middle_band, upper_band, lower_band = tech_indicators.calculate_bollinger_bands(
-                historical_data, period=bb_period, num_std=bb_std
+                historical_data, period=bb_period, std_dev=bb_std
             )
             
             fig.add_trace(

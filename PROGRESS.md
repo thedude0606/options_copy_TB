@@ -57,6 +57,8 @@
   - Enhanced recommendation engine with comprehensive debugging and improved data flow tracing
   - Fixed option data processing to properly extract and use underlying price information
   - Improved the scoring algorithm to handle edge cases better in the recommendation engine
+  - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
+  - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
 
 ## Current Work in Progress
 

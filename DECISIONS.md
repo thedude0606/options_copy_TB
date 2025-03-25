@@ -147,3 +147,15 @@
 - **Rationale**: Unexpected data types or structures from API responses can cause cascading failures
 - **Benefits**: More robust application, better error messages, graceful handling of unexpected data
 - **Implementation**: Wrapped critical operations in try-except blocks with appropriate fallback behavior and logging
+
+### Bollinger Bands Parameter Standardization
+- **Decision**: Changed parameter name from 'num_std' to 'std_dev' in Bollinger Bands calculation
+- **Rationale**: Parameter name mismatch between function call and implementation was causing errors
+- **Benefits**: Consistent parameter naming, proper technical indicator calculation, elimination of runtime errors
+- **Implementation**: Updated the parameter name in indicators_tab.py to match the expected parameter in technical_indicators.py
+
+### Recommendation Fallback Strategy
+- **Decision**: Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
+- **Rationale**: Users need recommendations even when market conditions don't produce high-confidence signals
+- **Benefits**: Ensures recommendations are always available, improves user experience, provides options in all market conditions
+- **Implementation**: Added fallback logic to select top 3 recommendations by confidence score when no recommendations meet the threshold
