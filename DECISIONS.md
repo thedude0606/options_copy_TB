@@ -93,6 +93,11 @@
 - **Rationale**: Ensures all UI components are properly connected to their data processing functions
 - **Benefits**: Consistent user experience across all tabs, proper functionality of all dashboard features, modular code organization
 
+### Dash Callback Configuration
+- **Decision**: Added prevent_initial_call=True parameter to all callbacks using allow_duplicate=True
+- **Rationale**: Dash requires prevent_initial_call when using allow_duplicate to ensure predictable callback execution order
+- **Benefits**: Prevents DuplicateCallback errors, ensures consistent behavior across page loads, improves application stability
+
 ### Visualization Techniques
 - **Decision**: Used specialized visualization techniques for different data types
 - **Rationale**: Different data requires different visualization approaches for clarity

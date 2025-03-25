@@ -142,7 +142,8 @@ def register_historical_callbacks(app):
         Output("historical-chart", "figure", allow_duplicate=True),
         [Input("submit-button", "n_clicks")],
         [State("symbol-input", "value"),
-         State("time-period", "value")]
+         State("time-period", "value")],
+        prevent_initial_call=True
     )
     def update_chart_callback(n_clicks, symbol, time_period):
         if not n_clicks or not symbol:
