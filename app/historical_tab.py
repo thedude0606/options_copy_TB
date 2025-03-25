@@ -5,6 +5,7 @@ import dash
 from dash import html, dcc, Input, Output, State
 import plotly.graph_objects as go
 import pandas as pd
+from datetime import datetime, timedelta
 from app.data_collector import DataCollector
 
 def create_historical_tab():
@@ -94,7 +95,39 @@ def update_historical_chart(symbol, time_period):
             frequency=freq_value
         )
         
+        print(f"Fetching historical data for {symbol} from {datetime.now() - timedelta(days=30)} to {datetime.now()}")
+        print(f"Period: {time_period}, FrequencyType: {freq_type}, Frequency: {freq_value}")
+        
+        # Check if historical_data is None and handle it
+        if historical_data is None:
+            print("Historical data is None")
+            return go.Figure()
+            
+        # Convert to DataFrame if it's not already
+        if not isinstance(historical_data, pd.DataFrame):
+            try:
+                # Check if it's a list of dictionaries or similar structure
+                if isinstance(historical_data, list) and len(historical_data) > 0:
+                    print(f"historical_data type: {type(historical_data)}")
+                    print(f"historical_data length: {len(historical_data)}")
+                    
+                    # Create DataFrame from list
+                    df = pd.DataFrame(historical_data)
+                    print(f"DataFrame created with shape: {df.shape}")
+                    print(f"DataFrame columns: {df.columns.tolist()}")
+                    print(f"DataFrame head: \n{df.head()}")
+                    historical_data = df
+                else:
+                    print(f"historical_data type: {type(historical_data)}")
+                    print(f"historical_data length: {len(historical_data) if hasattr(historical_data, '__len__') else 0}")
+                    print("No historical data available")
+                    return go.Figure()
+            except Exception as e:
+                print(f"Error converting historical data to DataFrame: {str(e)}")
+                return go.Figure()
+        
         if historical_data.empty:
+            print("Historical data DataFrame is empty")
             return go.Figure()
         
         # Create candlestick chart
@@ -149,6 +182,7 @@ def update_historical_chart(symbol, time_period):
             ]
         )
         
+        print("Historical chart figure created successfully")
         return fig
     
     except Exception as e:

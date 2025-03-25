@@ -183,3 +183,9 @@
 - **Rationale**: The indicators chart was failing to display due to missing static methods that were being called in the indicators tab
 - **Benefits**: Fixes indicators chart display, ensures all technical indicators are properly calculated and displayed
 - **Implementation**: Added static calculate_sma and calculate_ema methods following the same pattern as other static methods in the class
+
+### Historical Data Processing Enhancement
+- **Decision**: Enhanced historical data processing with robust error handling and type checking
+- **Rationale**: Historical data was not being displayed because the code assumed data would always be in DataFrame format, but it could be None or other formats
+- **Benefits**: Ensures historical data is properly displayed regardless of the format returned by the API, provides detailed logging for troubleshooting
+- **Implementation**: Added comprehensive type checking, conversion of list data to DataFrame, and detailed error handling with informative logging
