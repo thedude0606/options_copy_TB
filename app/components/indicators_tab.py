@@ -740,7 +740,7 @@ def update_indicators_chart(update_clicks, analyze_clicks,
         return go.Figure()
 
 # Register callbacks
-def register_callbacks(app):
+def register_indicators_callbacks(app):
     """
     Register all callbacks for the indicators tab
     
