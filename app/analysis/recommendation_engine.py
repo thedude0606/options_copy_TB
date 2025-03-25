@@ -1084,16 +1084,16 @@ class RecommendationEngine:
             # Filter by confidence threshold, but ensure we have at least some recommendations
             filtered_recommendations = recommendations_df[recommendations_df['confidence'] >= confidence_threshold]
         
-        if self.debug:
-            print(f"Filtered recommendations by confidence >= {confidence_threshold}: {len(filtered_recommendations)} rows remaining")
-        
-        # If no recommendations meet the threshold, lower it to get at least the top 3
-        if filtered_recommendations.empty and not recommendations_df.empty:
             if self.debug:
-                print(f"No recommendations meet the confidence threshold, using top 3 recommendations instead")
-            filtered_recommendations = recommendations_df.nlargest(3, 'confidence')
-            if self.debug:
-                print(f"Using top 3 recommendations with confidence scores: {filtered_recommendations['confidence'].tolist()}")
+                print(f"Filtered recommendations by confidence >= {confidence_threshold}: {len(filtered_recommendations)} rows remaining")
+            
+            # If no recommendations meet the threshold, lower it to get at least the top 3
+            if filtered_recommendations.empty:
+                if self.debug:
+                    print(f"No recommendations meet the confidence threshold, using top 3 recommendations instead")
+                filtered_recommendations = recommendations_df.nlargest(3, 'confidence')
+                if self.debug:
+                    print(f"Using top 3 recommendations with confidence scores: {filtered_recommendations['confidence'].tolist()}")
             
             # Sort by confidence
             sorted_recommendations = filtered_recommendations.sort_values('confidence', ascending=False)

@@ -59,6 +59,7 @@
   - Improved the scoring algorithm to handle edge cases better in the recommendation engine
   - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
   - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
+  - Fixed logic flow in recommendation engine to properly implement the fallback mechanism for displaying recommendations
 
 ## Current Work in Progress
 

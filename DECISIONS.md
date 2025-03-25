@@ -159,3 +159,9 @@
 - **Rationale**: Users need recommendations even when market conditions don't produce high-confidence signals
 - **Benefits**: Ensures recommendations are always available, improves user experience, provides options in all market conditions
 - **Implementation**: Added fallback logic to select top 3 recommendations by confidence score when no recommendations meet the threshold
+
+### Recommendation Engine Logic Flow Correction
+- **Decision**: Fixed logic flow in recommendation engine to properly implement the fallback mechanism
+- **Rationale**: Initial implementation had incorrect conditional nesting that prevented the fallback mechanism from working
+- **Benefits**: Ensures recommendations are always displayed, improves reliability of the recommendation system
+- **Implementation**: Properly nested conditional statements to ensure filtered recommendations are correctly processed and returned
