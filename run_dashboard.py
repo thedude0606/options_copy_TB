@@ -899,6 +899,15 @@ def update_historical_chart(historical_data, time_period):
         
     print(f"DataFrame head: \n{df.head()}")
     
+    # Convert date strings to datetime objects if they're not already
+    if "date" in df.columns:
+        # Check if dates are in milliseconds (epoch time) and convert if needed
+        if isinstance(df["date"].iloc[0], (int, float)) or (isinstance(df["date"].iloc[0], str) and df["date"].iloc[0].isdigit()):
+            df["date"] = pd.to_datetime(df["date"].astype(float), unit='ms')
+        else:
+            # Try to parse as datetime if it's a string in a different format
+            df["date"] = pd.to_datetime(df["date"], errors='coerce')
+    
     # Create candlestick chart
     fig = go.Figure()
     
