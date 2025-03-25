@@ -232,6 +232,24 @@ class TechnicalIndicators:
         return data[price_col].rolling(window=period).mean()
     
     @staticmethod
+    def calculate_ema(data, period=20, price_col='close'):
+        """
+        Calculate Exponential Moving Average (EMA)
+        
+        Args:
+            data (pd.DataFrame): Historical price data
+            period (int): Period for EMA calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: EMA values
+        """
+        if data.empty or len(data) < period:
+            return pd.Series()
+        
+        return data[price_col].ewm(span=period, adjust=False).mean()
+        
+    @staticmethod
     def calculate_bollinger_bands(data, period=20, std_dev=2, price_col='close'):
         """
         Calculate Bollinger Bands

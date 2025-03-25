@@ -179,7 +179,7 @@
 - **Implementation**: Added a dictionary of common symbol corrections and logic to automatically correct known symbol mistakes
 
 ### Technical Indicators Module Enhancement
-- **Decision**: Added missing calculate_sma method to technical indicators module
-- **Rationale**: The indicators chart was failing to display due to a missing static method that was being called in the indicators tab
+- **Decision**: Added missing calculate_sma and calculate_ema methods to technical indicators module
+- **Rationale**: The indicators chart was failing to display due to missing static methods that were being called in the indicators tab
 - **Benefits**: Fixes indicators chart display, ensures all technical indicators are properly calculated and displayed
-- **Implementation**: Added a static calculate_sma method following the same pattern as other static methods in the class
+- **Implementation**: Added static calculate_sma and calculate_ema methods following the same pattern as other static methods in the class
