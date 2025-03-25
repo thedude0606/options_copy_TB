@@ -11,6 +11,94 @@ class TechnicalIndicators:
     Class to calculate technical indicators for market analysis
     """
     
+    def __init__(self, data=None):
+        """
+        Initialize the technical indicators calculator
+        
+        Args:
+            data (pd.DataFrame): Historical price data
+        """
+        self.data = data
+    
+    def bollinger_bands(self, period=20, std_dev=2, price_col='close'):
+        """
+        Calculate Bollinger Bands using instance data
+        
+        Args:
+            period (int): Period for moving average
+            std_dev (float): Number of standard deviations
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.DataFrame: DataFrame with middle, upper, and lower bands
+        """
+        if self.data is None or self.data.empty:
+            return pd.DataFrame()
+            
+        # Calculate middle band (SMA)
+        middle_band = self.data[price_col].rolling(window=period).mean()
+        
+        # Calculate standard deviation
+        rolling_std = self.data[price_col].rolling(window=period).std()
+        
+        # Calculate upper and lower bands
+        upper_band = middle_band + (rolling_std * std_dev)
+        lower_band = middle_band - (rolling_std * std_dev)
+        
+        # Create DataFrame with results
+        result = pd.DataFrame({
+            'middle_band': middle_band,
+            'upper_band': upper_band,
+            'lower_band': lower_band
+        }, index=self.data.index if hasattr(self.data, 'index') else None)
+        
+        return result
+    
+    def sma(self, period=20, price_col='close'):
+        """
+        Calculate Simple Moving Average using instance data
+        
+        Args:
+            period (int): Period for SMA calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: SMA values
+        """
+        if self.data is None or self.data.empty or len(self.data) < period:
+            return pd.Series()
+            
+        return self.data[price_col].rolling(window=period).mean()
+    
+    def ema(self, period=20, price_col='close'):
+        """
+        Calculate Exponential Moving Average using instance data
+        
+        Args:
+            period (int): Period for EMA calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: EMA values
+        """
+        if self.data is None or self.data.empty or len(self.data) < period:
+            return pd.Series()
+            
+        return self.data[price_col].ewm(span=period, adjust=False).mean()
+    
+    def rsi(self, period=14, price_col='close'):
+        """
+        Calculate Relative Strength Index using instance data
+        
+        Args:
+            period (int): Period for RSI calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: RSI values
+        """
+        return self.calculate_rsi(self.data, period, price_col)
+    
     @staticmethod
     def calculate_rsi(data, period=14, price_col='close'):
         """

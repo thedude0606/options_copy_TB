@@ -99,6 +99,18 @@
 - **Benefits**: Prevents DuplicateCallback errors, ensures consistent behavior across page loads, improves application stability
 - **Implementation**: Applied to callbacks in historical_tab.py and greeks_tab.py to resolve conflicts with callbacks in run_dashboard.py
 
+### Technical Indicators Implementation
+- **Decision**: Modified TechnicalIndicators class to support instance-based usage with data parameter
+- **Rationale**: Enables more flexible usage patterns while maintaining static method functionality
+- **Benefits**: Resolves initialization errors, improves code organization, and supports both instance and static method calls
+- **Implementation**: Added __init__ constructor and instance methods that utilize the class's data attribute
+
+### Variable Naming Consistency
+- **Decision**: Standardized variable naming in historical_tab.py for frequency parameters
+- **Rationale**: Ensures consistent variable references between definition and usage points
+- **Benefits**: Prevents "name not defined" errors and improves code readability
+- **Implementation**: Aligned variable names between period mapping definition and API call parameters
+
 ### Visualization Techniques
 - **Decision**: Used specialized visualization techniques for different data types
 - **Rationale**: Different data requires different visualization approaches for clarity

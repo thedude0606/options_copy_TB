@@ -67,7 +67,7 @@ def update_historical_chart(symbol, time_period):
             period_type=period_type, 
             period=period_value, 
             frequency_type=freq_type, 
-            frequency=frequency_value
+            frequency=freq_value
         )
         
         if historical_data.empty:

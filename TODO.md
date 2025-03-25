@@ -18,6 +18,8 @@
 - [x] Fix missing 'underlyingPrice' issue in options data retrieval
 - [x] Implement proper callback registrations for all dashboard tabs
 - [x] Create missing Historical Data tab functionality
+- [x] Fix "name 'frequency_value' is not defined" error in historical_tab.py
+- [x] Fix "TechnicalIndicators() takes no arguments" error in indicators_tab.py
 - [ ] Integrate real-time data streaming with new components
 - [ ] Test platform with real data
 - [ ] Add user documentation
