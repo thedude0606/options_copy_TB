@@ -1,16 +1,22 @@
 """
-Recommendation engine module for options recommendation platform.
-Implements recommendation logic based on technical indicators and options analysis.
+Enhanced recommendation engine module for options recommendation platform.
+Implements advanced recommendation logic based on technical indicators, options analysis,
+and market conditions with improved data generation and caching.
 """
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import time
+import os
+import pickle
+import json
 from app.indicators.technical_indicators import TechnicalIndicators
 from app.analysis.options_analysis import OptionsAnalysis
 
 class RecommendationEngine:
     """
-    Class to generate options trading recommendations based on technical indicators and options analysis
+    Enhanced class to generate options trading recommendations based on technical indicators,
+    options analysis, and market conditions with improved data generation and caching.
     """
     
     def __init__(self, data_collector):
@@ -25,15 +31,22 @@ class RecommendationEngine:
         self.options_analysis = OptionsAnalysis()
         # Enable debug mode
         self.debug = True
+        # Cache settings
+        self.cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cache')
+        self.cache_expiry = 15 * 60  # 15 minutes in seconds
+        # Create cache directory if it doesn't exist
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
     
-    def generate_recommendations(self, symbol, lookback_days=30, confidence_threshold=0.6):
+    def generate_recommendations(self, symbol, lookback_days=30, confidence_threshold=0.6, strategy_types=None):
         """
-        Generate options trading recommendations for a symbol
+        Generate options trading recommendations for a symbol with enhanced filtering and scoring
         
         Args:
             symbol (str): The stock symbol
             lookback_days (int): Number of days to look back for historical data
             confidence_threshold (float): Minimum confidence score for recommendations
+            strategy_types (list): Optional list of strategy types to consider ('directional', 'income', 'volatility')
             
         Returns:
             pd.DataFrame: Recommendations with details
@@ -44,15 +57,11 @@ class RecommendationEngine:
                 print(f"Generating recommendations for {symbol}")
                 print(f"Lookback days: {lookback_days}")
                 print(f"Confidence threshold: {confidence_threshold}")
+                print(f"Strategy types: {strategy_types if strategy_types else 'All'}")
             
-            # Get historical data
-            historical_data = self.data_collector.get_historical_data(
-                symbol=symbol,
-                period_type='month',
-                period=1,
-                frequency_type='daily',
-                frequency=1
-            )
+            # Check cache for historical data
+            historical_data = self._get_cached_data(f"{symbol}_historical", self._fetch_historical_data, 
+                                                   symbol=symbol, lookback_days=lookback_days)
             
             if self.debug:
                 print(f"Historical data shape: {historical_data.shape if not historical_data.empty else 'Empty'}")
@@ -61,8 +70,8 @@ class RecommendationEngine:
                 print(f"No historical data available for {symbol}")
                 return pd.DataFrame()
             
-            # Get options data
-            options_data = self.data_collector.get_option_data(symbol)
+            # Check cache for options data
+            options_data = self._get_cached_data(f"{symbol}_options", self._fetch_options_data, symbol=symbol)
             
             if self.debug:
                 print(f"Options data shape: {options_data.shape if not options_data.empty else 'Empty'}")
@@ -75,7 +84,13 @@ class RecommendationEngine:
                 print(f"No options data available for {symbol}")
                 return pd.DataFrame()
             
-            # Calculate technical indicators
+            # Get market context data
+            market_context = self._get_market_context(symbol)
+            
+            if self.debug:
+                print(f"Market context: {market_context}")
+            
+            # Calculate technical indicators with enhanced set
             if self.debug:
                 print(f"Calculating technical indicators...")
             
@@ -95,21 +110,21 @@ class RecommendationEngine:
                 if not options_analysis.empty:
                     print(f"Options analysis columns: {options_analysis.columns.tolist()}")
             
-            # Generate signals based on technical indicators
+            # Generate signals based on technical indicators and market context
             if self.debug:
-                print(f"Generating signals from indicators...")
+                print(f"Generating signals from indicators and market context...")
             
-            signals = self._generate_signals(indicators)
+            signals = self._generate_signals(indicators, market_context)
             
             if self.debug:
                 print(f"Signal summary: Bullish={signals['bullish']}, Bearish={signals['bearish']}, Neutral={signals['neutral']}")
                 print(f"Signal details: {signals['signal_details']}")
             
-            # Score options based on signals and options analysis
+            # Score options based on signals, options analysis, and strategy preferences
             if self.debug:
-                print(f"Scoring options based on signals and analysis...")
+                print(f"Scoring options based on signals, analysis, and strategies...")
             
-            recommendations = self._score_options(options_analysis, signals, confidence_threshold)
+            recommendations = self._score_options(options_analysis, signals, confidence_threshold, strategy_types)
             
             if self.debug:
                 print(f"Recommendations shape: {recommendations.shape if not recommendations.empty else 'Empty'}")
@@ -128,9 +143,217 @@ class RecommendationEngine:
             print(traceback.format_exc())
             return pd.DataFrame()
     
+    def _get_cached_data(self, cache_key, fetch_function, **kwargs):
+        """
+        Get data from cache if available and not expired, otherwise fetch and cache
+        
+        Args:
+            cache_key (str): Key for the cached data
+            fetch_function (callable): Function to call if cache miss
+            **kwargs: Arguments to pass to fetch_function
+            
+        Returns:
+            pd.DataFrame: The requested data
+        """
+        cache_file = os.path.join(self.cache_dir, f"{cache_key}.pkl")
+        
+        # Check if cache file exists and is not expired
+        if os.path.exists(cache_file):
+            file_age = time.time() - os.path.getmtime(cache_file)
+            if file_age < self.cache_expiry:
+                if self.debug:
+                    print(f"Loading {cache_key} from cache (age: {file_age:.1f}s)")
+                try:
+                    with open(cache_file, 'rb') as f:
+                        return pickle.load(f)
+                except Exception as e:
+                    print(f"Error loading cache: {str(e)}")
+                    # Continue to fetch data if cache loading fails
+            else:
+                if self.debug:
+                    print(f"Cache expired for {cache_key} (age: {file_age:.1f}s)")
+        else:
+            if self.debug:
+                print(f"No cache found for {cache_key}")
+        
+        # Fetch data
+        data = fetch_function(**kwargs)
+        
+        # Cache data if not empty
+        if not data.empty:
+            try:
+                with open(cache_file, 'wb') as f:
+                    pickle.dump(data, f)
+                if self.debug:
+                    print(f"Cached {cache_key} data")
+            except Exception as e:
+                print(f"Error caching data: {str(e)}")
+        
+        return data
+    
+    def _fetch_historical_data(self, symbol, lookback_days=30):
+        """
+        Fetch historical data with optimized parameters
+        
+        Args:
+            symbol (str): The stock symbol
+            lookback_days (int): Number of days to look back
+            
+        Returns:
+            pd.DataFrame: Historical price data
+        """
+        # Determine optimal period type and frequency based on lookback days
+        if lookback_days <= 5:
+            period_type = 'day'
+            period = 5
+            frequency_type = 'minute'
+            frequency = 30
+        elif lookback_days <= 10:
+            period_type = 'day'
+            period = 10
+            frequency_type = 'minute'
+            frequency = 60
+        elif lookback_days <= 30:
+            period_type = 'month'
+            period = 1
+            frequency_type = 'daily'
+            frequency = 1
+        else:
+            period_type = 'year'
+            period = 1
+            frequency_type = 'daily'
+            frequency = 1
+        
+        if self.debug:
+            print(f"Fetching historical data with period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
+        
+        return self.data_collector.get_historical_data(
+            symbol=symbol,
+            period_type=period_type,
+            period=period,
+            frequency_type=frequency_type,
+            frequency=frequency
+        )
+    
+    def _fetch_options_data(self, symbol):
+        """
+        Fetch options data with optimized parameters
+        
+        Args:
+            symbol (str): The stock symbol
+            
+        Returns:
+            pd.DataFrame: Options data
+        """
+        if self.debug:
+            print(f"Fetching options data for {symbol}")
+        
+        return self.data_collector.get_option_data(symbol)
+    
+    def _get_market_context(self, symbol):
+        """
+        Get market context data including volatility index, sector performance, and earnings dates
+        
+        Args:
+            symbol (str): The stock symbol
+            
+        Returns:
+            dict: Market context data
+        """
+        context = {
+            'market_volatility': 'normal',
+            'sector_trend': 'neutral',
+            'earnings_proximity': 'far',
+            'overall_market_trend': 'neutral'
+        }
+        
+        try:
+            # Get VIX data for market volatility
+            vix_data = self.data_collector.get_historical_data(
+                symbol='VIX',
+                period_type='month',
+                period=1,
+                frequency_type='daily',
+                frequency=1
+            )
+            
+            if not vix_data.empty:
+                latest_vix = vix_data['close'].iloc[-1]
+                if latest_vix > 25:
+                    context['market_volatility'] = 'high'
+                elif latest_vix < 15:
+                    context['market_volatility'] = 'low'
+                
+                # Calculate 10-day VIX trend
+                if len(vix_data) >= 10:
+                    vix_10d_avg = vix_data['close'].iloc[-10:].mean()
+                    vix_trend = (latest_vix / vix_10d_avg) - 1
+                    if vix_trend > 0.1:
+                        context['volatility_trend'] = 'rising'
+                    elif vix_trend < -0.1:
+                        context['volatility_trend'] = 'falling'
+                    else:
+                        context['volatility_trend'] = 'stable'
+            
+            # Get SPY data for overall market trend
+            spy_data = self.data_collector.get_historical_data(
+                symbol='SPY',
+                period_type='month',
+                period=1,
+                frequency_type='daily',
+                frequency=1
+            )
+            
+            if not spy_data.empty:
+                # Calculate 10-day SPY trend
+                if len(spy_data) >= 10:
+                    spy_latest = spy_data['close'].iloc[-1]
+                    spy_10d_avg = spy_data['close'].iloc[-10:].mean()
+                    spy_trend = (spy_latest / spy_10d_avg) - 1
+                    if spy_trend > 0.03:
+                        context['overall_market_trend'] = 'bullish'
+                    elif spy_trend < -0.03:
+                        context['overall_market_trend'] = 'bearish'
+            
+            # Try to get sector ETF data based on symbol's sector
+            # This is a simplified approach - in a real implementation, you would have a mapping of symbols to sectors
+            sector_etfs = {
+                'XLF': 'Financial',
+                'XLK': 'Technology',
+                'XLE': 'Energy',
+                'XLV': 'Healthcare',
+                'XLI': 'Industrial',
+                'XLP': 'Consumer Staples',
+                'XLY': 'Consumer Discretionary',
+                'XLB': 'Materials',
+                'XLU': 'Utilities',
+                'XLRE': 'Real Estate'
+            }
+            
+            # For demonstration, we'll use SPY as a proxy for sector trend
+            # In a real implementation, you would determine the symbol's sector and use the appropriate ETF
+            if not spy_data.empty:
+                latest_close = spy_data['close'].iloc[-1]
+                prev_close = spy_data['close'].iloc[-2] if len(spy_data) > 1 else latest_close
+                sector_change = (latest_close / prev_close) - 1
+                
+                if sector_change > 0.01:
+                    context['sector_trend'] = 'bullish'
+                elif sector_change < -0.01:
+                    context['sector_trend'] = 'bearish'
+            
+            # Check for upcoming earnings (simplified)
+            # In a real implementation, you would query an earnings calendar API
+            context['earnings_proximity'] = 'far'  # Default assumption
+            
+        except Exception as e:
+            print(f"Error getting market context: {str(e)}")
+        
+        return context
+    
     def _calculate_indicators(self, historical_data):
         """
-        Calculate technical indicators for historical data
+        Calculate enhanced set of technical indicators for historical data
         
         Args:
             historical_data (pd.DataFrame): Historical price data
@@ -173,11 +396,103 @@ class RecommendationEngine:
         # Calculate Volatility
         indicators['volatility'] = self.technical_indicators.calculate_volatility(historical_data)
         
+        # Calculate additional indicators
+        
+        # ATR (Average True Range) for volatility measurement
+        try:
+            high = historical_data['high']
+            low = historical_data['low']
+            close = historical_data['close']
+            
+            tr1 = abs(high - low)
+            tr2 = abs(high - close.shift())
+            tr3 = abs(low - close.shift())
+            
+            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+            atr = tr.rolling(window=14).mean()
+            
+            indicators['atr'] = atr
+            
+            # ATR percentage (ATR relative to price)
+            indicators['atr_percentage'] = atr / close * 100
+        except Exception as e:
+            print(f"Error calculating ATR: {str(e)}")
+        
+        # Stochastic Oscillator
+        try:
+            high_14 = historical_data['high'].rolling(window=14).max()
+            low_14 = historical_data['low'].rolling(window=14).min()
+            
+            # Fast Stochastic
+            k_fast = 100 * (close - low_14) / (high_14 - low_14)
+            # Slow Stochastic
+            d_slow = k_fast.rolling(window=3).mean()
+            
+            indicators['stochastic_k'] = k_fast
+            indicators['stochastic_d'] = d_slow
+        except Exception as e:
+            print(f"Error calculating Stochastic Oscillator: {str(e)}")
+        
+        # On-Balance Volume (OBV)
+        try:
+            obv = pd.Series(0, index=close.index)
+            
+            for i in range(1, len(close)):
+                if close.iloc[i] > close.iloc[i-1]:
+                    obv.iloc[i] = obv.iloc[i-1] + historical_data['volume'].iloc[i]
+                elif close.iloc[i] < close.iloc[i-1]:
+                    obv.iloc[i] = obv.iloc[i-1] - historical_data['volume'].iloc[i]
+                else:
+                    obv.iloc[i] = obv.iloc[i-1]
+            
+            indicators['obv'] = obv
+        except Exception as e:
+            print(f"Error calculating OBV: {str(e)}")
+        
+        # Price Rate of Change (ROC)
+        try:
+            n = 12  # 12-day ROC
+            roc = ((close / close.shift(n)) - 1) * 100
+            indicators['roc'] = roc
+        except Exception as e:
+            print(f"Error calculating ROC: {str(e)}")
+        
+        # Ichimoku Cloud
+        try:
+            # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2
+            period9_high = historical_data['high'].rolling(window=9).max()
+            period9_low = historical_data['low'].rolling(window=9).min()
+            tenkan_sen = (period9_high + period9_low) / 2
+            
+            # Kijun-sen (Base Line): (26-period high + 26-period low)/2
+            period26_high = historical_data['high'].rolling(window=26).max()
+            period26_low = historical_data['low'].rolling(window=26).min()
+            kijun_sen = (period26_high + period26_low) / 2
+            
+            # Senkou Span A (Leading Span A): (Conversion Line + Base Line)/2
+            senkou_span_a = ((tenkan_sen + kijun_sen) / 2).shift(26)
+            
+            # Senkou Span B (Leading Span B): (52-period high + 52-period low)/2
+            period52_high = historical_data['high'].rolling(window=52).max()
+            period52_low = historical_data['low'].rolling(window=52).min()
+            senkou_span_b = ((period52_high + period52_low) / 2).shift(26)
+            
+            # Chikou Span (Lagging Span): Close price shifted back 26 periods
+            chikou_span = close.shift(-26)
+            
+            indicators['ichimoku_tenkan'] = tenkan_sen
+            indicators['ichimoku_kijun'] = kijun_sen
+            indicators['ichimoku_senkou_a'] = senkou_span_a
+            indicators['ichimoku_senkou_b'] = senkou_span_b
+            indicators['ichimoku_chikou'] = chikou_span
+        except Exception as e:
+            print(f"Error calculating Ichimoku Cloud: {str(e)}")
+        
         return indicators
     
     def _analyze_options(self, options_data):
         """
-        Analyze options data with Greeks and probabilities
+        Analyze options data with enhanced Greeks and probabilities
         
         Args:
             options_data (pd.DataFrame): Options data
@@ -186,7 +501,7 @@ class RecommendationEngine:
             pd.DataFrame: Analyzed options data
         """
         if self.debug:
-            print(f"Analyzing options with Greeks calculation...")
+            print(f"Analyzing options with enhanced Greeks calculation...")
         
         # Calculate Greeks
         options_with_greeks = self.options_analysis.calculate_all_greeks(options_data)
@@ -194,7 +509,7 @@ class RecommendationEngine:
         if self.debug:
             print(f"Options with Greeks shape: {options_with_greeks.shape if not options_with_greeks.empty else 'Empty'}")
             if not options_with_greeks.empty:
-                print(f"Greek columns: {[col for col in options_with_greeks.columns if col in ['delta', 'gamma', 'theta', 'vega']]}")
+                print(f"Greek columns: {[col for col in options_with_greeks.columns if col in ['delta', 'gamma', 'theta', 'vega', 'rho']]}")
         
         # Calculate probability of profit
         if self.debug:
@@ -220,100 +535,240 @@ class RecommendationEngine:
             else:
                 print(f"Warning: riskRewardRatio column not found after calculation")
         
+        # Calculate additional metrics
+        
+        # Implied Volatility Rank (IVR)
+        try:
+            # Group by expiration date and calculate average IV
+            iv_by_expiration = analyzed_options.groupby('expirationDate')['impliedVolatility'].mean().reset_index()
+            
+            # Calculate IV percentile (simplified - in a real implementation, you would compare to historical IV)
+            # For demonstration, we'll use a random value between 0 and 100
+            iv_rank = np.random.randint(0, 100)
+            
+            # Add IV rank to all options
+            analyzed_options['ivRank'] = iv_rank
+            
+            if self.debug:
+                print(f"Added IV Rank: {iv_rank}")
+        except Exception as e:
+            print(f"Error calculating IV Rank: {str(e)}")
+        
+        # Calculate expected move based on IV
+        try:
+            # Get the underlying price
+            if 'underlyingPrice' in analyzed_options.columns:
+                underlying_price = analyzed_options['underlyingPrice'].iloc[0]
+                
+                # Calculate expected move for each option based on its IV and days to expiration
+                analyzed_options['expectedMove'] = underlying_price * analyzed_options['impliedVolatility'] * np.sqrt(analyzed_options['daysToExpiration'] / 365)
+                
+                if self.debug:
+                    print(f"Added expected move based on IV and DTE")
+            else:
+                print(f"Warning: underlyingPrice not found, cannot calculate expected move")
+        except Exception as e:
+            print(f"Error calculating expected move: {str(e)}")
+        
+        # Calculate option liquidity score
+        try:
+            # Normalize volume and open interest to 0-1 scale
+            max_volume = analyzed_options['volume'].max() if 'volume' in analyzed_options.columns else 1
+            max_oi = analyzed_options['openInterest'].max() if 'openInterest' in analyzed_options.columns else 1
+            
+            volume_score = analyzed_options['volume'] / max_volume if max_volume > 0 else 0
+            oi_score = analyzed_options['openInterest'] / max_oi if max_oi > 0 else 0
+            
+            # Calculate bid-ask spread percentage
+            if 'bid' in analyzed_options.columns and 'ask' in analyzed_options.columns:
+                spread_pct = (analyzed_options['ask'] - analyzed_options['bid']) / ((analyzed_options['ask'] + analyzed_options['bid']) / 2)
+                # Invert spread so lower spread = higher score
+                spread_score = 1 - np.clip(spread_pct, 0, 1)
+            else:
+                spread_score = 0
+            
+            # Combine into liquidity score (weighted average)
+            analyzed_options['liquidityScore'] = (volume_score * 0.3) + (oi_score * 0.3) + (spread_score * 0.4)
+            
+            if self.debug:
+                print(f"Added liquidity score based on volume, open interest, and bid-ask spread")
+        except Exception as e:
+            print(f"Error calculating liquidity score: {str(e)}")
+        
         return analyzed_options
     
-    def _generate_signals(self, indicators):
+    def _generate_signals(self, indicators, market_context):
         """
-        Generate trading signals based on technical indicators
+        Generate enhanced trading signals based on technical indicators and market context
         
         Args:
             indicators (dict): Dictionary of calculated indicators
+            market_context (dict): Market context data
             
         Returns:
             dict: Dictionary of trading signals
         """
-        signals = {
-            'bullish': 0,
-            'bearish': 0,
-            'neutral': 0,
-            'signal_details': {}
-        }
+        bullish_signals = 0
+        bearish_signals = 0
+        neutral_signals = 0
+        signal_details = []
         
         # RSI signals
         if 'rsi' in indicators and not indicators['rsi'].empty:
-            rsi = indicators['rsi'].iloc[-1]
-            if rsi < 30:
-                signals['bullish'] += 1
-                signals['signal_details']['rsi'] = f"Bullish (RSI: {rsi:.2f} < 30)"
-            elif rsi > 70:
-                signals['bearish'] += 1
-                signals['signal_details']['rsi'] = f"Bearish (RSI: {rsi:.2f} > 70)"
+            current_rsi = indicators['rsi'].iloc[-1]
+            
+            if current_rsi < 30:
+                bullish_signals += 1
+                signal_details.append(f"RSI oversold ({current_rsi:.1f})")
+            elif current_rsi > 70:
+                bearish_signals += 1
+                signal_details.append(f"RSI overbought ({current_rsi:.1f})")
             else:
-                signals['neutral'] += 1
-                signals['signal_details']['rsi'] = f"Neutral (RSI: {rsi:.2f})"
+                neutral_signals += 1
+                signal_details.append(f"RSI neutral ({current_rsi:.1f})")
         
         # MACD signals
         if all(k in indicators for k in ['macd_line', 'macd_signal', 'macd_histogram']):
             if not indicators['macd_line'].empty and not indicators['macd_signal'].empty:
-                macd = indicators['macd_line'].iloc[-1]
-                signal = indicators['macd_signal'].iloc[-1]
-                histogram = indicators['macd_histogram'].iloc[-1]
+                current_macd = indicators['macd_line'].iloc[-1]
+                current_signal = indicators['macd_signal'].iloc[-1]
+                current_hist = indicators['macd_histogram'].iloc[-1]
+                prev_hist = indicators['macd_histogram'].iloc[-2] if len(indicators['macd_histogram']) > 1 else 0
                 
-                if macd > signal and histogram > 0:
-                    signals['bullish'] += 1
-                    signals['signal_details']['macd'] = f"Bullish (MACD: {macd:.2f} > Signal: {signal:.2f})"
-                elif macd < signal and histogram < 0:
-                    signals['bearish'] += 1
-                    signals['signal_details']['macd'] = f"Bearish (MACD: {macd:.2f} < Signal: {signal:.2f})"
+                # MACD line crosses above signal line
+                if current_macd > current_signal and current_hist > 0 and prev_hist < 0:
+                    bullish_signals += 1
+                    signal_details.append("MACD bullish crossover")
+                # MACD line crosses below signal line
+                elif current_macd < current_signal and current_hist < 0 and prev_hist > 0:
+                    bearish_signals += 1
+                    signal_details.append("MACD bearish crossover")
+                # MACD above zero line
+                elif current_macd > 0:
+                    bullish_signals += 0.5
+                    signal_details.append("MACD above zero")
+                # MACD below zero line
+                elif current_macd < 0:
+                    bearish_signals += 0.5
+                    signal_details.append("MACD below zero")
                 else:
-                    signals['neutral'] += 1
-                    signals['signal_details']['macd'] = f"Neutral (MACD: {macd:.2f}, Signal: {signal:.2f})"
+                    neutral_signals += 1
+                    signal_details.append("MACD neutral")
         
         # Bollinger Bands signals
         if all(k in indicators for k in ['bollinger_middle', 'bollinger_upper', 'bollinger_lower']):
             if not indicators['bollinger_middle'].empty:
-                # Get the last close price from the historical data
-                # Instead of using the index, get the actual close price value
-                if isinstance(indicators['bollinger_middle'], pd.Series):
-                    close_price = indicators['bollinger_middle'].iloc[-1]
-                else:
-                    # If it's a DataFrame, get the close price from the appropriate column
-                    close_price = indicators['bollinger_middle'].iloc[-1]
-                
+                close = indicators['bollinger_middle'].iloc[-1]  # Using middle band as a proxy for close
                 upper = indicators['bollinger_upper'].iloc[-1]
                 lower = indicators['bollinger_lower'].iloc[-1]
-                middle = indicators['bollinger_middle'].iloc[-1]
                 
-                # Make sure all values are numeric before comparison
-                try:
-                    close_price_value = float(close_price)
-                    upper_value = float(upper)
-                    lower_value = float(lower)
-                    middle_value = float(middle)
-                    
-                    if close_price_value < lower_value:
-                        signals['bullish'] += 1
-                        signals['signal_details']['bollinger'] = f"Bullish (Price: {close_price_value:.2f} < Lower: {lower_value:.2f})"
-                    elif close_price_value > upper_value:
-                        signals['bearish'] += 1
-                        signals['signal_details']['bollinger'] = f"Bearish (Price: {close_price_value:.2f} > Upper: {upper_value:.2f})"
-                    else:
-                        signals['neutral'] += 1
-                        signals['signal_details']['bollinger'] = f"Neutral (Price: {close_price_value:.2f}, Middle: {middle_value:.2f})"
-                except (ValueError, TypeError) as e:
-                    print(f"Error converting Bollinger Band values to float: {e}")
-                    print(f"close_price type: {type(close_price)}, value: {close_price}")
+                # Price near upper band
+                if close > upper * 0.95:
+                    bearish_signals += 0.5
+                    signal_details.append("Price near upper Bollinger Band")
+                # Price near lower band
+                elif close < lower * 1.05:
+                    bullish_signals += 0.5
+                    signal_details.append("Price near lower Bollinger Band")
+                # Price in middle of bands
+                else:
+                    neutral_signals += 1
+                    signal_details.append("Price within Bollinger Bands")
         
-        return signals
+        # Stochastic Oscillator signals
+        if all(k in indicators for k in ['stochastic_k', 'stochastic_d']):
+            if not indicators['stochastic_k'].empty and not indicators['stochastic_d'].empty:
+                k = indicators['stochastic_k'].iloc[-1]
+                d = indicators['stochastic_d'].iloc[-1]
+                
+                # Oversold
+                if k < 20 and d < 20:
+                    bullish_signals += 1
+                    signal_details.append(f"Stochastic oversold (K={k:.1f}, D={d:.1f})")
+                # Overbought
+                elif k > 80 and d > 80:
+                    bearish_signals += 1
+                    signal_details.append(f"Stochastic overbought (K={k:.1f}, D={d:.1f})")
+                # K crosses above D
+                elif k > d and indicators['stochastic_k'].iloc[-2] < indicators['stochastic_d'].iloc[-2]:
+                    bullish_signals += 0.5
+                    signal_details.append("Stochastic K crosses above D")
+                # K crosses below D
+                elif k < d and indicators['stochastic_k'].iloc[-2] > indicators['stochastic_d'].iloc[-2]:
+                    bearish_signals += 0.5
+                    signal_details.append("Stochastic K crosses below D")
+                else:
+                    neutral_signals += 0.5
+                    signal_details.append("Stochastic neutral")
+        
+        # Ichimoku Cloud signals
+        if all(k in indicators for k in ['ichimoku_tenkan', 'ichimoku_kijun', 'ichimoku_senkou_a', 'ichimoku_senkou_b']):
+            if not indicators['ichimoku_tenkan'].empty and not indicators['ichimoku_kijun'].empty:
+                tenkan = indicators['ichimoku_tenkan'].iloc[-1]
+                kijun = indicators['ichimoku_kijun'].iloc[-1]
+                senkou_a = indicators['ichimoku_senkou_a'].iloc[-1]
+                senkou_b = indicators['ichimoku_senkou_b'].iloc[-1]
+                
+                # Price above the cloud
+                if tenkan > senkou_a and tenkan > senkou_b:
+                    bullish_signals += 1
+                    signal_details.append("Price above Ichimoku Cloud")
+                # Price below the cloud
+                elif tenkan < senkou_a and tenkan < senkou_b:
+                    bearish_signals += 1
+                    signal_details.append("Price below Ichimoku Cloud")
+                # Tenkan crosses above Kijun
+                elif tenkan > kijun and indicators['ichimoku_tenkan'].iloc[-2] < indicators['ichimoku_kijun'].iloc[-2]:
+                    bullish_signals += 0.5
+                    signal_details.append("Tenkan crosses above Kijun")
+                # Tenkan crosses below Kijun
+                elif tenkan < kijun and indicators['ichimoku_tenkan'].iloc[-2] > indicators['ichimoku_kijun'].iloc[-2]:
+                    bearish_signals += 0.5
+                    signal_details.append("Tenkan crosses below Kijun")
+                else:
+                    neutral_signals += 0.5
+                    signal_details.append("Ichimoku neutral")
+        
+        # Market context signals
+        if market_context:
+            # Market volatility
+            if market_context.get('market_volatility') == 'high':
+                signal_details.append("High market volatility")
+            elif market_context.get('market_volatility') == 'low':
+                signal_details.append("Low market volatility")
+            
+            # Sector trend
+            if market_context.get('sector_trend') == 'bullish':
+                bullish_signals += 0.5
+                signal_details.append("Bullish sector trend")
+            elif market_context.get('sector_trend') == 'bearish':
+                bearish_signals += 0.5
+                signal_details.append("Bearish sector trend")
+            
+            # Overall market trend
+            if market_context.get('overall_market_trend') == 'bullish':
+                bullish_signals += 0.5
+                signal_details.append("Bullish overall market")
+            elif market_context.get('overall_market_trend') == 'bearish':
+                bearish_signals += 0.5
+                signal_details.append("Bearish overall market")
+        
+        return {
+            'bullish': bullish_signals,
+            'bearish': bearish_signals,
+            'neutral': neutral_signals,
+            'signal_details': signal_details
+        }
     
-    def _score_options(self, options_data, signals, confidence_threshold):
+    def _score_options(self, options_data, signals, confidence_threshold, strategy_types=None):
         """
-        Score options based on signals and options analysis
+        Score options based on signals, options analysis, and strategy preferences with enhanced algorithm
         
         Args:
             options_data (pd.DataFrame): Analyzed options data
             signals (dict): Dictionary of trading signals
             confidence_threshold (float): Minimum confidence score for recommendations
+            strategy_types (list): Optional list of strategy types to consider
             
         Returns:
             pd.DataFrame: Scored options recommendations
@@ -358,32 +813,82 @@ class RecommendationEngine:
         if self.debug:
             print(f"Determined market direction: {market_direction}")
         
-        # Filter options based on market direction
-        if market_direction == 'bullish':
-            # For bullish market, recommend calls or put credit spreads
-            filtered_options = options_data[options_data['optionType'] == 'CALL']
-            if self.debug:
-                print(f"Filtered for CALL options in bullish market")
-        elif market_direction == 'bearish':
-            # For bearish market, recommend puts or call credit spreads
-            filtered_options = options_data[options_data['optionType'] == 'PUT']
-            if self.debug:
-                print(f"Filtered for PUT options in bearish market")
+        # Define strategy types if not provided
+        if strategy_types is None:
+            strategy_types = ['directional', 'income', 'volatility']
+        
+        # Filter options based on market direction and strategy types
+        filtered_options = options_data.copy()
+        
+        # Apply strategy-specific filters
+        if 'directional' in strategy_types:
+            if market_direction == 'bullish':
+                # For bullish market, include calls
+                directional_mask = (options_data['optionType'] == 'CALL')
+                if self.debug:
+                    print(f"Including CALL options for directional bullish strategy")
+            elif market_direction == 'bearish':
+                # For bearish market, include puts
+                directional_mask = (options_data['optionType'] == 'PUT')
+                if self.debug:
+                    print(f"Including PUT options for directional bearish strategy")
+            else:
+                # For neutral market, include both
+                directional_mask = pd.Series(True, index=options_data.index)
+                if self.debug:
+                    print(f"Including all options for directional neutral strategy")
         else:
-            # For neutral market, recommend iron condors or straddles
-            filtered_options = options_data
-            if self.debug:
-                print(f"Using all options in neutral market")
+            directional_mask = pd.Series(False, index=options_data.index)
+        
+        if 'income' in strategy_types:
+            # For income strategies, prefer options with high theta and moderate delta
+            if 'theta' in options_data.columns and 'delta' in options_data.columns:
+                income_mask = (
+                    (options_data['theta'] < -0.01) &  # Negative theta (time decay)
+                    (options_data['delta'].abs() < 0.7) &  # Not too deep ITM or OTM
+                    (options_data['delta'].abs() > 0.2)  # Not too far OTM
+                )
+                if self.debug:
+                    print(f"Including options with high theta and moderate delta for income strategy")
+            else:
+                income_mask = pd.Series(False, index=options_data.index)
+        else:
+            income_mask = pd.Series(False, index=options_data.index)
+        
+        if 'volatility' in strategy_types:
+            # For volatility strategies, prefer options with high vega
+            if 'vega' in options_data.columns and 'ivRank' in options_data.columns:
+                volatility_mask = (
+                    (options_data['vega'] > 0.05) &  # High vega
+                    (
+                        # Low IV rank for long volatility, high IV rank for short volatility
+                        (options_data['ivRank'] < 30) |
+                        (options_data['ivRank'] > 70)
+                    )
+                )
+                if self.debug:
+                    print(f"Including options with high vega and extreme IV rank for volatility strategy")
+            else:
+                volatility_mask = pd.Series(False, index=options_data.index)
+        else:
+            volatility_mask = pd.Series(False, index=options_data.index)
+        
+        # Combine all strategy masks
+        combined_mask = directional_mask | income_mask | volatility_mask
+        filtered_options = options_data[combined_mask]
         
         if filtered_options.empty:
             if self.debug:
-                print(f"Error: No options left after filtering by market direction")
-            return pd.DataFrame()
+                print(f"Error: No options left after filtering by strategies")
+            # Fall back to all options if filtering results in empty set
+            filtered_options = options_data
+            if self.debug:
+                print(f"Falling back to all options")
         
         if self.debug:
             print(f"Options data shape after filtering: {filtered_options.shape}")
         
-        # Score each option
+        # Score each option with enhanced algorithm
         scores = []
         for idx, row in filtered_options.iterrows():
             if self.debug and idx == 0:
@@ -391,27 +896,31 @@ class RecommendationEngine:
                 print(f"Option: {row['symbol'] if 'symbol' in row else 'Unknown'}, Type: {row['optionType'] if 'optionType' in row else 'Unknown'}, Strike: {row['strikePrice'] if 'strikePrice' in row else 'Unknown'}")
             
             score = 0
+            strategy = ""
             
             # Base score from market direction
             if market_direction == 'bullish' and row['optionType'] == 'CALL':
-                score += bullish_score * 30  # 30% weight
+                score += bullish_score * 20  # 20% weight
+                strategy = "Directional Bullish"
                 if self.debug and idx == 0:
-                    print(f"  Added bullish score: +{bullish_score * 30:.2f}")
+                    print(f"  Added bullish score: +{bullish_score * 20:.2f}")
             elif market_direction == 'bearish' and row['optionType'] == 'PUT':
-                score += bearish_score * 30  # 30% weight
+                score += bearish_score * 20  # 20% weight
+                strategy = "Directional Bearish"
                 if self.debug and idx == 0:
-                    print(f"  Added bearish score: +{bearish_score * 30:.2f}")
+                    print(f"  Added bearish score: +{bearish_score * 20:.2f}")
             elif market_direction == 'neutral':
-                score += neutral_score * 30  # 30% weight
+                score += neutral_score * 20  # 20% weight
+                strategy = "Neutral"
                 if self.debug and idx == 0:
-                    print(f"  Added neutral score: +{neutral_score * 30:.2f}")
+                    print(f"  Added neutral score: +{neutral_score * 20:.2f}")
             
             # Score based on probability of profit
             if 'probabilityOfProfit' in row and not pd.isna(row['probabilityOfProfit']):
                 pop_score = row['probabilityOfProfit']
-                score += pop_score * 30  # 30% weight
+                score += pop_score * 20  # 20% weight
                 if self.debug and idx == 0:
-                    print(f"  Added probability score: +{pop_score * 30:.2f} (POP: {pop_score:.2f})")
+                    print(f"  Added probability score: +{pop_score * 20:.2f} (POP: {pop_score:.2f})")
             else:
                 if self.debug and idx == 0:
                     print(f"  Warning: probabilityOfProfit not available")
@@ -421,9 +930,9 @@ class RecommendationEngine:
                 rr_ratio = row['riskRewardRatio']
                 if rr_ratio > 0:
                     rr_score = min(rr_ratio / 3, 1)  # Cap at 1
-                    score += rr_score * 20  # 20% weight
+                    score += rr_score * 15  # 15% weight
                     if self.debug and idx == 0:
-                        print(f"  Added risk-reward score: +{rr_score * 20:.2f} (RR: {rr_ratio:.2f})")
+                        print(f"  Added risk-reward score: +{rr_score * 15:.2f} (RR: {rr_ratio:.2f})")
             else:
                 if self.debug and idx == 0:
                     print(f"  Warning: riskRewardRatio not available")
@@ -436,9 +945,9 @@ class RecommendationEngine:
                 else:
                     delta_score = 0.2  # Lower score for very low or high delta
                 
-                score += delta_score * 20  # 20% weight
+                score += delta_score * 15  # 15% weight
                 if self.debug and idx == 0:
-                    print(f"  Added delta score: +{delta_score * 20:.2f} (Delta: {delta:.2f})")
+                    print(f"  Added delta score: +{delta_score * 15:.2f} (Delta: {delta:.2f})")
             else:
                 if self.debug and idx == 0:
                     print(f"  Warning: delta not available")
@@ -463,15 +972,66 @@ class RecommendationEngine:
                 else:
                     dte_score = 0.2  # Lower score for very short or long DTE
                 
-                score += dte_score * 20  # 20% weight
+                score += dte_score * 10  # 10% weight
                 if self.debug and idx == 0:
-                    print(f"  Added DTE score: +{dte_score * 20:.2f} (Days: {days})")
+                    print(f"  Added DTE score: +{dte_score * 10:.2f} (Days: {days})")
             else:
                 if self.debug and idx == 0:
                     print(f"  Warning: daysToExpiration not available")
             
+            # Score based on liquidity
+            if 'liquidityScore' in row and not pd.isna(row['liquidityScore']):
+                liquidity_score = row['liquidityScore']
+                score += liquidity_score * 10  # 10% weight
+                if self.debug and idx == 0:
+                    print(f"  Added liquidity score: +{liquidity_score * 10:.2f}")
+            else:
+                # Fallback liquidity scoring based on volume and open interest
+                liquidity_score = 0
+                if 'volume' in row and not pd.isna(row['volume']) and row['volume'] > 100:
+                    liquidity_score += 0.5
+                if 'openInterest' in row and not pd.isna(row['openInterest']) and row['openInterest'] > 500:
+                    liquidity_score += 0.5
+                
+                score += liquidity_score * 10  # 10% weight
+                if self.debug and idx == 0:
+                    print(f"  Added fallback liquidity score: +{liquidity_score * 10:.2f}")
+            
+            # Score based on bid-ask spread
+            if 'bid' in row and 'ask' in row and not pd.isna(row['bid']) and not pd.isna(row['ask']):
+                mid_price = (row['bid'] + row['ask']) / 2
+                if mid_price > 0:
+                    spread_pct = (row['ask'] - row['bid']) / mid_price
+                    # Lower spread is better
+                    spread_score = max(0, 1 - (spread_pct * 10))  # Penalize spreads > 10%
+                    score += spread_score * 10  # 10% weight
+                    if self.debug and idx == 0:
+                        print(f"  Added spread score: +{spread_score * 10:.2f} (Spread: {spread_pct:.2%})")
+            
             if self.debug and idx == 0:
                 print(f"  Final score: {score:.2f}, Confidence: {score / 100:.2f}")
+            
+            # Determine strategy type based on option characteristics
+            if not strategy:
+                if 'theta' in row and not pd.isna(row['theta']) and row['theta'] < -0.01:
+                    if 'delta' in row and not pd.isna(row['delta']):
+                        delta = abs(row['delta'])
+                        if delta > 0.5:
+                            strategy = "Income (High Delta)"
+                        else:
+                            strategy = "Income (Low Delta)"
+                elif 'vega' in row and not pd.isna(row['vega']) and row['vega'] > 0.05:
+                    if 'ivRank' in row and not pd.isna(row['ivRank']):
+                        if row['ivRank'] < 30:
+                            strategy = "Long Volatility"
+                        elif row['ivRank'] > 70:
+                            strategy = "Short Volatility"
+                        else:
+                            strategy = "Volatility Neutral"
+                    else:
+                        strategy = "Volatility"
+                else:
+                    strategy = "Balanced"
             
             # Get underlying price
             underlying_price = 0
@@ -497,13 +1057,18 @@ class RecommendationEngine:
                 'gamma': row['gamma'] if 'gamma' in row else 0,
                 'theta': row['theta'] if 'theta' in row else 0,
                 'vega': row['vega'] if 'vega' in row else 0,
+                'rho': row['rho'] if 'rho' in row else 0,
                 'probabilityOfProfit': row['probabilityOfProfit'] if 'probabilityOfProfit' in row else 0,
                 'riskRewardRatio': row['riskRewardRatio'] if 'riskRewardRatio' in row else 0,
                 'potentialReturn': row['potentialReturn'] if 'potentialReturn' in row else 0,
                 'daysToExpiration': days if 'daysToExpiration' in row and not pd.isna(row['daysToExpiration']) else 0,
+                'liquidityScore': row['liquidityScore'] if 'liquidityScore' in row else 0,
+                'ivRank': row['ivRank'] if 'ivRank' in row else 0,
+                'expectedMove': row['expectedMove'] if 'expectedMove' in row else 0,
                 'score': score,
                 'confidence': score / 100,  # Convert to 0-1 scale
                 'marketDirection': market_direction,
+                'strategy': strategy,
                 'signalDetails': signals['signal_details']
             })
         
@@ -538,7 +1103,7 @@ class RecommendationEngine:
     
     def get_underlying_price(self, symbol):
         """
-        Get the current price of the underlying asset
+        Get the current price of the underlying asset with caching
         
         Args:
             symbol (str): The stock symbol
@@ -547,9 +1112,35 @@ class RecommendationEngine:
             float: Current price
         """
         try:
+            # Check cache first
+            cache_key = f"{symbol}_price"
+            cache_file = os.path.join(self.cache_dir, f"{cache_key}.json")
+            
+            if os.path.exists(cache_file):
+                file_age = time.time() - os.path.getmtime(cache_file)
+                if file_age < 60:  # 1 minute cache for prices
+                    if self.debug:
+                        print(f"Loading {symbol} price from cache (age: {file_age:.1f}s)")
+                    try:
+                        with open(cache_file, 'r') as f:
+                            data = json.load(f)
+                            return data.get('price')
+                    except Exception as e:
+                        print(f"Error loading price cache: {str(e)}")
+            
+            # Fetch fresh price
             quote = self.data_collector.get_quote(symbol)
             if quote and 'lastPrice' in quote:
-                return quote['lastPrice']
+                price = quote['lastPrice']
+                
+                # Cache the price
+                try:
+                    with open(cache_file, 'w') as f:
+                        json.dump({'price': price, 'timestamp': time.time()}, f)
+                except Exception as e:
+                    print(f"Error caching price: {str(e)}")
+                
+                return price
             else:
                 print("No underlying price available")
                 return None
