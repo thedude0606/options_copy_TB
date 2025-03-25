@@ -337,3 +337,22 @@ def generate_recommendations(generate_clicks, search_clicks,
     
     except Exception as e:
         return html.Div(), html.Div(f"Error generating recommendations: {str(e)}", className="text-danger")
+
+def register_recommendations_callbacks(app, recommendation_engine):
+    """
+    Register all callbacks for the recommendations tab
+    
+    Args:
+        app: The Dash app
+        recommendation_engine: The recommendation engine instance
+    """
+    # The callbacks are registered using the @callback decorator
+    # This function is needed to ensure the callbacks are registered with the app
+    # and to provide access to the recommendation_engine
+    
+    # In a more complex implementation, you might register callbacks programmatically here
+    # For now, we're just ensuring this function exists for the import in run_dashboard.py
+    
+    # You could add additional initialization here if needed
+    print("Recommendations tab callbacks registered")
+    return
