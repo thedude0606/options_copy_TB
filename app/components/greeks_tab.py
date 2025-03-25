@@ -355,9 +355,10 @@ def register_greeks_callbacks(app):
     
     # Callback to populate expiration dropdown
     @app.callback(
-        Output("greeks-expiration-dropdown", "options"),
+        Output("greeks-expiration-dropdown", "options", allow_duplicate=True),
         [Input("greeks-analyze-button", "n_clicks")],
-        [State("greeks-symbol-input", "value")]
+        [State("greeks-symbol-input", "value")],
+        prevent_initial_call=True
     )
     def update_expiration_options(n_clicks, symbol):
         if not n_clicks or not symbol:

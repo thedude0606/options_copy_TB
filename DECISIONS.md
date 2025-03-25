@@ -97,6 +97,7 @@
 - **Decision**: Added prevent_initial_call=True parameter to all callbacks using allow_duplicate=True
 - **Rationale**: Dash requires prevent_initial_call when using allow_duplicate to ensure predictable callback execution order
 - **Benefits**: Prevents DuplicateCallback errors, ensures consistent behavior across page loads, improves application stability
+- **Implementation**: Applied to callbacks in historical_tab.py and greeks_tab.py to resolve conflicts with callbacks in run_dashboard.py
 
 ### Visualization Techniques
 - **Decision**: Used specialized visualization techniques for different data types

@@ -37,7 +37,7 @@
   - Fixed missing 'underlyingPrice' issue in options data retrieval
   - Implemented proper callback registrations for all dashboard tabs
   - Created missing Historical Data tab functionality
-  - Fixed duplicate callback error by adding prevent_initial_call=True parameter to callbacks with allow_duplicate=True
+  - Fixed duplicate callback errors by adding prevent_initial_call=True parameter to callbacks with allow_duplicate=True in historical_tab.py and greeks_tab.py
 
 ## Current Work in Progress
 

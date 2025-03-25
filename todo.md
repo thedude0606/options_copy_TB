@@ -5,6 +5,7 @@
 - [x] Analyze repository structure
 - [x] Review Schwab API documentation
 - [x] Fix duplicate callback error in historical_tab.py
+- [x] Fix duplicate callback error in greeks_tab.py
 - [x] Update PROGRESS.md with completed features and current work
 - [x] Update DECISIONS.md with key architectural choices
 - [ ] Push changes to GitHub
