@@ -21,9 +21,13 @@ import dash_bootstrap_components as dbc
 from app.streaming_data import StreamingDataManager
 from app.stream_data_handler import StreamDataHandler
 from app.real_time_tab import register_real_time_callbacks
-from app.components.indicators_tab import register_indicators_callbacks
+from app.components.indicators_tab import register_indicators_callbacks, create_indicators_tab
 from app.components.greeks_tab import register_greeks_callbacks
 from app.historical_tab import register_historical_callbacks
+from app.components.recommendations_tab import create_recommendations_tab, register_recommendations_callbacks
+from app.components.trade_card import create_trade_cards_container
+from app.analysis.recommendation_engine import RecommendationEngine
+from app.data_collector import DataCollector
 
 # Load environment variables
 load_dotenv()
@@ -288,6 +292,10 @@ streaming_manager = StreamingDataManager(interactive_auth=True)
 # Initialize the stream data handler
 stream_handler = StreamDataHandler()
 
+# Initialize data collector and recommendation engine
+data_collector = DataCollector(interactive_auth=False)
+recommendation_engine = RecommendationEngine(data_collector)
+
 # Initialize the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 server = app.server
@@ -297,6 +305,7 @@ register_real_time_callbacks(app)
 register_indicators_callbacks(app)
 register_greeks_callbacks(app)
 register_historical_callbacks(app)
+register_recommendations_callbacks(app, recommendation_engine)
 
 # Define callback to handle stream data
 @app.callback(
@@ -465,6 +474,16 @@ app.layout = html.Div([
                 # Candle chart
                 dcc.Graph(id="historical-chart")
             ])
+        ]),
+        
+        # Technical Indicators Tab
+        dcc.Tab(label="Technical Indicators", children=[
+            create_indicators_tab()
+        ]),
+        
+        # Recommendations Tab
+        dcc.Tab(label="Recommendations", children=[
+            create_recommendations_tab()
         ]),
         
         # Real-Time Data Tab
