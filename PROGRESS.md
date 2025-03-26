@@ -61,6 +61,9 @@
   - Created a new callback function to ensure users can only select compatible timeframe/period combinations
   - Enhanced recommendation engine with comprehensive debugging and improved data flow tracing
   - Fixed option data processing to properly extract and use underlying price information
+  - Enhanced get_option_chain_with_underlying_price method to handle both camelCase 'underlyingPrice' and snake_case 'underlying_price'
+  - Added support for extracting price from 'underlying' object in option chain data
+  - Implemented comprehensive debugging for API responses to identify data structure issues
   - Improved the scoring algorithm to handle edge cases better in the recommendation engine
   - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
   - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met

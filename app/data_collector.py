@@ -482,30 +482,129 @@ class DataCollector:
             # Get option chain
             option_chain = self.get_option_chain(symbol)
             
+            # Enhanced debugging: Log the full option chain structure
+            if LOG_API_RESPONSES and option_chain and isinstance(option_chain, dict):
+                print(f"Option chain structure for {symbol}:")
+                print(f"Top-level keys: {list(option_chain.keys())}")
+                
+                # Log specific fields we're interested in
+                if 'underlyingPrice' in option_chain:
+                    print(f"underlyingPrice (camelCase): {option_chain['underlyingPrice']}")
+                if 'underlying_price' in option_chain:
+                    print(f"underlying_price (snake_case): {option_chain['underlying_price']}")
+                if 'underlying' in option_chain:
+                    print(f"underlying field: {option_chain['underlying']}")
+                    if isinstance(option_chain['underlying'], dict):
+                        print(f"underlying field keys: {list(option_chain['underlying'].keys())}")
+                        if 'mark' in option_chain['underlying']:
+                            print(f"underlying.mark: {option_chain['underlying']['mark']}")
+                        if 'lastPrice' in option_chain['underlying']:
+                            print(f"underlying.lastPrice: {option_chain['underlying']['lastPrice']}")
+            
+            # Check if we have the option chain and if it has the underlying price
+            # First check for camelCase 'underlyingPrice' (API response format)
+            # Then check for snake_case 'underlying_price' (our internal format)
+            has_underlying_price = False
+            
+            if option_chain and isinstance(option_chain, dict):
+                # Check for camelCase 'underlyingPrice' (from API)
+                if 'underlyingPrice' in option_chain and option_chain['underlyingPrice']:
+                    # Copy to our internal format
+                    option_chain['underlying_price'] = option_chain['underlyingPrice']
+                    has_underlying_price = True
+                    if DEBUG_MODE:
+                        print(f"Using underlying price from option chain 'underlyingPrice': {option_chain['underlying_price']}")
+                # Check if we already have snake_case version
+                elif 'underlying_price' in option_chain and option_chain['underlying_price']:
+                    has_underlying_price = True
+                    if DEBUG_MODE:
+                        print(f"Using existing underlying_price: {option_chain['underlying_price']}")
+                # Check if there's an 'underlying' object with price information
+                elif 'underlying' in option_chain and isinstance(option_chain['underlying'], dict):
+                    underlying_obj = option_chain['underlying']
+                    if 'mark' in underlying_obj and underlying_obj['mark']:
+                        option_chain['underlying_price'] = underlying_obj['mark']
+                        has_underlying_price = True
+                        if DEBUG_MODE:
+                            print(f"Using underlying price from option chain 'underlying.mark': {option_chain['underlying_price']}")
+                    elif 'lastPrice' in underlying_obj and underlying_obj['lastPrice']:
+                        option_chain['underlying_price'] = underlying_obj['lastPrice']
+                        has_underlying_price = True
+                        if DEBUG_MODE:
+                            print(f"Using underlying price from option chain 'underlying.lastPrice': {option_chain['underlying_price']}")
+            
             # If no option chain or no underlying price, try to get it from quote
-            if not option_chain or 'underlying_price' not in option_chain or not option_chain['underlying_price']:
+            if not option_chain or not has_underlying_price:
                 if DEBUG_MODE:
                     print(f"No underlying price in option chain, trying to get quote")
                 
                 # Get quote to get current price
                 quote = self.get_quote(symbol)
+                
+                # Enhanced debugging: Log the quote structure
+                if LOG_API_RESPONSES and quote:
+                    print(f"Quote structure for {symbol}:")
+                    if isinstance(quote, dict):
+                        print(f"Quote keys: {list(quote.keys())}")
+                        if symbol in quote and isinstance(quote[symbol], dict):
+                            print(f"Quote[{symbol}] keys: {list(quote[symbol].keys())}")
+                
                 if quote and isinstance(quote, dict):
-                    if 'mark' in quote:
+                    underlying_price = None
+                    
+                    # Try to get price from different fields in the quote
+                    if symbol in quote and isinstance(quote[symbol], dict):
+                        # Handle nested quote structure
+                        symbol_quote = quote[symbol]
+                        if 'mark' in symbol_quote and symbol_quote['mark']:
+                            underlying_price = symbol_quote['mark']
+                            if DEBUG_MODE:
+                                print(f"Using underlying price from quote[symbol]['mark']: {underlying_price}")
+                        elif 'lastPrice' in symbol_quote and symbol_quote['lastPrice']:
+                            underlying_price = symbol_quote['lastPrice']
+                            if DEBUG_MODE:
+                                print(f"Using underlying price from quote[symbol]['lastPrice']: {underlying_price}")
+                        elif 'regularMarketLastPrice' in symbol_quote and symbol_quote['regularMarketLastPrice']:
+                            underlying_price = symbol_quote['regularMarketLastPrice']
+                            if DEBUG_MODE:
+                                print(f"Using underlying price from quote[symbol]['regularMarketLastPrice']: {underlying_price}")
+                    elif 'mark' in quote and quote['mark']:
                         underlying_price = quote['mark']
                         if DEBUG_MODE:
                             print(f"Using underlying price from quote 'mark': {underlying_price}")
-                    elif 'lastPrice' in quote:
+                    elif 'lastPrice' in quote and quote['lastPrice']:
                         underlying_price = quote['lastPrice']
                         if DEBUG_MODE:
                             print(f"Using underlying price from quote 'lastPrice': {underlying_price}")
+                    elif 'regularMarketLastPrice' in quote and quote['regularMarketLastPrice']:
+                        underlying_price = quote['regularMarketLastPrice']
+                        if DEBUG_MODE:
+                            print(f"Using underlying price from quote 'regularMarketLastPrice': {underlying_price}")
                     else:
                         underlying_price = None
                         if DEBUG_MODE:
                             print(f"No suitable price found in quote")
+                            # Print all available fields for debugging
+                            if LOG_API_RESPONSES:
+                                print("Available quote fields:")
+                                if symbol in quote and isinstance(quote[symbol], dict):
+                                    for key, value in quote[symbol].items():
+                                        print(f"  quote[{symbol}]['{key}'] = {value}")
+                                else:
+                                    for key, value in quote.items():
+                                        print(f"  quote['{key}'] = {value}")
                     
                     # Add underlying price to option chain
                     if underlying_price and option_chain:
                         option_chain['underlying_price'] = underlying_price
+                        has_underlying_price = True
+            
+            # Final check - if we still don't have a price, log a detailed error
+            if option_chain and not has_underlying_price and DEBUG_MODE:
+                print(f"WARNING: Could not find underlying price for {symbol} in either option chain or quote")
+                if LOG_API_RESPONSES:
+                    print("This may indicate an API response format change or missing data")
+                    print("Please check the API documentation for updates")
             
             return option_chain
         except Exception as e:

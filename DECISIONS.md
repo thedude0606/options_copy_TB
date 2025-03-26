@@ -102,9 +102,10 @@
 - **Benefits**: Improved reliability, consistent behavior across different data types, prevention of runtime errors
 
 ### Underlying Price Handling
-- **Decision**: Modified the options data retrieval process to extract and include the underlying price
+- **Decision**: Modified the options data retrieval process to extract and include the underlying price from multiple sources
 - **Rationale**: The underlying price is essential for accurate options analysis and Greeks calculations
 - **Benefits**: Enables proper calculation of risk metrics, improves recommendation accuracy, prevents data-related errors
+- **Implementation**: Enhanced get_option_chain_with_underlying_price method to check for 'underlyingPrice' (camelCase), 'underlying_price' (snake_case), and the 'underlying' object for price information
 
 ### UI Component Registration
 - **Decision**: Implemented a systematic callback registration approach for all dashboard tabs
