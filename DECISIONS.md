@@ -17,6 +17,12 @@
 - **Rationale**: Promotes reusability and consistent styling across the application
 - **Benefits**: Faster development, consistent user experience, easier maintenance
 
+### Authentication Architecture
+- **Decision**: Implemented a flexible authentication system with both automatic and interactive modes
+- **Rationale**: Different usage scenarios require different authentication approaches
+- **Benefits**: Supports both automated and user-interactive authentication flows, improves user experience
+- **Implementation**: Created SchwabAuth class with token management and interactive authentication capabilities
+
 ## Technology Selections
 
 ### Dash Framework
@@ -39,6 +45,12 @@
 - **Rationale**: Provides direct access to market data without third-party dependencies
 - **Benefits**: Reliable data source, comprehensive options data including Greeks
 
+### SciPy for Mathematical Calculations
+- **Decision**: Used SciPy for statistical and mathematical functions in options analysis
+- **Rationale**: Provides optimized implementations of complex mathematical operations
+- **Benefits**: Accurate calculations for options pricing models and Greeks, performance optimization
+- **Implementation**: Utilized norm.cdf and norm.pdf functions for Black-Scholes calculations
+
 ## Design Patterns
 
 ### Factory Pattern
@@ -60,6 +72,12 @@
 - **Decision**: Used repository pattern for data access layer
 - **Rationale**: Abstracts data source details from business logic
 - **Benefits**: Easier to switch data sources or implement caching, simplified testing
+
+### Singleton Pattern
+- **Decision**: Implemented singleton pattern for authentication manager
+- **Rationale**: Ensures a single instance of authentication manager is used throughout the application
+- **Benefits**: Consistent authentication state, simplified access to authentication functionality
+- **Implementation**: Created auth_manager singleton instance in auth.py
 
 ## Technical Decisions
 
@@ -115,6 +133,18 @@
 - **Decision**: Used specialized visualization techniques for different data types
 - **Rationale**: Different data requires different visualization approaches for clarity
 - **Benefits**: More intuitive data presentation, better insights for users
+
+### Black-Scholes Implementation
+- **Decision**: Implemented Black-Scholes model for options pricing
+- **Rationale**: Industry standard model for options pricing and Greeks calculations
+- **Benefits**: Accurate options pricing, consistent Greeks calculations, foundation for advanced analysis
+- **Implementation**: Created calculate_black_scholes method in OptionsAnalysis class with proper edge case handling
+
+### Implied Volatility Calculation
+- **Decision**: Used Newton-Raphson method for implied volatility calculation
+- **Rationale**: Provides fast convergence for most options scenarios
+- **Benefits**: Accurate implied volatility values, efficient calculation, handles most practical cases
+- **Implementation**: Created calculate_implied_volatility method with iteration limit and precision control
 
 ## Recent Technical Decisions (March 2025)
 

@@ -19,17 +19,22 @@
   - Greeks calculations (Delta, Gamma, Theta, Vega, Rho)
   - Probability of profit estimation
   - Risk-reward ratio calculation
+  - Black-Scholes model implementation
+  - Implied volatility calculation using Newton-Raphson method
 - **Recommendation Engine**: Implemented a recommendation engine that:
   - Integrates technical indicators with options analysis
   - Generates trading signals based on multiple indicators
   - Scores options based on probability, risk-reward, and Greeks
   - Provides confidence scores and detailed rationales
+  - Implements caching for improved performance
+  - Includes fallback mechanisms for recommendations
 - **User Interface**: Built a comprehensive UI with:
   - Trade Cards component for displaying recommendations
   - Recommendations tab with filtering capabilities
   - Technical Indicators tab with interactive charts
   - Greeks Analysis tab with 3D visualizations
   - Main application layout integrating all components
+  - Historical Data tab with customizable timeframes
 - **Bug Fixes**: Fixed critical issues in the codebase:
   - Resolved datetime handling error ("Can only use .dt accessor with datetimelike values")
   - Implemented consistent handling of 'daysToExpiration' column across multiple components
@@ -65,6 +70,7 @@
   - Added missing calculate_sma method to technical indicators module to fix indicators chart display
   - Added missing calculate_ema method to technical indicators module to fix indicators chart display
   - Enhanced historical data processing with robust error handling and type checking to ensure data is properly displayed
+  - Implemented authentication handling with token refresh and interactive authentication options
 
 ## Current Work in Progress
 
@@ -74,6 +80,8 @@
 - Improving the robustness of the option chain processing pipeline
 - Implementing additional fallback mechanisms for data retrieval
 - Optimizing performance for handling large options chains
+- Refining the Black-Scholes model implementation for more accurate options pricing
+- Enhancing the implied volatility calculation for better convergence in edge cases
 
 ## Known Issues/Challenges
 
@@ -82,6 +90,8 @@
 - Potential performance bottlenecks when processing large option chains
 - Inconsistent data formats in Schwab API responses requiring additional validation
 - Recommendation data may show incomplete information for certain symbols or market conditions
+- Implied volatility calculation may not converge for deep in-the-money or out-of-the-money options
+- Authentication flow may require manual intervention in some environments
 
 ## Next Steps
 
@@ -92,3 +102,6 @@
 - Optimize performance for real-time data processing
 - Enhance the user interface to provide better feedback on data loading and processing status
 - Document the debugging process and solutions for future reference
+- Implement more sophisticated options strategies in the recommendation engine
+- Add backtesting capabilities to validate recommendation performance
+- Enhance the authentication process for better user experience

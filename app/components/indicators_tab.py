@@ -190,7 +190,7 @@ def create_indicators_tab():
                                     id="sma1-period",
                                     type="number",
                                     value=20,
-                                    min=5,
+                                    min=2,
                                     max=200,
                                     step=1,
                                     className="mb-2"
@@ -200,7 +200,7 @@ def create_indicators_tab():
                                     id="sma2-period",
                                     type="number",
                                     value=50,
-                                    min=10,
+                                    min=5,
                                     max=200,
                                     step=1,
                                     className="mb-2"
@@ -210,7 +210,7 @@ def create_indicators_tab():
                                     id="ema-period",
                                     type="number",
                                     value=20,
-                                    min=5,
+                                    min=2,
                                     max=200,
                                     step=1,
                                     className="mb-3"
@@ -221,11 +221,12 @@ def create_indicators_tab():
                             dbc.Button(
                                 "Reset to Defaults",
                                 id="reset-params-button",
-                                color="secondary",
+                                color="danger",
                                 size="sm",
                                 className="mt-2"
                             )
                         ]),
+                        className="mt-2"
                     ),
                     id="indicator-params-collapse",
                     is_open=False
@@ -236,126 +237,76 @@ def create_indicators_tab():
                     "Update Chart",
                     id="update-indicators-button",
                     color="primary",
-                    className="mt-3"
+                    className="mt-3 mb-3"
                 )
-            ], width=3),
+            ], md=3),
             
             # Chart area
             dbc.Col([
-                html.Div(id="indicators-chart-container", children=[
-                    dcc.Loading(
-                        id="indicators-loading",
-                        type="circle",
-                        children=[
-                            dcc.Graph(id="indicators-chart", style={"height": "800px"})
-                        ]
-                    )
-                ])
-            ], width=9)
+                dcc.Loading(
+                    id="loading-indicators",
+                    type="circle",
+                    children=[
+                        dcc.Graph(
+                            id="indicators-chart",
+                            figure=go.Figure(),
+                            style={"height": "800px"}
+                        )
+                    ]
+                )
+            ], md=9)
         ])
     ])
 
-# Callback to toggle indicator parameters collapse
-def toggle_indicator_params(n_clicks, is_open):
-    """
-    Toggle the indicator parameters collapse
-    
-    Args:
-        n_clicks (int): Number of clicks
-        is_open (bool): Current state of collapse
-        
-    Returns:
-        bool: New state of collapse
-    """
-    if n_clicks:
-        return not is_open
-    return is_open
-
-# Callback to reset indicator parameters to defaults
-def reset_indicator_params(n_clicks):
-    """
-    Reset indicator parameters to default values
-    
-    Args:
-        n_clicks (int): Number of clicks
-        
-    Returns:
-        tuple: Default values for all parameters
-    """
-    if n_clicks:
-        return 14, 70, 30, 12, 26, 9, 20, 2, 20, 50, 20
-    
-    # If not triggered by button click, return no update
-    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, \
-           dash.no_update, dash.no_update, dash.no_update, dash.no_update, \
-           dash.no_update, dash.no_update, dash.no_update
-
-# Callback to update timeframe options based on selected period
 def update_timeframe_options(period):
     """
-    Update timeframe options based on selected period to ensure compatibility
+    Update timeframe options based on selected period
     
     Args:
-        period (str): Selected period value
+        period (str): Selected period
         
     Returns:
-        tuple: Updated timeframe options and default value
+        tuple: (options, default_value)
     """
-    # Define compatible timeframes for each period
-    period_compatible_timeframes = {
-        '1w': [
-            {"label": "1 Minute", "value": "1m"},
-            {"label": "5 Minutes", "value": "5m"},
+    if period == "1w":
+        options = [
             {"label": "15 Minutes", "value": "15m"},
-            {"label": "1 Hour", "value": "1h"}
-        ],
-        '1m': [
-            {"label": "Daily", "value": "1d"},
-            {"label": "Weekly", "value": "1wk"}
-        ],
-        '3m': [
-            {"label": "Daily", "value": "1d"},
-            {"label": "Weekly", "value": "1wk"}
-        ],
-        '6m': [
-            {"label": "Daily", "value": "1d"},
-            {"label": "Weekly", "value": "1wk"}
-        ],
-        '1y': [
+            {"label": "30 Minutes", "value": "30m"},
+            {"label": "1 Hour", "value": "1h"},
+            {"label": "Daily", "value": "1d"}
+        ]
+        default_value = "1h"
+    elif period in ["1m", "3m"]:
+        options = [
+            {"label": "30 Minutes", "value": "30m"},
+            {"label": "1 Hour", "value": "1h"},
+            {"label": "2 Hours", "value": "2h"},
+            {"label": "4 Hours", "value": "4h"},
+            {"label": "Daily", "value": "1d"}
+        ]
+        default_value = "1d"
+    else:  # 6m, 1y
+        options = [
             {"label": "Daily", "value": "1d"},
             {"label": "Weekly", "value": "1wk"}
         ]
-    }
+        default_value = "1d"
     
-    # Get compatible timeframes for selected period
-    if period in period_compatible_timeframes:
-        options = period_compatible_timeframes[period]
-        # Set default value to first option
-        default_value = options[0]["value"]
-        return options, default_value
-    
-    # Default options if period not recognized
-    default_options = [
-        {"label": "Daily", "value": "1d"},
-        {"label": "Weekly", "value": "1wk"}
-    ]
-    return default_options, "1d"
+    return options, default_value
 
-# Callback to update indicators chart
-def update_indicators_chart(update_clicks, analyze_clicks, 
-                           symbol, timeframe, period, indicators,
-                           rsi_period, rsi_overbought, rsi_oversold,
+def update_indicators_chart(n_clicks, analyze_clicks, symbol, timeframe, period, indicators, 
+                           rsi_period, rsi_overbought, rsi_oversold, 
                            macd_fast, macd_slow, macd_signal,
                            bb_period, bb_std, sma1_period, sma2_period, ema_period):
     """
     Update the technical indicators chart
     
     Args:
-        update_clicks (int): Number of update button clicks
+        n_clicks (int): Number of update button clicks
         analyze_clicks (int): Number of analyze button clicks
         symbol (str): Stock symbol
-        timeframe (str): Time frame for data
-        period (str): Period for data
+        timeframe (str): Selected timeframe
+        period (str): Selected period
         indicators (list): Selected indicators
         rsi_period (int): RSI period
         rsi_overbought (int): RSI overbought level
@@ -370,382 +321,424 @@ def update_indicators_chart(update_clicks, analyze_clicks,
         ema_period (int): EMA period
         
     Returns:
-        go.Figure: Technical indicators chart
+        go.Figure: Updated chart
     """
-    # Check if callback was triggered
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return go.Figure()
-    
-    # Get trigger ID
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
-    # Only update if triggered by buttons
-    if trigger_id not in ['update-indicators-button', 'indicator-analyze-button']:
-        return dash.no_update
-    
-    # Validate symbol
+    # Validate inputs
     if not symbol:
         return go.Figure()
     
-    try:
-        # Map period to API parameters with improved mapping
-        period_mapping = {
-            '1w': ('day', 7, 'minute', 30),
-            '1m': ('month', 1, 'daily', 1),
-            '3m': ('month', 3, 'daily', 1),
-            '6m': ('month', 6, 'daily', 1),
-            '1y': ('year', 1, 'daily', 1)
-        }
+    # Map period to API parameters
+    period_mapping = {
+        '1w': ('day', 5, 'minute', 30),
+        '1m': ('month', 1, 'daily', 1),
+        '3m': ('month', 3, 'daily', 1),
+        '6m': ('month', 6, 'daily', 1),
+        '1y': ('year', 1, 'daily', 1)
+    }
+    
+    # Map timeframe to API parameters with correct frequency values
+    timeframe_mapping = {
+        '1m': ('minute', 1),
+        '5m': ('minute', 5),
+        '15m': ('minute', 15),
+        '30m': ('minute', 30),
+        '1h': ('minute', 60),
+        '2h': ('minute', 120),
+        '4h': ('minute', 240),
+        '1d': ('daily', 1),
+        '1wk': ('weekly', 1)
+    }
+    
+    # Get period parameters with better error handling
+    period_type, period_value, default_freq_type, default_freq_value = period_mapping.get(period, ('month', 1, 'daily', 1))
+    
+    # Check compatibility between period type and frequency type
+    compatible_freq_types = {
+        'day': ['minute'],
+        'month': ['daily', 'weekly'],
+        'year': ['daily', 'weekly', 'monthly']
+    }
+    
+    # Get timeframe parameters with better error handling
+    if timeframe in timeframe_mapping:
+        freq_type, freq_value = timeframe_mapping[timeframe]
         
-        # Map timeframe to API parameters with correct frequency values
-        timeframe_mapping = {
-            '1m': ('minute', 1),
-            '5m': ('minute', 5),
-            '15m': ('minute', 15),
-            '1h': ('minute', 60),
-            '1d': ('daily', 1),
-            '1wk': ('weekly', 1)
-        }
-        
-        # Get period parameters with better error handling
-        period_type, period_value, default_freq_type, default_freq_value = period_mapping.get(period, ('month', 1, 'daily', 1))
-        
-        # Check compatibility between period type and frequency type
-        compatible_freq_types = {
-            'day': ['minute'],
-            'month': ['daily', 'weekly'],
-            'year': ['daily', 'weekly', 'monthly']
-        }
-        
-        # Get timeframe parameters with better error handling
-        if timeframe in timeframe_mapping:
-            freq_type, freq_value = timeframe_mapping[timeframe]
-            
-            # Check if the selected frequency type is compatible with the period type
-            if period_type in compatible_freq_types and freq_type not in compatible_freq_types[period_type]:
-                print(f"Warning: Incompatible frequency_type '{freq_type}' for period_type '{period_type}'")
-                print(f"Using default frequency type '{default_freq_type}' instead")
-                freq_type, freq_value = default_freq_type, default_freq_value
+        # Check if the selected frequency type is compatible with the period type
+        if period_type in compatible_freq_types and freq_type not in compatible_freq_types[period_type]:
+            print(f"Warning: Incompatible frequency_type '{freq_type}' for period_type '{period_type}'")
+            print(f"Using default frequency type '{default_freq_type}' instead")
+            freq_type, freq_value = default_freq_type, default_freq_value
+    else:
+        # Handle timeframes with 'min' suffix (e.g., '30min', '60min', '120min')
+        if timeframe.endswith('min'):
+            try:
+                minutes = int(timeframe.replace('min', ''))
+                print(f"Converting '{timeframe}' to minute format")
+                freq_type, freq_value = 'minute', minutes
+            except ValueError:
+                print(f"Warning: Unknown timeframe '{timeframe}', defaulting to daily")
+                freq_type, freq_value = 'daily', 1
         else:
             print(f"Warning: Unknown timeframe '{timeframe}', defaulting to daily")
             freq_type, freq_value = 'daily', 1
-            
-        print(f"Using period_type={period_type}, period_value={period_value}, freq_type={freq_type}, freq_value={freq_value}")
         
-        # Get historical data
-        data_collector = DataCollector()
-        historical_data = data_collector.get_historical_data(
-            symbol, 
-            period_type=period_type, 
-            period=period_value, 
-            frequency_type=freq_type, 
-            frequency=freq_value
+    print(f"Using period_type={period_type}, period_value={period_value}, freq_type={freq_type}, freq_value={freq_value}")
+    
+    # Get historical data
+    data_collector = DataCollector()
+    historical_data = data_collector.get_historical_data(
+        symbol, 
+        period_type=period_type, 
+        period=period_value, 
+        frequency_type=freq_type, 
+        frequency=freq_value
+    )
+    
+    if historical_data.empty:
+        return go.Figure()
+    
+    # Create technical indicators
+    tech_indicators = TechnicalIndicators()
+    
+    # Determine number of rows for subplots
+    num_rows = 1
+    if 'rsi' in indicators:
+        num_rows += 1
+    if 'macd' in indicators:
+        num_rows += 1
+    
+    # Create figure with subplots
+    fig = make_subplots(
+        rows=num_rows, 
+        cols=1, 
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        row_heights=[0.6] + [0.2] * (num_rows - 1)
+    )
+    
+    # Add price candlestick chart
+    fig.add_trace(
+        go.Candlestick(
+            x=historical_data.index,
+            open=historical_data['open'],
+            high=historical_data['high'],
+            low=historical_data['low'],
+            close=historical_data['close'],
+            name="Price"
+        ),
+        row=1, col=1
+    )
+    
+    # Add volume as bar chart
+    fig.add_trace(
+        go.Bar(
+            x=historical_data.index,
+            y=historical_data['volume'],
+            name="Volume",
+            marker=dict(color='rgba(100, 100, 100, 0.3)'),
+            opacity=0.3,
+            showlegend=False
+        ),
+        row=1, col=1
+    )
+    
+    # Add selected indicators
+    current_row = 2
+    
+    # Add Bollinger Bands
+    if 'bollinger' in indicators:
+        upper, middle, lower = tech_indicators.bollinger_bands(
+            historical_data['close'], 
+            window=bb_period, 
+            num_std=bb_std
         )
         
-        if historical_data.empty:
-            return go.Figure()
-        
-        # Create technical indicators
-        tech_indicators = TechnicalIndicators()
-        
-        # Create figure with subplots
-        fig = make_subplots(rows=4, cols=1, 
-                           shared_xaxes=True, 
-                           vertical_spacing=0.02, 
-                           row_heights=[0.5, 0.2, 0.15, 0.15])
-        
-        # Add price candlestick chart
         fig.add_trace(
-            go.Candlestick(
+            go.Scatter(
                 x=historical_data.index,
-                open=historical_data['open'],
-                high=historical_data['high'],
-                low=historical_data['low'],
-                close=historical_data['close'],
-                name="Price"
+                y=upper,
+                name="BB Upper",
+                line=dict(color='rgba(250, 0, 0, 0.5)')
             ),
             row=1, col=1
         )
         
-        # Add volume as bar chart
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=middle,
+                name="BB Middle",
+                line=dict(color='rgba(0, 0, 250, 0.5)')
+            ),
+            row=1, col=1
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=lower,
+                name="BB Lower",
+                line=dict(color='rgba(0, 250, 0, 0.5)')
+            ),
+            row=1, col=1
+        )
+    
+    # Add Moving Averages
+    if 'ma' in indicators:
+        sma1 = tech_indicators.sma(historical_data['close'], window=sma1_period)
+        sma2 = tech_indicators.sma(historical_data['close'], window=sma2_period)
+        ema = tech_indicators.ema(historical_data['close'], window=ema_period)
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=sma1,
+                name=f"SMA ({sma1_period})",
+                line=dict(color='rgba(255, 165, 0, 0.7)')
+            ),
+            row=1, col=1
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=sma2,
+                name=f"SMA ({sma2_period})",
+                line=dict(color='rgba(128, 0, 128, 0.7)')
+            ),
+            row=1, col=1
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=ema,
+                name=f"EMA ({ema_period})",
+                line=dict(color='rgba(255, 0, 255, 0.7)')
+            ),
+            row=1, col=1
+        )
+    
+    # Add RSI
+    if 'rsi' in indicators:
+        rsi = tech_indicators.rsi(historical_data['close'], window=rsi_period)
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=rsi,
+                name="RSI",
+                line=dict(color='blue')
+            ),
+            row=current_row, col=1
+        )
+        
+        # Add overbought/oversold lines
+        fig.add_trace(
+            go.Scatter(
+                x=[historical_data.index[0], historical_data.index[-1]],
+                y=[rsi_overbought, rsi_overbought],
+                name="Overbought",
+                line=dict(color='red', dash='dash')
+            ),
+            row=current_row, col=1
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=[historical_data.index[0], historical_data.index[-1]],
+                y=[rsi_oversold, rsi_oversold],
+                name="Oversold",
+                line=dict(color='green', dash='dash')
+            ),
+            row=current_row, col=1
+        )
+        
+        # Update y-axis range
+        fig.update_yaxes(title_text="RSI", range=[0, 100], row=current_row, col=1)
+        
+        current_row += 1
+    
+    # Add MACD
+    if 'macd' in indicators:
+        macd_line, signal_line, histogram = tech_indicators.macd(
+            historical_data['close'], 
+            fast_period=macd_fast, 
+            slow_period=macd_slow, 
+            signal_period=macd_signal
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=macd_line,
+                name="MACD",
+                line=dict(color='blue')
+            ),
+            row=current_row, col=1
+        )
+        
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=signal_line,
+                name="Signal",
+                line=dict(color='red')
+            ),
+            row=current_row, col=1
+        )
+        
+        # Add histogram as bar chart
+        colors = ['green' if val >= 0 else 'red' for val in histogram]
         fig.add_trace(
             go.Bar(
                 x=historical_data.index,
-                y=historical_data['volume'],
-                name="Volume",
-                marker_color='rgba(0, 0, 255, 0.3)'
+                y=histogram,
+                name="Histogram",
+                marker=dict(color=colors),
+                showlegend=False
             ),
-            row=2, col=1
+            row=current_row, col=1
         )
         
-        # Add selected indicators
-        if 'bollinger' in indicators:
-            middle_band, upper_band, lower_band = tech_indicators.calculate_bollinger_bands(
-                historical_data, period=bb_period, std_dev=bb_std
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=middle_band,
-                    name=f"BB Middle ({bb_period})",
-                    line=dict(color='rgba(255, 165, 0, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=upper_band,
-                    name=f"BB Upper ({bb_period}, {bb_std}σ)",
-                    line=dict(color='rgba(0, 128, 0, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=lower_band,
-                    name=f"BB Lower ({bb_period}, {bb_std}σ)",
-                    line=dict(color='rgba(255, 0, 0, 0.7)')
-                ),
-                row=1, col=1
-            )
+        # Update y-axis title
+        fig.update_yaxes(title_text="MACD", row=current_row, col=1)
+    
+    # Add MFI
+    if 'mfi' in indicators:
+        mfi = tech_indicators.money_flow_index(
+            high=historical_data['high'],
+            low=historical_data['low'],
+            close=historical_data['close'],
+            volume=historical_data['volume'],
+            window=14
+        )
         
-        if 'ma' in indicators:
-            # Calculate SMAs
-            sma1 = tech_indicators.calculate_sma(historical_data, period=sma1_period)
-            sma2 = tech_indicators.calculate_sma(historical_data, period=sma2_period)
-            ema = tech_indicators.calculate_ema(historical_data, period=ema_period)
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=sma1,
-                    name=f"SMA ({sma1_period})",
-                    line=dict(color='rgba(255, 0, 255, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=sma2,
-                    name=f"SMA ({sma2_period})",
-                    line=dict(color='rgba(0, 255, 255, 0.7)')
-                ),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=ema,
-                    name=f"EMA ({ema_period})",
-                    line=dict(color='rgba(128, 0, 128, 0.7)')
-                ),
-                row=1, col=1
-            )
-        
-        if 'rsi' in indicators:
-            # Calculate RSI
-            rsi = tech_indicators.calculate_rsi(historical_data, period=rsi_period)
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=rsi,
-                    name=f"RSI ({rsi_period})",
-                    line=dict(color='rgba(75, 0, 130, 0.7)')
-                ),
-                row=3, col=1
-            )
-            
-            # Add overbought/oversold lines
-            fig.add_trace(
-                go.Scatter(
-                    x=[historical_data.index[0], historical_data.index[-1]],
-                    y=[rsi_overbought, rsi_overbought],
-                    name=f"Overbought ({rsi_overbought})",
-                    line=dict(color='rgba(255, 0, 0, 0.5)', dash='dash')
-                ),
-                row=3, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=[historical_data.index[0], historical_data.index[-1]],
-                    y=[rsi_oversold, rsi_oversold],
-                    name=f"Oversold ({rsi_oversold})",
-                    line=dict(color='rgba(0, 128, 0, 0.5)', dash='dash')
-                ),
-                row=3, col=1
-            )
-            
-            # Add midline
-            fig.add_trace(
-                go.Scatter(
-                    x=[historical_data.index[0], historical_data.index[-1]],
-                    y=[50, 50],
-                    name="RSI Midline",
-                    line=dict(color='rgba(128, 128, 128, 0.5)', dash='dash')
-                ),
-                row=3, col=1
-            )
-        
-        if 'macd' in indicators:
-            # Calculate MACD
-            macd_line, signal_line, histogram = tech_indicators.calculate_macd(
-                historical_data, fast_period=macd_fast, slow_period=macd_slow, signal_period=macd_signal
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=macd_line,
-                    name=f"MACD ({macd_fast}, {macd_slow})",
-                    line=dict(color='rgba(0, 0, 255, 0.7)')
-                ),
-                row=4, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=historical_data.index,
-                    y=signal_line,
-                    name=f"Signal ({macd_signal})",
-                    line=dict(color='rgba(255, 165, 0, 0.7)')
-                ),
-                row=4, col=1
-            )
-            
-            # Add histogram as bar chart
-            colors = ['rgba(0, 255, 0, 0.7)' if val >= 0 else 'rgba(255, 0, 0, 0.7)' for val in histogram]
-            
-            fig.add_trace(
-                go.Bar(
-                    x=historical_data.index,
-                    y=histogram,
-                    name="MACD Histogram",
-                    marker_color=colors
-                ),
-                row=4, col=1
-            )
-        
-        if 'mfi' in indicators:
-            # Calculate MFI
-            mfi = tech_indicators.calculate_mfi(historical_data)
-            
-            if not mfi.empty:
-                fig.add_trace(
-                    go.Scatter(
-                        x=historical_data.index,
-                        y=mfi,
-                        name="MFI",
-                        line=dict(color='rgba(255, 69, 0, 0.7)')
-                    ),
-                    row=3, col=1
-                )
-        
-        if 'imi' in indicators:
-            # Calculate IMI
-            imi = tech_indicators.calculate_imi(historical_data)
-            
-            if not imi.empty:
-                fig.add_trace(
-                    go.Scatter(
-                        x=historical_data.index,
-                        y=imi,
-                        name="IMI",
-                        line=dict(color='rgba(0, 128, 128, 0.7)')
-                    ),
-                    row=3, col=1
-                )
-        
-        if 'fvg' in indicators:
-            # Calculate Fair Value Gap
-            fvg = tech_indicators.calculate_fair_value_gap(historical_data)
-            
-            if not fvg.empty:
-                fig.add_trace(
-                    go.Scatter(
-                        x=historical_data.index,
-                        y=fvg,
-                        name="FVG",
-                        line=dict(color='rgba(139, 0, 139, 0.7)')
-                    ),
-                    row=1, col=1
-                )
-        
-        if 'liquidity' in indicators:
-            # Calculate Liquidity Zones
-            liquidity_zones = tech_indicators.calculate_liquidity_zones(historical_data)
-            
-            if not liquidity_zones.empty:
-                fig.add_trace(
-                    go.Scatter(
-                        x=historical_data.index,
-                        y=liquidity_zones,
-                        name="Liquidity Zones",
-                        line=dict(color='rgba(0, 100, 0, 0.7)')
-                    ),
-                    row=1, col=1
-                )
-        
-        # Update layout
-        fig.update_layout(
-            title=f"{symbol} Technical Analysis ({period}, {timeframe})",
-            xaxis_title="Date",
-            yaxis_title="Price",
-            height=800,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=mfi,
+                name="MFI",
+                line=dict(color='purple')
             ),
-            margin=dict(l=50, r=50, t=80, b=50)
+            row=1, col=1
+        )
+    
+    # Add IMI
+    if 'imi' in indicators:
+        imi = tech_indicators.intraday_momentum_index(
+            open_prices=historical_data['open'],
+            close_prices=historical_data['close'],
+            window=14
         )
         
-        # Update y-axis labels
-        fig.update_yaxes(title_text="Price", row=1, col=1)
-        fig.update_yaxes(title_text="Volume", row=2, col=1)
-        
-        if 'rsi' in indicators or 'mfi' in indicators or 'imi' in indicators:
-            fig.update_yaxes(title_text="Oscillators", row=3, col=1)
-        
-        if 'macd' in indicators:
-            fig.update_yaxes(title_text="MACD", row=4, col=1)
-        
-        # Update x-axis
-        fig.update_xaxes(
-            rangeslider_visible=False,
-            rangebreaks=[
-                dict(bounds=["sat", "mon"]),  # hide weekends
-                dict(bounds=[16, 9.5], pattern="hour")  # hide non-trading hours
-            ]
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=imi,
+                name="IMI",
+                line=dict(color='brown')
+            ),
+            row=1, col=1
+        )
+    
+    # Add FVG
+    if 'fvg' in indicators:
+        fvg = tech_indicators.fair_value_gap(
+            high=historical_data['high'],
+            low=historical_data['low'],
+            close=historical_data['close']
         )
         
-        return fig
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=fvg,
+                name="FVG",
+                line=dict(color='rgba(255, 215, 0, 0.7)')
+            ),
+            row=1, col=1
+        )
+    
+    # Add Liquidity Zones
+    if 'liquidity' in indicators:
+        liquidity_zones = tech_indicators.liquidity_zones(
+            high=historical_data['high'],
+            low=historical_data['low'],
+            close=historical_data['close'],
+            volume=historical_data['volume']
+        )
         
-    except Exception as e:
-        print(f"Error updating indicators chart: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        return go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=historical_data.index,
+                y=liquidity_zones,
+                name="Liquidity Zones",
+                line=dict(color='rgba(0, 100, 0, 0.7)')
+            ),
+            row=1, col=1
+        )
+    
+    # Update layout
+    fig.update_layout(
+        title=f"{symbol} Technical Analysis ({period}, {timeframe})",
+        xaxis_title="Date",
+        yaxis_title="Price",
+        height=800,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        margin=dict(l=50, r=50, t=100, b=50)
+    )
+    
+    # Update x-axis
+    fig.update_xaxes(
+        rangeslider_visible=False,
+        rangebreaks=[
+            dict(bounds=["sat", "mon"]),  # hide weekends
+            dict(bounds=[16, 9.5], pattern="hour")  # hide non-trading hours
+        ]
+    )
+    
+    return fig
 
-# Register callbacks
-def register_indicators_callbacks(app):
+def toggle_indicator_params(n_clicks, is_open):
     """
-    Register all callbacks for the indicators tab
+    Toggle indicator parameters collapse
     
     Args:
-        app: Dash app instance
+        n_clicks (int): Number of button clicks
+        is_open (bool): Current state of collapse
+        
+    Returns:
+        bool: New state of collapse
+    """
+    if n_clicks:
+        return not is_open
+    return is_open
+
+def reset_indicator_params(n_clicks):
+    """
+    Reset indicator parameters to defaults
+    
+    Args:
+        n_clicks (int): Number of button clicks
+        
+    Returns:
+        tuple: Default parameter values
+    """
+    return 14, 70, 30, 12, 26, 9, 20, 2, 20, 50, 20
+
+def register_callbacks(app):
+    """
+    Register callbacks for the indicators tab
+    
+    Args:
+        app (Dash): Dash application instance
     """
     app.callback(
         Output("indicator-params-collapse", "is_open"),
