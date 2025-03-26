@@ -101,6 +101,7 @@
   - **Added robust previousClose extraction** with multiple fallback mechanisms to find previousClose values in various locations of the API response, ensuring accurate netChange calculations
   - **Fixed UI display issue for market data in dashboard** by enhancing the get_market_overview() function with better error handling, logging, and fallback mechanisms to ensure market data is properly passed from the backend to the UI components
   - **Fixed additional features not showing data in simplified dashboard** by properly registering callback functions for each tab (Options Chain, Greeks, Technical Indicators, Historical Data, Real-Time Data) and updating the feature_content callback to return actual component content instead of placeholder text
+  - **Fixed "name 'dash_table' is not defined" error** by adding the missing dash_table import in integration.py, which was preventing the options chain from displaying properly
 
 ## Current Work in Progress
 

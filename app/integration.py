@@ -3,7 +3,7 @@ Integration module for connecting all components of the options recommendation p
 Provides functions for testing and validating the implementation.
 """
 import dash
-from dash import html, dcc, callback, Input, Output, State
+from dash import html, dcc, callback, Input, Output, State, dash_table
 import dash_bootstrap_components as dbc
 import pandas as pd
 import numpy as np
