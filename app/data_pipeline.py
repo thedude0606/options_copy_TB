@@ -413,10 +413,37 @@ class ShortTermDataPipeline:
                 self.logger.warning(f"No quote data returned for {symbol}")
                 return {}
             
+            # Get options chain to ensure we have underlying price as backup
+            options_chain = self.data_collector.get_options_chain(symbol)
+            underlying_price = 0
+            
+            if options_chain and isinstance(options_chain, dict):
+                # Try to get underlying price from options chain
+                if 'underlyingPrice' in options_chain and options_chain['underlyingPrice']:
+                    underlying_price = options_chain['underlyingPrice']
+                    self.logger.info(f"Using underlying price from options chain: {underlying_price}")
+                elif 'underlying_price' in options_chain and options_chain['underlying_price']:
+                    underlying_price = options_chain['underlying_price']
+                    self.logger.info(f"Using underlying_price from options chain: {underlying_price}")
+            
+            # Handle nested quote structure
+            last_price = 0
+            if symbol in quote_data and isinstance(quote_data[symbol], dict):
+                symbol_quote = quote_data[symbol]
+                last_price = symbol_quote.get('lastPrice', 0) or symbol_quote.get('last', 0) or symbol_quote.get('mark', 0)
+            else:
+                last_price = quote_data.get('lastPrice', 0) or quote_data.get('last', 0) or quote_data.get('mark', 0)
+            
+            # If we still don't have a price, use the underlying price from options chain
+            if last_price == 0 and underlying_price > 0:
+                last_price = underlying_price
+                self.logger.info(f"Using underlying price as last_price: {last_price}")
+            
             # Format the data
             real_time_data = {
                 'symbol': symbol,
-                'last_price': quote_data.get('lastPrice', 0),
+                'last_price': last_price,
+                'underlying_price': underlying_price,  # Add underlying_price explicitly
                 'change': quote_data.get('netChange', 0),
                 'change_percent': quote_data.get('netPercentChangeInDouble', 0),
                 'bid': quote_data.get('bidPrice', 0),
