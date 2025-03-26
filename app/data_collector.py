@@ -511,6 +511,109 @@ class DataCollector:
                 print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
+    def get_quote(self, symbol):
+        """
+        Get quote data for a symbol
+        
+        Args:
+            symbol (str): The stock symbol to get quote for
+            
+        Returns:
+            dict: Quote data
+        """
+        try:
+            if DEBUG_MODE:
+                print(f"Requesting quote for symbol: {symbol}")
+            
+            # Get quote data
+            quote_response = self.client.quote(symbol)
+            
+            if DEBUG_MODE:
+                print(f"Quote response type: {type(quote_response)}")
+                if hasattr(quote_response, 'status_code'):
+                    print(f"Status code: {quote_response.status_code}")
+            
+            # Process the response
+            quote_data = None
+            if isinstance(quote_response, requests.Response):
+                if quote_response.status_code == 200:
+                    try:
+                        quote_data = quote_response.json()
+                        if DEBUG_MODE:
+                            print(f"Quote received for {symbol}")
+                            if VERBOSE_DEBUG:
+                                print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
+                        
+                        # The Schwab API returns data in a specific format
+                        # The actual quote data might be nested under the symbol key
+                        if symbol in quote_data:
+                            return quote_data[symbol]
+                        else:
+                            return quote_data
+                    except ValueError as e:
+                        print(f"Error parsing JSON for {symbol}: {str(e)}")
+                        if DEBUG_MODE and hasattr(quote_response, 'text'):
+                            print(f"Response text: {quote_response.text[:200]}...")
+                else:
+                    print(f"Quote response not OK for {symbol}. Status code: {quote_response.status_code}")
+            elif isinstance(quote_response, dict):
+                # If the client already returned a dict instead of a Response object
+                if DEBUG_MODE:
+                    print(f"Quote response is already a dict for {symbol}")
+                
+                if symbol in quote_response:
+                    return quote_response[symbol]
+                else:
+                    return quote_response
+            else:
+                print(f"Unexpected quote response type for {symbol}: {type(quote_response)}")
+            
+            return None
+        except Exception as e:
+            print(f"Error retrieving quote for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return None
+    
+    def get_price_history(self, symbol, period_type='day', period=10, frequency_type='minute', 
+                         frequency=30, need_extended_hours_data=True):
+        """
+        Get price history data for a symbol
+        
+        Args:
+            symbol (str): The stock symbol
+            period_type (str): Type of period - 'day', 'month', 'year', 'ytd'
+            period (int): Number of periods
+            frequency_type (str): Type of frequency - 'minute', 'daily', 'weekly', 'monthly'
+            frequency (int): Frequency
+            need_extended_hours_data (bool): Whether to include extended hours data
+            
+        Returns:
+            pd.DataFrame: Price history data
+        """
+        try:
+            if DEBUG_MODE:
+                print(f"\n=== PRICE HISTORY REQUEST ===")
+                print(f"Symbol: {symbol}")
+                print(f"Parameters: periodType={period_type}, period={period}, frequencyType={frequency_type}, frequency={frequency}")
+            
+            # Use the existing get_historical_data method which already has all the necessary logic
+            return self.get_historical_data(
+                symbol=symbol,
+                period_type=period_type,
+                period=period,
+                frequency_type=frequency_type,
+                frequency=frequency,
+                need_extended_hours_data=need_extended_hours_data
+            )
+        except Exception as e:
+            print(f"Error retrieving price history for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return pd.DataFrame()
+    
     def get_option_chain_with_underlying_price(self, symbol):
         """
         Get the option chain for a symbol with underlying price
@@ -614,44 +717,3 @@ class DataCollector:
                 'underlying_price': 0,
                 'option_chain': None
             }
-    
-    def get_market_hours(self, market='EQUITY'):
-        """
-        Get market hours
-        
-        Args:
-            market (str): Market to get hours for (EQUITY, OPTION, BOND, FOREX)
-            
-        Returns:
-            dict: Market hours data
-        """
-        try:
-            if DEBUG_MODE:
-                print(f"Requesting market hours for: {market}")
-            
-            # Get market hours data
-            hours_response = self.client.get_market_hours(market=market)
-            
-            # Process the response
-            hours_data = None
-            if hasattr(hours_response, 'json'):
-                try:
-                    hours_data = hours_response.json()
-                    if DEBUG_MODE:
-                        print(f"Market hours received for {market}")
-                except Exception as e:
-                    if DEBUG_MODE:
-                        print(f"Error parsing market hours JSON: {str(e)}")
-                        if hasattr(hours_response, 'text'):
-                            print(f"Response text: {hours_response.text[:200]}...")
-            elif isinstance(hours_response, dict):
-                hours_data = hours_response
-                if DEBUG_MODE:
-                    print(f"Market hours received for {market}")
-            
-            return hours_data
-        except Exception as e:
-            print(f"Error retrieving market hours: {str(e)}")
-            if DEBUG_MODE:
-                print(traceback.format_exc())
-            return None
