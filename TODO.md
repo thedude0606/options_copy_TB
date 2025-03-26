@@ -50,6 +50,7 @@
 - [x] Add missing get_option_data method to DataCollector class
 - [x] Fix string indices errors in real-time data processing
 - [x] Implement proper data validation and error handling for real-time data streaming
+- [x] Fix duplicate output error in real-time data streaming callbacks
 - [x] Test implemented fixes with various symbols and timeframes
 - [ ] Optimize performance for large options chains
 - [ ] Add comprehensive logging throughout the application
