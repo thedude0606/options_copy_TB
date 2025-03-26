@@ -360,28 +360,47 @@ class ShortTermRecommendationEngine:
             annual_trading_days = 252
             annual_trading_hours = annual_trading_days * 6.5  # ~6.5 trading hours per day
             
-            # Calculate expected move as percentage
-            expected_move_pct = volatility * np.sqrt(timeframe_hours / annual_trading_hours)
+            # Calculate expected move as percentage - use a more conservative approach
+            # Square root of time rule from option pricing theory
+            expected_move_pct = volatility * np.sqrt(timeframe_hours / annual_trading_hours) * 0.5  # Added dampening factor
             expected_move = current_price * expected_move_pct
             
             # Calculate target price based on expected move and direction
             direction_multiplier = 1 if opt_type == 'CALL' else -1
             signal_strength = signals['overall']['strength']
             
-            # Adjust expected move based on signal strength
-            adjusted_move = expected_move * (1 + signal_strength)
+            # Adjust expected move based on signal strength - use a more conservative adjustment
+            # Limit the impact of signal strength to avoid extreme moves
+            signal_adjustment = max(-0.5, min(0.5, signal_strength))  # Limit to [-0.5, 0.5]
+            adjusted_move = expected_move * (1 + signal_adjustment)
             
             # Calculate target price
             target_price = current_price + (direction_multiplier * adjusted_move)
             
-            # Calculate potential profit/loss
-            if opt_type == 'CALL':
-                potential_profit = max(0, target_price - strike) - mid_price
-            else:  # PUT
-                potential_profit = max(0, strike - target_price) - mid_price
+            # Calculate potential profit/loss with time value consideration
+            days_to_expiration = option.get('days_to_expiration', 30)
+            time_value_factor = min(1.0, max(0.1, days_to_expiration / 30))  # Scale based on expiration
             
-            # Calculate potential return
-            potential_return = potential_profit / mid_price if mid_price > 0 else 0
+            if opt_type == 'CALL':
+                intrinsic_value = max(0, target_price - strike)
+                # Discount potential profit based on time to expiration
+                potential_profit = (intrinsic_value * time_value_factor) - mid_price
+            else:  # PUT
+                intrinsic_value = max(0, strike - target_price)
+                # Discount potential profit based on time to expiration
+                potential_profit = (intrinsic_value * time_value_factor) - mid_price
+            
+            # Ensure potential profit is not negative
+            potential_profit = max(0, potential_profit)
+            
+            # Calculate potential return with scaling based on expiration
+            # Shorter-term options should have lower expected returns
+            if mid_price > 0:
+                base_return = potential_profit / mid_price
+                expiration_scale = np.sqrt(time_value_factor)  # Square root scaling for more granularity
+                potential_return = base_return * expiration_scale
+            else:
+                potential_return = 0
             
             # Apply reasonable upper bound to potential return (cap at 1000%)
             potential_return = min(10.0, potential_return)
@@ -389,8 +408,19 @@ class ShortTermRecommendationEngine:
             # Calculate maximum loss (simplified)
             max_loss = mid_price
             
-            # Calculate risk/reward ratio
-            risk_reward = potential_profit / max_loss if max_loss > 0 else 0
+            # Calculate risk/reward ratio with scaling based on option characteristics
+            if max_loss > 0:
+                base_risk_reward = potential_profit / max_loss
+                
+                # Scale risk/reward based on option characteristics
+                # Options closer to expiration should have lower risk/reward
+                # Options with higher implied volatility should have lower risk/reward
+                volatility_factor = max(0.2, min(1.0, 0.5 / volatility))  # Lower for high volatility options
+                expiration_factor = max(0.2, min(1.0, days_to_expiration / 60))  # Lower for near-term options
+                
+                risk_reward = base_risk_reward * volatility_factor * expiration_factor
+            else:
+                risk_reward = 0
             
             # Apply reasonable upper bound to risk/reward (cap at 100x)
             risk_reward = min(100.0, risk_reward)
@@ -399,36 +429,78 @@ class ShortTermRecommendationEngine:
             if risk_reward < min_risk_reward:
                 continue
             
-            # Calculate confidence score
+            # Calculate confidence score with more granular approach
             # Base confidence on signal strength, moneyness, and liquidity
             signal_confidence = (signal_strength + 1) / 2  # Convert from [-1,1] to [0,1]
             
-            # Prefer slightly OTM options for directional plays
-            moneyness_score = 1 - min(1, abs(moneyness) * 5)  # Highest for slightly OTM
+            # Prefer slightly OTM options for directional plays - more granular scoring
+            # Highest score for options that are 2-5% OTM
+            if opt_type == 'CALL':
+                if moneyness < -0.05:  # Deep OTM
+                    moneyness_score = max(0, 0.5 + (moneyness + 0.05) * 5)  # Ramp up from deep OTM
+                elif moneyness < -0.02:  # Slightly OTM (sweet spot)
+                    moneyness_score = 0.9
+                elif moneyness < 0:  # Very slightly OTM
+                    moneyness_score = 0.8
+                elif moneyness < 0.05:  # Slightly ITM
+                    moneyness_score = 0.7 - moneyness * 2
+                else:  # Deep ITM
+                    moneyness_score = max(0.1, 0.6 - moneyness)
+            else:  # PUT
+                if moneyness < -0.05:  # Deep ITM for puts
+                    moneyness_score = max(0.1, 0.6 + moneyness)
+                elif moneyness < 0:  # Slightly ITM for puts
+                    moneyness_score = 0.7 + moneyness * 2
+                elif moneyness < 0.02:  # Very slightly OTM
+                    moneyness_score = 0.8
+                elif moneyness < 0.05:  # Slightly OTM (sweet spot)
+                    moneyness_score = 0.9
+                else:  # Deep OTM
+                    moneyness_score = max(0, 0.5 - (moneyness - 0.05) * 5)  # Ramp down for deep OTM
             
-            # Liquidity score based on bid-ask spread
+            # Liquidity score based on bid-ask spread - more granular
             spread_pct = (ask - bid) / mid_price if mid_price > 0 else 1
-            liquidity_score = max(0, 1 - spread_pct * 5)  # Lower spread = higher score
+            if spread_pct < 0.02:  # Very tight spread
+                liquidity_score = 1.0
+            elif spread_pct < 0.05:  # Good spread
+                liquidity_score = 0.9
+            elif spread_pct < 0.1:  # Acceptable spread
+                liquidity_score = 0.7
+            elif spread_pct < 0.2:  # Wide spread
+                liquidity_score = 0.5
+            else:  # Very wide spread
+                liquidity_score = max(0, 1 - spread_pct * 2)
             
-            # Volume score
+            # Volume score with more granular approach
             volume = option.get('volume', 0)
             open_interest = option.get('open_interest', 0)
-            volume_score = min(1, (volume + open_interest) / 1000)
+            combined_volume = volume + open_interest
             
-            # Sentiment adjustment
+            if combined_volume > 10000:
+                volume_score = 1.0
+            elif combined_volume > 5000:
+                volume_score = 0.9
+            elif combined_volume > 1000:
+                volume_score = 0.8
+            elif combined_volume > 500:
+                volume_score = 0.7
+            elif combined_volume > 100:
+                volume_score = 0.5
+            else:
+                volume_score = max(0.1, combined_volume / 1000)
+            
+            # Sentiment adjustment with more granular approach
             sentiment_score = (sentiment_data.get('sentiment_score', 0) + 1) / 2  # Convert to [0,1]
-            sentiment_adjustment = 1 + (sentiment_score - 0.5) * params['sentiment_weight']
+            sentiment_adjustment = 1 + (sentiment_score - 0.5) * params['sentiment_weight'] * 0.5  # Reduced impact
             
             # Calculate final confidence score with weights
-            # Normalize risk/reward to [0,1] with a reasonable cap
-            normalized_risk_reward = min(1.0, risk_reward / 20)
-            
+            # Use a more balanced weighting system
             confidence_score = (
-                signal_confidence * 0.4 +
-                moneyness_score * 0.2 +
+                signal_confidence * 0.3 +
+                moneyness_score * 0.25 +
                 liquidity_score * 0.2 +
-                volume_score * 0.1 +
-                normalized_risk_reward * 0.1
+                volume_score * 0.15 +
+                (risk_reward / 20) * 0.1  # Normalized risk/reward with reduced impact
             ) * sentiment_adjustment
             
             # Ensure confidence score is within reasonable bounds (0-1)
