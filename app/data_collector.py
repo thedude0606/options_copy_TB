@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import traceback
 import json
+import requests
 from datetime import datetime, timedelta
 from app.auth import get_client
 
@@ -32,6 +33,235 @@ class DataCollector:
         if DEBUG_MODE:
             print(f"DataCollector initialized with interactive_auth={interactive_auth}")
             print(f"Client type: {type(self.client)}")
+    
+    def get_market_data(self, symbol=None):
+        """
+        Get market data for dashboard or for a specific symbol
+        
+        Args:
+            symbol (str, optional): Symbol to get data for. If None, returns data for major indices.
+            
+        Returns:
+            dict: Market data
+        """
+        try:
+            # If a specific symbol is requested, get data just for that symbol
+            if symbol:
+                try:
+                    print(f"Requesting quote for symbol: {symbol}")
+                    quote_response = self.client.quote(symbol)
+                    
+                    # Enhanced debugging for quote response
+                    if VERBOSE_DEBUG:
+                        print(f"Quote response type: {type(quote_response)}")
+                    
+                    # Check if response is a requests.Response object
+                    if isinstance(quote_response, requests.Response):
+                        if quote_response.status_code == 200:
+                            try:
+                                quote_data = quote_response.json()
+                                print(f"Quote received for {symbol}")
+                                if VERBOSE_DEBUG:
+                                    print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
+                                
+                                # The Schwab API returns data in a specific format
+                                # The actual quote data might be nested under the symbol key
+                                if symbol in quote_data:
+                                    symbol_data = quote_data[symbol]
+                                    return {
+                                        'lastPrice': symbol_data.get('lastPrice', 0),
+                                        'netChange': symbol_data.get('netChange', 0),
+                                        'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
+                                        'totalVolume': symbol_data.get('totalVolume', 0),
+                                        'description': symbol_data.get('description', symbol)
+                                    }
+                                else:
+                                    # If not nested, try to get data directly
+                                    return {
+                                        'lastPrice': quote_data.get('lastPrice', 0),
+                                        'netChange': quote_data.get('netChange', 0),
+                                        'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', 0),
+                                        'totalVolume': quote_data.get('totalVolume', 0),
+                                        'description': quote_data.get('description', symbol)
+                                    }
+                            except ValueError as e:
+                                print(f"Error parsing JSON for {symbol}: {str(e)}")
+                                # Try to get the raw text for debugging
+                                if hasattr(quote_response, 'text'):
+                                    print(f"Response text: {quote_response.text[:200]}...")
+                        else:
+                            print(f"Quote response not OK for {symbol}. Status code: {quote_response.status_code}")
+                    elif isinstance(quote_response, dict):
+                        # If the client already returned a dict instead of a Response object
+                        print(f"Quote response is already a dict for {symbol}")
+                        if symbol in quote_response:
+                            symbol_data = quote_response[symbol]
+                            return {
+                                'lastPrice': symbol_data.get('lastPrice', 0),
+                                'netChange': symbol_data.get('netChange', 0),
+                                'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
+                                'totalVolume': symbol_data.get('totalVolume', 0),
+                                'description': symbol_data.get('description', symbol)
+                            }
+                        else:
+                            return {
+                                'lastPrice': quote_response.get('lastPrice', 0),
+                                'netChange': quote_response.get('netChange', 0),
+                                'netPercentChangeInDouble': quote_response.get('netPercentChangeInDouble', 0),
+                                'totalVolume': quote_response.get('totalVolume', 0),
+                                'description': quote_response.get('description', symbol)
+                            }
+                    else:
+                        print(f"Unexpected quote response type for {symbol}: {type(quote_response)}")
+                        print(f"Quote response: {quote_response}")
+                except Exception as e:
+                    print(f"Error getting quote for {symbol}: {str(e)}")
+                    if VERBOSE_DEBUG:
+                        print(traceback.format_exc())
+                
+                # Return empty data if we couldn't get a quote
+                return {
+                    'lastPrice': 0,
+                    'netChange': 0,
+                    'netPercentChangeInDouble': 0,
+                    'totalVolume': 0,
+                    'description': symbol
+                }
+            
+            # If no specific symbol is requested, get data for major indices
+            else:
+                # Get quotes for major indices
+                indices = ['SPY', 'QQQ', 'IWM', 'DIA', 'VIX']
+                quotes = {}
+                
+                for idx_symbol in indices:
+                    try:
+                        print(f"Requesting quote for symbol: {idx_symbol}")
+                        quote_response = self.client.quote(idx_symbol)
+                        
+                        # Enhanced debugging for quote response
+                        if VERBOSE_DEBUG:
+                            print(f"Quote response type: {type(quote_response)}")
+                        
+                        # Check if response is a requests.Response object
+                        if isinstance(quote_response, requests.Response):
+                            if quote_response.status_code == 200:
+                                try:
+                                    quote_data = quote_response.json()
+                                    print(f"Quote received for {idx_symbol}")
+                                    if VERBOSE_DEBUG:
+                                        print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
+                                    
+                                    # The Schwab API returns data in a specific format
+                                    # The actual quote data might be nested under the symbol key
+                                    if idx_symbol in quote_data:
+                                        symbol_data = quote_data[idx_symbol]
+                                        quotes[idx_symbol] = {
+                                            'lastPrice': symbol_data.get('lastPrice', 0),
+                                            'netChange': symbol_data.get('netChange', 0),
+                                            'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
+                                            'totalVolume': symbol_data.get('totalVolume', 0),
+                                            'description': symbol_data.get('description', idx_symbol)
+                                        }
+                                    else:
+                                        # If not nested, try to get data directly
+                                        quotes[idx_symbol] = {
+                                            'lastPrice': quote_data.get('lastPrice', 0),
+                                            'netChange': quote_data.get('netChange', 0),
+                                            'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', 0),
+                                            'totalVolume': quote_data.get('totalVolume', 0),
+                                            'description': quote_data.get('description', idx_symbol)
+                                        }
+                                except ValueError as e:
+                                    print(f"Error parsing JSON for {idx_symbol}: {str(e)}")
+                                    # Try to get the raw text for debugging
+                                    if hasattr(quote_response, 'text'):
+                                        print(f"Response text: {quote_response.text[:200]}...")
+                            else:
+                                print(f"Quote response not OK. Status code: {quote_response.status_code}")
+                        elif isinstance(quote_response, dict):
+                            # If the client already returned a dict instead of a Response object
+                            print(f"Quote received for {idx_symbol}")
+                            if VERBOSE_DEBUG:
+                                print(f"Quote data keys: {list(quote_response.keys() if isinstance(quote_response, dict) else [])}")
+                            
+                            if idx_symbol in quote_response:
+                                symbol_data = quote_response[idx_symbol]
+                                quotes[idx_symbol] = {
+                                    'lastPrice': symbol_data.get('lastPrice', 0),
+                                    'netChange': symbol_data.get('netChange', 0),
+                                    'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
+                                    'totalVolume': symbol_data.get('totalVolume', 0),
+                                    'description': symbol_data.get('description', idx_symbol)
+                                }
+                            else:
+                                quotes[idx_symbol] = {
+                                    'lastPrice': quote_response.get('lastPrice', 0),
+                                    'netChange': quote_response.get('netChange', 0),
+                                    'netPercentChangeInDouble': quote_response.get('netPercentChangeInDouble', 0),
+                                    'totalVolume': quote_response.get('totalVolume', 0),
+                                    'description': quote_response.get('description', idx_symbol)
+                                }
+                        else:
+                            print(f"No quote data received for {idx_symbol}")
+                    except Exception as e:
+                        print(f"Error getting quote for {idx_symbol}: {str(e)}")
+                        if VERBOSE_DEBUG:
+                            print(traceback.format_exc())
+                
+                # Get market calendar
+                today = datetime.now().strftime('%Y-%m-%d')
+                
+                # Get market movers (most active, gainers, losers)
+                # This would typically come from a market movers API
+                # For now, we'll just use placeholder data
+                market_movers = {
+                    'most_active': [
+                        {'symbol': 'AAPL', 'lastPrice': 150.0, 'netPercentChangeInDouble': 1.5, 'totalVolume': 80000000},
+                        {'symbol': 'MSFT', 'lastPrice': 290.0, 'netPercentChangeInDouble': 0.8, 'totalVolume': 30000000},
+                        {'symbol': 'TSLA', 'lastPrice': 200.0, 'netPercentChangeInDouble': -2.1, 'totalVolume': 70000000}
+                    ],
+                    'gainers': [
+                        {'symbol': 'XYZ', 'lastPrice': 45.0, 'netPercentChangeInDouble': 15.0, 'totalVolume': 5000000},
+                        {'symbol': 'ABC', 'lastPrice': 30.0, 'netPercentChangeInDouble': 12.5, 'totalVolume': 3000000},
+                        {'symbol': 'DEF', 'lastPrice': 75.0, 'netPercentChangeInDouble': 10.2, 'totalVolume': 2000000}
+                    ],
+                    'losers': [
+                        {'symbol': 'UVW', 'lastPrice': 80.0, 'netPercentChangeInDouble': -18.0, 'totalVolume': 4000000},
+                        {'symbol': 'RST', 'lastPrice': 15.0, 'netPercentChangeInDouble': -15.3, 'totalVolume': 2500000},
+                        {'symbol': 'MNO', 'lastPrice': 45.0, 'netPercentChangeInDouble': -12.1, 'totalVolume': 1800000}
+                    ]
+                }
+                
+                return {
+                    'quotes': quotes,
+                    'date': today,
+                    'market_movers': market_movers
+                }
+        except Exception as e:
+            print(f"Error retrieving market data: {str(e)}")
+            if VERBOSE_DEBUG:
+                print(traceback.format_exc())
+            
+            # Return empty data structure
+            if symbol:
+                return {
+                    'lastPrice': 0,
+                    'netChange': 0,
+                    'netPercentChangeInDouble': 0,
+                    'totalVolume': 0,
+                    'description': symbol
+                }
+            else:
+                return {
+                    'quotes': {},
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'market_movers': {
+                        'most_active': [],
+                        'gainers': [],
+                        'losers': []
+                    }
+                }
     
     def get_option_chain(self, symbol):
         """
@@ -220,178 +450,170 @@ class DataCollector:
                         print(f"Exception type: {type(e)}")
                         print(f"Traceback: {traceback.format_exc()}")
             
-            # If still no history, try one more time with minimal parameters
-            if not history:
-                try:
-                    if DEBUG_MODE:
-                        print(f"Attempting minimal request with symbol only...")
-                    
-                    # Try with just the symbol
-                    history = self.client.price_history(symbol=symbol)
-                    
-                    if DEBUG_MODE:
-                        print(f"Minimal request response type: {type(history)}")
-                        if hasattr(history, 'status_code'):
-                            print(f"Status code: {history.status_code}")
-                except Exception as e:
-                    print(f"Minimal parameters failed: {str(e)}")
-                    if DEBUG_MODE:
-                        print(f"Exception type: {type(e)}")
-                        print(f"Traceback: {traceback.format_exc()}")
-            
             # Process the response
             if history:
                 if hasattr(history, 'json'):
                     try:
                         history_data = history.json()
                         if DEBUG_MODE:
-                            print(f"History data keys: {list(history_data.keys() if isinstance(history_data, dict) else [])}")
+                            if isinstance(history_data, dict):
+                                print(f"History data keys: {list(history_data.keys())}")
                         
-                        # Extract candles from the response
-                        candles = history_data.get('candles', [])
+                        # Check if the response contains candles data
+                        if isinstance(history_data, dict) and 'candles' in history_data:
+                            candles = history_data['candles']
+                            if candles:
+                                # Convert to DataFrame
+                                df = pd.DataFrame(candles)
+                                
+                                # Convert datetime column
+                                if 'datetime' in df.columns:
+                                    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+                                
+                                return df
+                            else:
+                                if DEBUG_MODE:
+                                    print(f"No candles data found for {symbol}")
+                        else:
+                            if DEBUG_MODE:
+                                print(f"No 'candles' key found in history data for {symbol}")
+                    except Exception as e:
+                        print(f"Error processing history data for {symbol}: {str(e)}")
+                        if DEBUG_MODE:
+                            print(f"Exception type: {type(e)}")
+                            print(f"Traceback: {traceback.format_exc()}")
+                elif isinstance(history, dict):
+                    # If the client already returned a dict
+                    if 'candles' in history:
+                        candles = history['candles']
                         if candles:
                             # Convert to DataFrame
                             df = pd.DataFrame(candles)
                             
-                            # Rename columns to match expected format
-                            column_mapping = {
-                                'datetime': 'datetime',
-                                'open': 'open',
-                                'high': 'high',
-                                'low': 'low',
-                                'close': 'close',
-                                'volume': 'volume'
-                            }
-                            
-                            # Ensure all required columns exist
-                            for old_col, new_col in column_mapping.items():
-                                if old_col not in df.columns:
-                                    df[new_col] = np.nan
-                                elif old_col != new_col:
-                                    df[new_col] = df[old_col]
-                                    df.drop(columns=[old_col], inplace=True)
-                            
-                            # Convert datetime from milliseconds to datetime objects
+                            # Convert datetime column
                             if 'datetime' in df.columns:
                                 df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
                             
                             return df
                         else:
                             if DEBUG_MODE:
-                                print(f"No candles found in history data")
-                            return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-                    except Exception as e:
-                        print(f"Error processing history data: {str(e)}")
-                        if DEBUG_MODE:
-                            print(f"Exception type: {type(e)}")
-                            print(f"Traceback: {traceback.format_exc()}")
-                        return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-                elif isinstance(history, dict):
-                    # Extract candles from the response
-                    candles = history.get('candles', [])
-                    if candles:
-                        # Convert to DataFrame
-                        df = pd.DataFrame(candles)
-                        
-                        # Rename columns to match expected format
-                        column_mapping = {
-                            'datetime': 'datetime',
-                            'open': 'open',
-                            'high': 'high',
-                            'low': 'low',
-                            'close': 'close',
-                            'volume': 'volume'
-                        }
-                        
-                        # Ensure all required columns exist
-                        for old_col, new_col in column_mapping.items():
-                            if old_col not in df.columns:
-                                df[new_col] = np.nan
-                            elif old_col != new_col:
-                                df[new_col] = df[old_col]
-                                df.drop(columns=[old_col], inplace=True)
-                        
-                        # Convert datetime from milliseconds to datetime objects
-                        if 'datetime' in df.columns:
-                            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-                        
-                        return df
+                                print(f"No candles data found for {symbol}")
                     else:
                         if DEBUG_MODE:
-                            print(f"No candles found in history data")
-                        return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-                else:
-                    if DEBUG_MODE:
-                        print(f"Unexpected history data type: {type(history)}")
-                    return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-            else:
-                if DEBUG_MODE:
-                    print(f"No history data returned")
-                return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-                
+                            print(f"No 'candles' key found in history data for {symbol}")
+            
+            # Return empty DataFrame if we couldn't get historical data
+            return pd.DataFrame()
         except Exception as e:
             print(f"Error retrieving historical data for {symbol}: {str(e)}")
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
-            return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+            return pd.DataFrame()
     
-    def get_quote(self, symbol):
+    def get_option_chain_with_underlying_price(self, symbol):
         """
-        Get current quote for a symbol
+        Get the option chain for a symbol with underlying price
         
         Args:
-            symbol (str): The stock symbol
+            symbol (str): The stock symbol to get options for
             
         Returns:
-            dict: Quote data
+            dict: Option chain data with underlying price
         """
         try:
             if DEBUG_MODE:
-                print(f"Requesting quote for symbol: {symbol}")
+                print(f"Requesting option chain with underlying price for: {symbol}")
             
-            # Get quote data
-            quote_response = self.client.quote(symbol)
+            # Get option chain
+            option_chain = self.get_option_chain(symbol)
             
-            if DEBUG_MODE:
-                if quote_response:
-                    print(f"Quote received for {symbol}")
-                else:
-                    print(f"No quote data received for {symbol}")
-            
-            # Process the response
-            quote_data = None
-            
-            # Check if response has json method (Response object)
-            if hasattr(quote_response, 'json'):
-                # Check if response is successful
-                if hasattr(quote_response, 'ok') and quote_response.ok:
-                    try:
-                        quote_data = quote_response.json()
-                        if DEBUG_MODE:
-                            print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
-                    except Exception as e:
-                        if DEBUG_MODE:
-                            print(f"Error parsing quote JSON: {str(e)}")
-                            if hasattr(quote_response, 'text'):
-                                print(f"Response text: {quote_response.text[:500]}...")
-                else:
+            if option_chain:
+                # Extract underlying price
+                underlying_price = None
+                
+                # Try to get underlying price from option chain
+                if 'underlyingPrice' in option_chain:
+                    underlying_price = option_chain['underlyingPrice']
                     if DEBUG_MODE:
-                        status_code = getattr(quote_response, 'status_code', 'unknown')
-                        print(f"Quote response not OK. Status code: {status_code}")
-            # If response is already a dict, use it directly
-            elif isinstance(quote_response, dict):
-                quote_data = quote_response
+                        print(f"underlyingPrice (camelCase): {underlying_price}")
+                
+                # If not found, try to get from underlying field
+                if not underlying_price and 'underlying' in option_chain:
+                    underlying = option_chain['underlying']
+                    if DEBUG_MODE:
+                        print(f"underlying field: {underlying}")
+                        if isinstance(underlying, dict):
+                            print(f"underlying field keys: {list(underlying.keys())}")
+                    
+                    if isinstance(underlying, dict):
+                        # Try different possible price fields
+                        for price_field in ['mark', 'last', 'close', 'bid', 'ask']:
+                            if price_field in underlying:
+                                underlying_price = underlying[price_field]
+                                if DEBUG_MODE:
+                                    print(f"underlying.{price_field}: {underlying_price}")
+                                break
+                
+                # If still not found, get from quote
+                if not underlying_price:
+                    try:
+                        quote = self.client.quote(symbol)
+                        
+                        if isinstance(quote, requests.Response) and quote.status_code == 200:
+                            quote_data = quote.json()
+                            
+                            if symbol in quote_data:
+                                symbol_data = quote_data[symbol]
+                                underlying_price = symbol_data.get('lastPrice', 0)
+                            else:
+                                underlying_price = quote_data.get('lastPrice', 0)
+                        elif isinstance(quote, dict):
+                            if symbol in quote:
+                                symbol_data = quote[symbol]
+                                underlying_price = symbol_data.get('lastPrice', 0)
+                            else:
+                                underlying_price = quote.get('lastPrice', 0)
+                    except Exception as e:
+                        print(f"Error getting quote for underlying price: {str(e)}")
+                        if DEBUG_MODE:
+                            print(traceback.format_exc())
+                
+                # Use a default if all else fails
+                if not underlying_price:
+                    underlying_price = 0
+                
                 if DEBUG_MODE:
-                    print(f"Quote data keys: {list(quote_data.keys())}")
-            
-            return quote_data
+                    print(f"Using underlying price from option chain 'underlyingPrice': {underlying_price}")
+                
+                # Return option chain with underlying price
+                return {
+                    'symbol': symbol,
+                    'underlying_price': underlying_price,
+                    'option_chain': option_chain
+                }
+            else:
+                if DEBUG_MODE:
+                    print(f"No option chain data available for {symbol}")
+                
+                # Return empty data
+                return {
+                    'symbol': symbol,
+                    'underlying_price': 0,
+                    'option_chain': None
+                }
         except Exception as e:
-            print(f"Error retrieving quote for {symbol}: {str(e)}")
+            print(f"Error retrieving option chain with underlying price for {symbol}: {str(e)}")
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
-            return None
+            
+            # Return empty data
+            return {
+                'symbol': symbol,
+                'underlying_price': 0,
+                'option_chain': None
+            }
     
     def get_market_hours(self, market='EQUITY'):
         """
@@ -420,196 +642,16 @@ class DataCollector:
                 except Exception as e:
                     if DEBUG_MODE:
                         print(f"Error parsing market hours JSON: {str(e)}")
+                        if hasattr(hours_response, 'text'):
+                            print(f"Response text: {hours_response.text[:200]}...")
             elif isinstance(hours_response, dict):
                 hours_data = hours_response
                 if DEBUG_MODE:
                     print(f"Market hours received for {market}")
-            else:
-                if DEBUG_MODE:
-                    print(f"No market hours data received for {market}")
             
             return hours_data
         except Exception as e:
-            print(f"Error retrieving market hours for {market}: {str(e)}")
+            print(f"Error retrieving market hours: {str(e)}")
             if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-            return None
-    
-    def get_price_history(self, symbol, period_type=None, period=None, frequency_type=None, 
-                         frequency=None, start_date=None, end_date=None, need_extended_hours_data=True):
-        """
-        Get price history for a symbol
-        
-        Args:
-            symbol (str): The stock symbol
-            period_type (str, optional): Type of period - 'day', 'month', 'year', 'ytd'
-            period (int, optional): Number of periods
-            frequency_type (str, optional): Type of frequency - 'minute', 'daily', 'weekly', 'monthly'
-            frequency (int, optional): Frequency
-            start_date (datetime or str, optional): Start date for custom date range
-            end_date (datetime or str, optional): End date for custom date range
-            need_extended_hours_data (bool): Whether to include extended hours data
-            
-        Returns:
-            pd.DataFrame: Price history data
-        """
-        # This is a wrapper around get_historical_data to match the expected method name
-        # in the error logs and provide compatibility with both naming conventions
-        return self.get_historical_data(
-            symbol=symbol,
-            period_type=period_type if period_type else 'day',
-            period=period if period else 10,
-            frequency_type=frequency_type if frequency_type else 'minute',
-            frequency=frequency if frequency else 1,
-            need_extended_hours_data=need_extended_hours_data
-        )
-    
-    def get_option_chain_with_underlying_price(self, symbol):
-        """
-        Get option chain with underlying price
-        
-        Args:
-            symbol (str): The stock symbol
-            
-        Returns:
-            dict: Option chain data with underlying price
-        """
-        try:
-            if DEBUG_MODE:
-                print(f"Requesting option chain with underlying price for: {symbol}")
-            
-            # Get option chain
-            option_chain = self.get_option_chain(symbol)
-            
-            # Enhanced debugging: Log the full option chain structure
-            if LOG_API_RESPONSES and option_chain and isinstance(option_chain, dict):
-                print(f"Option chain structure for {symbol}:")
-                print(f"Top-level keys: {list(option_chain.keys())}")
-                
-                # Log specific fields we're interested in
-                if 'underlyingPrice' in option_chain:
-                    print(f"underlyingPrice (camelCase): {option_chain['underlyingPrice']}")
-                if 'underlying_price' in option_chain:
-                    print(f"underlying_price (snake_case): {option_chain['underlying_price']}")
-                if 'underlying' in option_chain:
-                    print(f"underlying field: {option_chain['underlying']}")
-                    if isinstance(option_chain['underlying'], dict):
-                        print(f"underlying field keys: {list(option_chain['underlying'].keys())}")
-                        if 'mark' in option_chain['underlying']:
-                            print(f"underlying.mark: {option_chain['underlying']['mark']}")
-                        if 'lastPrice' in option_chain['underlying']:
-                            print(f"underlying.lastPrice: {option_chain['underlying']['lastPrice']}")
-            
-            # Check if we have the option chain and if it has the underlying price
-            # First check for camelCase 'underlyingPrice' (API response format)
-            # Then check for snake_case 'underlying_price' (our internal format)
-            has_underlying_price = False
-            
-            if option_chain and isinstance(option_chain, dict):
-                # Check for camelCase 'underlyingPrice' (from API)
-                if 'underlyingPrice' in option_chain and option_chain['underlyingPrice']:
-                    # Copy to our internal format
-                    option_chain['underlying_price'] = option_chain['underlyingPrice']
-                    has_underlying_price = True
-                    if DEBUG_MODE:
-                        print(f"Using underlying price from option chain 'underlyingPrice': {option_chain['underlying_price']}")
-                # Check if we already have snake_case version
-                elif 'underlying_price' in option_chain and option_chain['underlying_price']:
-                    has_underlying_price = True
-                    if DEBUG_MODE:
-                        print(f"Using existing underlying_price: {option_chain['underlying_price']}")
-                # Check if there's an 'underlying' object with price information
-                elif 'underlying' in option_chain and isinstance(option_chain['underlying'], dict):
-                    underlying_obj = option_chain['underlying']
-                    if 'mark' in underlying_obj and underlying_obj['mark']:
-                        option_chain['underlying_price'] = underlying_obj['mark']
-                        has_underlying_price = True
-                        if DEBUG_MODE:
-                            print(f"Using underlying price from option chain 'underlying.mark': {option_chain['underlying_price']}")
-                    elif 'lastPrice' in underlying_obj and underlying_obj['lastPrice']:
-                        option_chain['underlying_price'] = underlying_obj['lastPrice']
-                        has_underlying_price = True
-                        if DEBUG_MODE:
-                            print(f"Using underlying price from option chain 'underlying.lastPrice': {option_chain['underlying_price']}")
-            
-            # If no option chain or no underlying price, try to get it from quote
-            if not option_chain or not has_underlying_price:
-                if DEBUG_MODE:
-                    print(f"No underlying price in option chain, trying to get quote")
-                
-                # Get quote to get current price
-                quote = self.get_quote(symbol)
-                
-                # Enhanced debugging: Log the quote structure
-                if LOG_API_RESPONSES and quote:
-                    print(f"Quote structure for {symbol}:")
-                    if isinstance(quote, dict):
-                        print(f"Quote keys: {list(quote.keys())}")
-                        if symbol in quote and isinstance(quote[symbol], dict):
-                            print(f"Quote[{symbol}] keys: {list(quote[symbol].keys())}")
-                
-                if quote and isinstance(quote, dict):
-                    underlying_price = None
-                    
-                    # Try to get price from different fields in the quote
-                    if symbol in quote and isinstance(quote[symbol], dict):
-                        # Handle nested quote structure
-                        symbol_quote = quote[symbol]
-                        if 'mark' in symbol_quote and symbol_quote['mark']:
-                            underlying_price = symbol_quote['mark']
-                            if DEBUG_MODE:
-                                print(f"Using underlying price from quote[symbol]['mark']: {underlying_price}")
-                        elif 'lastPrice' in symbol_quote and symbol_quote['lastPrice']:
-                            underlying_price = symbol_quote['lastPrice']
-                            if DEBUG_MODE:
-                                print(f"Using underlying price from quote[symbol]['lastPrice']: {underlying_price}")
-                        elif 'regularMarketLastPrice' in symbol_quote and symbol_quote['regularMarketLastPrice']:
-                            underlying_price = symbol_quote['regularMarketLastPrice']
-                            if DEBUG_MODE:
-                                print(f"Using underlying price from quote[symbol]['regularMarketLastPrice']: {underlying_price}")
-                    elif 'mark' in quote and quote['mark']:
-                        underlying_price = quote['mark']
-                        if DEBUG_MODE:
-                            print(f"Using underlying price from quote 'mark': {underlying_price}")
-                    elif 'lastPrice' in quote and quote['lastPrice']:
-                        underlying_price = quote['lastPrice']
-                        if DEBUG_MODE:
-                            print(f"Using underlying price from quote 'lastPrice': {underlying_price}")
-                    elif 'regularMarketLastPrice' in quote and quote['regularMarketLastPrice']:
-                        underlying_price = quote['regularMarketLastPrice']
-                        if DEBUG_MODE:
-                            print(f"Using underlying price from quote 'regularMarketLastPrice': {underlying_price}")
-                    else:
-                        underlying_price = None
-                        if DEBUG_MODE:
-                            print(f"No suitable price found in quote")
-                            # Print all available fields for debugging
-                            if LOG_API_RESPONSES:
-                                print("Available quote fields:")
-                                if symbol in quote and isinstance(quote[symbol], dict):
-                                    for key, value in quote[symbol].items():
-                                        print(f"  quote[{symbol}]['{key}'] = {value}")
-                                else:
-                                    for key, value in quote.items():
-                                        print(f"  quote['{key}'] = {value}")
-                    
-                    # Add underlying price to option chain
-                    if underlying_price and option_chain:
-                        option_chain['underlying_price'] = underlying_price
-                        has_underlying_price = True
-            
-            # Final check - if we still don't have a price, log a detailed error
-            if option_chain and not has_underlying_price and DEBUG_MODE:
-                print(f"WARNING: Could not find underlying price for {symbol} in either option chain or quote")
-                if LOG_API_RESPONSES:
-                    print("This may indicate an API response format change or missing data")
-                    print("Please check the API documentation for updates")
-            
-            return option_chain
-        except Exception as e:
-            print(f"Error retrieving option chain with underlying price for {symbol}: {str(e)}")
-            if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
+                print(traceback.format_exc())
             return None
