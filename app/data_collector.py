@@ -89,6 +89,20 @@ class DataCollector:
                 print(f"Traceback: {traceback.format_exc()}")
             return None
     
+    def get_options_chain(self, symbol):
+        """
+        Get the options chain for a symbol (plural version for compatibility)
+        
+        Args:
+            symbol (str): The stock symbol to get options for
+            
+        Returns:
+            dict: Option chain data
+        """
+        # This is a wrapper around get_option_chain to match the expected method name
+        # in the error logs and provide compatibility with both naming conventions
+        return self.get_option_chain(symbol)
+    
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', 
                            frequency=1, need_extended_hours_data=True):
         """
