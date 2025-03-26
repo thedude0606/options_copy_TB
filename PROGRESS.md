@@ -99,6 +99,7 @@
   - **Enhanced market data extraction** to handle price data nested under the 'extended' object within symbol data based on user feedback and log analysis
   - **Implemented calculation for netChange values** by using lastPrice from extended data and previousClose from fundamental data to ensure accurate price change information
   - **Added robust previousClose extraction** with multiple fallback mechanisms to find previousClose values in various locations of the API response, ensuring accurate netChange calculations
+  - **Fixed UI display issue for market data in dashboard** by enhancing the get_market_overview() function with better error handling, logging, and fallback mechanisms to ensure market data is properly passed from the backend to the UI components
 
 ## Current Work in Progress
 

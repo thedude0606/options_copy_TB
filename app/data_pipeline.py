@@ -473,13 +473,42 @@ class ShortTermDataPipeline:
             try:
                 quote = self.data_collector.get_quote(index)
                 if quote:
+                    # Add debug logging to see what's being passed to the UI
+                    self.logger.info(f"Market data for {index}: {quote}")
+                    
+                    # Ensure we're getting the correct values
+                    last_price = quote.get('lastPrice', 0)
+                    net_change = quote.get('netChange', 0)
+                    percent_change = quote.get('netPercentChangeInDouble', 0)
+                    
+                    # Add additional debug logging
+                    self.logger.info(f"Extracted values for {index}: lastPrice={last_price}, netChange={net_change}, percentChange={percent_change}")
+                    
+                    # Ensure values are numeric
+                    if not isinstance(last_price, (int, float)) or last_price == 0:
+                        # Try to get the value from the underlying price if available
+                        option_chain = self.data_collector.get_options_chain(index)
+                        if option_chain and 'underlyingPrice' in option_chain:
+                            last_price = option_chain.get('underlyingPrice', 0)
+                            self.logger.info(f"Using underlying price for {index}: {last_price}")
+                    
+                    # Ensure we have valid values
                     market_data[index] = {
-                        'last_price': quote.get('lastPrice', 0),
-                        'change': quote.get('netChange', 0),
-                        'change_percent': quote.get('netPercentChangeInDouble', 0)
+                        'last_price': float(last_price) if last_price else 0,
+                        'change': float(net_change) if net_change else 0,
+                        'change_percent': float(percent_change) if percent_change else 0
                     }
+                    
+                    # Add additional debug logging for the final values
+                    self.logger.info(f"Final market data for {index}: {market_data[index]}")
             except Exception as e:
-                self.logger.warning(f"Error retrieving data for {index}: {str(e)}")
+                self.logger.error(f"Error getting quote for {index}: {str(e)}")
+                # Add a placeholder entry with zeros
+                market_data[index] = {
+                    'last_price': 0,
+                    'change': 0,
+                    'change_percent': 0
+                }
         
         return market_data
     
