@@ -1123,9 +1123,19 @@ class ShortTermRecommendationEngine(RecommendationEngine):
                 self.logger.warning(f"Invalid current price for {symbol}")
                 # Try to get current price from another source
                 quote_data = self.data_collector.get_quote(symbol)
-                if quote_data and 'lastPrice' in quote_data:
-                    current_price = quote_data['lastPrice']
-                    self.logger.info(f"Using lastPrice from quote for {symbol}: {current_price}")
+                if quote_data:
+                    # First try to use 'mark' from quote data
+                    if 'mark' in quote_data and quote_data['mark'] > 0:
+                        current_price = quote_data['mark']
+                        self.logger.info(f"Using mark from quote for {symbol}: {current_price}")
+                    # Then try to use 'lastPrice' from quote data
+                    elif 'lastPrice' in quote_data and quote_data['lastPrice'] > 0:
+                        current_price = quote_data['lastPrice']
+                        self.logger.info(f"Using lastPrice from quote for {symbol}: {current_price}")
+                    # Finally try to use 'underlyingPrice' from option chain
+                    elif 'underlyingPrice' in option_chain and option_chain['underlyingPrice'] > 0:
+                        current_price = option_chain['underlyingPrice']
+                        self.logger.info(f"Using underlyingPrice from option chain for {symbol}: {current_price}")
             
             # Calculate short-term indicators
             indicators = self._calculate_short_term_indicators(historical_data)
