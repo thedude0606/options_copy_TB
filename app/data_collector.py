@@ -318,32 +318,6 @@ class DataCollector:
                 print(f"Unexpected option chain response type: {type(option_chain_response)}")
             
             return None
-        except Exception as e:
-            print(f"Error retrieving option chain for {symbol}: {str(e)}")
-            if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-            return None
-                except Exception as e:
-                    if DEBUG_MODE:
-                        print(f"Error parsing option chain JSON: {str(e)}")
-                        if hasattr(option_chain_response, 'text'):
-                            print(f"Response text: {option_chain_response.text[:500]}...")
-            elif isinstance(option_chain_response, dict):
-                option_chain = option_chain_response
-                if DEBUG_MODE:
-                    print(f"Option chain received for {symbol}, keys: {list(option_chain.keys())}")
-            else:
-                if DEBUG_MODE:
-                    print(f"No option chain data received for {symbol}")
-            
-            return option_chain
-        except Exception as e:
-            print(f"Error retrieving option chain for {symbol}: {str(e)}")
-            if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-            return None
     
     def get_options_chain(self, symbol):
         """
