@@ -318,6 +318,13 @@ class DataCollector:
                 print(f"Unexpected option chain response type: {type(option_chain_response)}")
             
             return None
+        except Exception as e:
+            # Add proper exception handling for the outer try block
+            print(f"Error in get_option_chain for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return None
     
     def get_options_chain(self, symbol):
         """
