@@ -89,6 +89,20 @@ class DataCollector:
                 print(f"Traceback: {traceback.format_exc()}")
             return None
     
+    def get_options_chain(self, symbol):
+        """
+        Get the options chain for a symbol (plural version for compatibility)
+        
+        Args:
+            symbol (str): The stock symbol to get options for
+            
+        Returns:
+            dict: Option chain data
+        """
+        # This is a wrapper around get_option_chain to match the expected method name
+        # in the error logs and provide compatibility with both naming conventions
+        return self.get_option_chain(symbol)
+    
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', 
                            frequency=1, need_extended_hours_data=True):
         """
@@ -189,10 +203,10 @@ class DataCollector:
                     # Try with daily frequency - using camelCase parameter names
                     history = self.client.price_history(
                         symbol=symbol,
-                        periodType='month',
+                        periodType='day',
                         period=1,
-                        frequencyType='daily',
-                        frequency=1,
+                        frequencyType='minute',
+                        frequency=30,
                         needExtendedHoursData=need_extended_hours_data
                     )
                     
@@ -206,13 +220,13 @@ class DataCollector:
                         print(f"Exception type: {type(e)}")
                         print(f"Traceback: {traceback.format_exc()}")
             
-            # Try a third approach with minimal parameters
+            # If still no history, try one more time with minimal parameters
             if not history:
                 try:
                     if DEBUG_MODE:
-                        print(f"Attempting minimal parameter request...")
+                        print(f"Attempting minimal request with symbol only...")
                     
-                    # Try with minimal parameters
+                    # Try with just the symbol
                     history = self.client.price_history(symbol=symbol)
                     
                     if DEBUG_MODE:
@@ -225,72 +239,102 @@ class DataCollector:
                         print(f"Exception type: {type(e)}")
                         print(f"Traceback: {traceback.format_exc()}")
             
-            # Process historical data
+            # Process the response
             if history:
-                if DEBUG_MODE:
-                    print(f"Processing history response...")
-                    print(f"Response has json method: {hasattr(history, 'json')}")
-                    print(f"Response has text attribute: {hasattr(history, 'text')}")
-                
-                history_data = None
-                
-                # Try to get JSON data
                 if hasattr(history, 'json'):
                     try:
                         history_data = history.json()
                         if DEBUG_MODE:
-                            print(f"JSON data keys: {list(history_data.keys() if isinstance(history_data, dict) else [])}")
+                            print(f"History data keys: {list(history_data.keys() if isinstance(history_data, dict) else [])}")
+                        
+                        # Extract candles from the response
+                        candles = history_data.get('candles', [])
+                        if candles:
+                            # Convert to DataFrame
+                            df = pd.DataFrame(candles)
+                            
+                            # Rename columns to match expected format
+                            column_mapping = {
+                                'datetime': 'datetime',
+                                'open': 'open',
+                                'high': 'high',
+                                'low': 'low',
+                                'close': 'close',
+                                'volume': 'volume'
+                            }
+                            
+                            # Ensure all required columns exist
+                            for old_col, new_col in column_mapping.items():
+                                if old_col not in df.columns:
+                                    df[new_col] = np.nan
+                                elif old_col != new_col:
+                                    df[new_col] = df[old_col]
+                                    df.drop(columns=[old_col], inplace=True)
+                            
+                            # Convert datetime from milliseconds to datetime objects
+                            if 'datetime' in df.columns:
+                                df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+                            
+                            return df
+                        else:
+                            if DEBUG_MODE:
+                                print(f"No candles found in history data")
+                            return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
                     except Exception as e:
+                        print(f"Error processing history data: {str(e)}")
                         if DEBUG_MODE:
-                            print(f"Error parsing JSON: {str(e)}")
-                            if hasattr(history, 'text'):
-                                print(f"Response text: {history.text[:500]}...")
-                
-                # If we couldn't get JSON data but have a dict, use it directly
-                if not history_data and isinstance(history, dict):
-                    history_data = history
-                    if DEBUG_MODE:
-                        print(f"Using dict response directly, keys: {list(history_data.keys())}")
-                
-                # Extract candles
-                candles = []
-                if history_data:
-                    candles = history_data.get('candles', [])
-                    if DEBUG_MODE:
-                        print(f"Found {len(candles)} candles")
-                
-                if candles:
-                    # Convert to DataFrame
-                    df = pd.DataFrame(candles)
-                    
-                    if DEBUG_MODE:
-                        print(f"DataFrame columns: {list(df.columns)}")
-                        print(f"DataFrame shape: {df.shape}")
-                    
-                    # Convert datetime
-                    if 'datetime' in df.columns:
-                        df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-                    
-                    # Set datetime as index
-                    if 'datetime' in df.columns:
-                        df.set_index('datetime', inplace=True)
-                    
-                    return df
+                            print(f"Exception type: {type(e)}")
+                            print(f"Traceback: {traceback.format_exc()}")
+                        return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+                elif isinstance(history, dict):
+                    # Extract candles from the response
+                    candles = history.get('candles', [])
+                    if candles:
+                        # Convert to DataFrame
+                        df = pd.DataFrame(candles)
+                        
+                        # Rename columns to match expected format
+                        column_mapping = {
+                            'datetime': 'datetime',
+                            'open': 'open',
+                            'high': 'high',
+                            'low': 'low',
+                            'close': 'close',
+                            'volume': 'volume'
+                        }
+                        
+                        # Ensure all required columns exist
+                        for old_col, new_col in column_mapping.items():
+                            if old_col not in df.columns:
+                                df[new_col] = np.nan
+                            elif old_col != new_col:
+                                df[new_col] = df[old_col]
+                                df.drop(columns=[old_col], inplace=True)
+                        
+                        # Convert datetime from milliseconds to datetime objects
+                        if 'datetime' in df.columns:
+                            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+                        
+                        return df
+                    else:
+                        if DEBUG_MODE:
+                            print(f"No candles found in history data")
+                        return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
                 else:
-                    print(f"No candles data in response for {symbol}")
-                    if DEBUG_MODE and history_data:
-                        print(f"Response data: {json.dumps(history_data, indent=2)[:500]}...")
-                    return pd.DataFrame()
+                    if DEBUG_MODE:
+                        print(f"Unexpected history data type: {type(history)}")
+                    return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
             else:
-                print(f"No valid historical data returned for {symbol}")
-                return pd.DataFrame()
+                if DEBUG_MODE:
+                    print(f"No history data returned")
+                return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
                 
         except Exception as e:
             print(f"Error retrieving historical data for {symbol}: {str(e)}")
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
-            return pd.DataFrame()
+            return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
     
     def get_quote(self, symbol):
         """
@@ -307,21 +351,41 @@ class DataCollector:
                 print(f"Requesting quote for symbol: {symbol}")
             
             # Get quote data
-            quote = self.client.quote(symbol)
+            quote_response = self.client.quote(symbol)
             
             if DEBUG_MODE:
-                if quote:
+                if quote_response:
                     print(f"Quote received for {symbol}")
-                    if hasattr(quote, 'json'):
-                        try:
-                            quote_data = quote.json()
-                            print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
-                        except:
-                            print("Could not parse quote JSON")
                 else:
                     print(f"No quote data received for {symbol}")
             
-            return quote
+            # Process the response
+            quote_data = None
+            
+            # Check if response has json method (Response object)
+            if hasattr(quote_response, 'json'):
+                # Check if response is successful
+                if hasattr(quote_response, 'ok') and quote_response.ok:
+                    try:
+                        quote_data = quote_response.json()
+                        if DEBUG_MODE:
+                            print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
+                    except Exception as e:
+                        if DEBUG_MODE:
+                            print(f"Error parsing quote JSON: {str(e)}")
+                            if hasattr(quote_response, 'text'):
+                                print(f"Response text: {quote_response.text[:500]}...")
+                else:
+                    if DEBUG_MODE:
+                        status_code = getattr(quote_response, 'status_code', 'unknown')
+                        print(f"Quote response not OK. Status code: {status_code}")
+            # If response is already a dict, use it directly
+            elif isinstance(quote_response, dict):
+                quote_data = quote_response
+                if DEBUG_MODE:
+                    print(f"Quote data keys: {list(quote_data.keys())}")
+            
+            return quote_data
         except Exception as e:
             print(f"Error retrieving quote for {symbol}: {str(e)}")
             if DEBUG_MODE:
@@ -343,423 +407,109 @@ class DataCollector:
             if DEBUG_MODE:
                 print(f"Requesting market hours for: {market}")
             
-            # Get market hours
-            hours = self.client.get_market_hours(market=market)
+            # Get market hours data
+            hours_response = self.client.get_market_hours(market=market)
             
-            if DEBUG_MODE:
-                if hours:
+            # Process the response
+            hours_data = None
+            if hasattr(hours_response, 'json'):
+                try:
+                    hours_data = hours_response.json()
+                    if DEBUG_MODE:
+                        print(f"Market hours received for {market}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error parsing market hours JSON: {str(e)}")
+            elif isinstance(hours_response, dict):
+                hours_data = hours_response
+                if DEBUG_MODE:
                     print(f"Market hours received for {market}")
-                else:
+            else:
+                if DEBUG_MODE:
                     print(f"No market hours data received for {market}")
             
-            return hours
+            return hours_data
         except Exception as e:
-            print(f"Error retrieving market hours: {str(e)}")
+            print(f"Error retrieving market hours for {market}: {str(e)}")
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
             return None
     
-    def get_option_data(self, symbol, option_type='ALL', strike=None, expiration=None):
+    def get_price_history(self, symbol, period_type=None, period=None, frequency_type=None, 
+                         frequency=None, start_date=None, end_date=None, need_extended_hours_data=True):
         """
-        Get detailed options data including Greeks
+        Get price history for a symbol
         
         Args:
-            symbol (str): The stock symbol to get options for
-            option_type (str): Option type - 'CALL', 'PUT', or 'ALL'
-            strike (float): Specific strike price to filter by
-            expiration (str): Specific expiration date to filter by (format: 'YYYY-MM-DD')
+            symbol (str): The stock symbol
+            period_type (str, optional): Type of period - 'day', 'month', 'year', 'ytd'
+            period (int, optional): Number of periods
+            frequency_type (str, optional): Type of frequency - 'minute', 'daily', 'weekly', 'monthly'
+            frequency (int, optional): Frequency
+            start_date (datetime or str, optional): Start date for custom date range
+            end_date (datetime or str, optional): End date for custom date range
+            need_extended_hours_data (bool): Whether to include extended hours data
             
         Returns:
-            pd.DataFrame: Options data with Greeks
+            pd.DataFrame: Price history data
         """
-        try:
-            if DEBUG_MODE:
-                print(f"\n=== OPTIONS DATA REQUEST ===")
-                print(f"Symbol: {symbol}")
-                print(f"Parameters: option_type={option_type}, strike={strike}, expiration={expiration}")
-            
-            # Validate symbol
-            if not symbol or not isinstance(symbol, str):
-                print(f"Error: Invalid symbol: {symbol}")
-                return pd.DataFrame()
-                
-            # Get option chain
-            option_chain = self.get_option_chain(symbol)
-            
-            # Enhanced error handling and debugging for option chain
-            if not option_chain:
-                print(f"No options data available for {symbol}")
-                return pd.DataFrame()
-                
-            if VERBOSE_DEBUG:
-                print(f"Option chain type: {type(option_chain)}")
-                if isinstance(option_chain, dict):
-                    print(f"Option chain keys: {list(option_chain.keys())}")
-                    
-                    # Check for expected keys
-                    expected_keys = ['callExpDateMap', 'putExpDateMap', 'underlyingPrice']
-                    missing_keys = [key for key in expected_keys if key not in option_chain]
-                    if missing_keys:
-                        print(f"Warning: Missing expected keys in option chain: {missing_keys}")
-                        
-                    # Log underlying price if available
-                    if 'underlyingPrice' in option_chain:
-                        print(f"Underlying price: {option_chain['underlyingPrice']}")
-                    elif 'underlying' in option_chain and 'mark' in option_chain['underlying']:
-                        print(f"Underlying price from 'underlying.mark': {option_chain['underlying']['mark']}")
-                    else:
-                        print("Warning: No underlying price found in option chain")
-            
-            # Extract options data
-            options_data = []
-            
-            # Process call options with enhanced error handling
-            if option_type in ['CALL', 'ALL'] and 'callExpDateMap' in option_chain:
-                if DEBUG_MODE:
-                    print(f"Processing call options, expiration dates: {len(option_chain['callExpDateMap'])}")
-                
-                try:
-                    for exp_date, strikes in option_chain['callExpDateMap'].items():
-                        # Skip if not matching expiration filter
-                        if expiration and expiration not in exp_date:
-                            continue
-                        
-                        if not isinstance(strikes, dict):
-                            if DEBUG_MODE:
-                                print(f"Warning: Strikes is not a dictionary for expiration {exp_date}, type: {type(strikes)}")
-                            continue
-                            
-                        for strike_price, options in strikes.items():
-                            # Skip if not matching strike filter
-                            try:
-                                if strike and float(strike_price) != float(strike):
-                                    continue
-                                    
-                                if not isinstance(options, list):
-                                    if DEBUG_MODE:
-                                        print(f"Warning: Options is not a list for strike {strike_price}, type: {type(options)}")
-                                    continue
-                                
-                                for option in options:
-                                    try:
-                                        option['optionType'] = 'CALL'
-                                        option['expirationDate'] = exp_date.split(':')[0]
-                                        option['strikePrice'] = float(strike_price)
-                                        options_data.append(option)
-                                    except Exception as e:
-                                        if DEBUG_MODE:
-                                            print(f"Error processing call option: {str(e)}")
-                                            print(f"Option data: {option}")
-                            except ValueError as e:
-                                if DEBUG_MODE:
-                                    print(f"Error converting strike price: {str(e)}")
-                except Exception as e:
-                    if DEBUG_MODE:
-                        print(f"Error processing call options: {str(e)}")
-                        print(traceback.format_exc())
-            
-            # Process put options with enhanced error handling
-            if option_type in ['PUT', 'ALL'] and 'putExpDateMap' in option_chain:
-                if DEBUG_MODE:
-                    print(f"Processing put options, expiration dates: {len(option_chain['putExpDateMap'])}")
-                
-                try:
-                    for exp_date, strikes in option_chain['putExpDateMap'].items():
-                        # Skip if not matching expiration filter
-                        if expiration and expiration not in exp_date:
-                            continue
-                        
-                        if not isinstance(strikes, dict):
-                            if DEBUG_MODE:
-                                print(f"Warning: Strikes is not a dictionary for expiration {exp_date}, type: {type(strikes)}")
-                            continue
-                            
-                        for strike_price, options in strikes.items():
-                            # Skip if not matching strike filter
-                            try:
-                                if strike and float(strike_price) != float(strike):
-                                    continue
-                                    
-                                if not isinstance(options, list):
-                                    if DEBUG_MODE:
-                                        print(f"Warning: Options is not a list for strike {strike_price}, type: {type(options)}")
-                                    continue
-                                
-                                for option in options:
-                                    try:
-                                        option['optionType'] = 'PUT'
-                                        option['expirationDate'] = exp_date.split(':')[0]
-                                        option['strikePrice'] = float(strike_price)
-                                        options_data.append(option)
-                                    except Exception as e:
-                                        if DEBUG_MODE:
-                                            print(f"Error processing put option: {str(e)}")
-                                            print(f"Option data: {option}")
-                            except ValueError as e:
-                                if DEBUG_MODE:
-                                    print(f"Error converting strike price: {str(e)}")
-                except Exception as e:
-                    if DEBUG_MODE:
-                        print(f"Error processing put options: {str(e)}")
-                        print(traceback.format_exc())
-            
-            # Convert to DataFrame with enhanced error handling
-            if options_data:
-                if DEBUG_MODE:
-                    print(f"Found {len(options_data)} options")
-                
-                try:
-                    df = pd.DataFrame(options_data)
-                    
-                    # Add underlying price to all options with fallback mechanisms
-                    underlying_price = None
-                    
-                    # Try different ways to get the underlying price
-                    if 'underlyingPrice' in option_chain:
-                        underlying_price = option_chain['underlyingPrice']
-                        if DEBUG_MODE:
-                            print(f"Using underlying price from 'underlyingPrice': {underlying_price}")
-                    elif 'underlying' in option_chain and isinstance(option_chain['underlying'], dict):
-                        if 'mark' in option_chain['underlying']:
-                            underlying_price = option_chain['underlying']['mark']
-                            if DEBUG_MODE:
-                                print(f"Using underlying price from 'underlying.mark': {underlying_price}")
-                        elif 'last' in option_chain['underlying']:
-                            underlying_price = option_chain['underlying']['last']
-                            if DEBUG_MODE:
-                                print(f"Using underlying price from 'underlying.last': {underlying_price}")
-                    
-                    # If we still don't have a price, try to get a quote
-                    if underlying_price is None:
-                        if DEBUG_MODE:
-                            print(f"No underlying price in option chain, trying to get quote")
-                        quote = self.get_quote(symbol)
-                        if quote and isinstance(quote, dict):
-                            if 'mark' in quote:
-                                underlying_price = quote['mark']
-                                if DEBUG_MODE:
-                                    print(f"Using underlying price from quote 'mark': {underlying_price}")
-                            elif 'lastPrice' in quote:
-                                underlying_price = quote['lastPrice']
-                                if DEBUG_MODE:
-                                    print(f"Using underlying price from quote 'lastPrice': {underlying_price}")
-                    
-                    # Set the underlying price in the DataFrame
-                    if underlying_price is not None:
-                        df['underlyingPrice'] = underlying_price
-                    else:
-                        if DEBUG_MODE:
-                            print(f"Warning: Could not determine underlying price")
-                        # Set a placeholder value to avoid errors
-                        df['underlyingPrice'] = 0.0
-                        
-                    # Convert expiration date to datetime with error handling
-                    if 'expirationDate' in df.columns:
-                        try:
-                            df['expirationDate'] = pd.to_datetime(df['expirationDate'])
-                        except Exception as e:
-                            if DEBUG_MODE:
-                                print(f"Error converting expiration dates: {str(e)}")
-                                print(f"Expiration date values: {df['expirationDate'].unique()}")
-                            # Try a different format or set to NaT
-                            try:
-                                df['expirationDate'] = pd.to_datetime(df['expirationDate'], format='%Y-%m-%d')
-                            except:
-                                df['expirationDate'] = pd.NaT
-                    
-                    # Calculate days to expiration with error handling
-                    if 'expirationDate' in df.columns:
-                        try:
-                            df['daysToExpiration'] = (df['expirationDate'] - pd.Timestamp.now())
-                            
-                            # Create a numeric days column to avoid .dt accessor issues
-                            def get_days(x):
-                                try:
-                                    if isinstance(x, pd.Timedelta):
-                                        return x.days
-                                    elif pd.isna(x):
-                                        return 0
-                                    else:
-                                        return float(x)
-                                except:
-                                    return 0
-                            
-                            # Apply the function to create a numeric days column
-                            df['days_numeric'] = df['daysToExpiration'].apply(get_days)
-                        except Exception as e:
-                            if DEBUG_MODE:
-                                print(f"Error calculating days to expiration: {str(e)}")
-                            # Set default values
-                            df['days_numeric'] = 0
-                    
-                    if DEBUG_MODE:
-                        print(f"DataFrame columns: {list(df.columns)}")
-                        print(f"DataFrame shape: {df.shape}")
-                    
-                    if VERBOSE_DEBUG:
-                        # Print sample data for debugging
-                        print("\nSample data (first 2 rows):")
-                        if len(df) > 0:
-                            print(df.head(2).to_string())
-                        
-                        # Check for missing critical columns
-                        critical_columns = ['strikePrice', 'underlyingPrice', 'expirationDate', 'optionType']
-                        missing_columns = [col for col in critical_columns if col not in df.columns]
-                        if missing_columns:
-                            print(f"Warning: Missing critical columns: {missing_columns}")
-                    
-                    return df
-                except Exception as e:
-                    print(f"Error creating DataFrame from options data: {str(e)}")
-                    if DEBUG_MODE:
-                        print(traceback.format_exc())
-                    return pd.DataFrame()
-            else:
-                print(f"No options data found for {symbol}")
-                return pd.DataFrame()
-                
-        except Exception as e:
-            print(f"Error retrieving options data for {symbol}: {str(e)}")
-            if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-            return pd.DataFrame()
+        # This is a wrapper around get_historical_data to match the expected method name
+        # in the error logs and provide compatibility with both naming conventions
+        return self.get_historical_data(
+            symbol=symbol,
+            period_type=period_type if period_type else 'day',
+            period=period if period else 10,
+            frequency_type=frequency_type if frequency_type else 'minute',
+            frequency=frequency if frequency else 1,
+            need_extended_hours_data=need_extended_hours_data
+        )
     
-    def get_put_call_ratio(self, symbol):
+    def get_option_chain_with_underlying_price(self, symbol):
         """
-        Calculate put/call ratio for a symbol
+        Get option chain with underlying price
         
         Args:
             symbol (str): The stock symbol
             
         Returns:
-            float: Put/Call ratio
+            dict: Option chain data with underlying price
         """
         try:
             if DEBUG_MODE:
-                print(f"Calculating put/call ratio for: {symbol}")
+                print(f"Requesting option chain with underlying price for: {symbol}")
             
             # Get option chain
             option_chain = self.get_option_chain(symbol)
-            if not option_chain:
-                return None
             
-            # Calculate total volume for calls and puts
-            call_volume = 0
-            put_volume = 0
-            
-            # Process call options
-            if 'callExpDateMap' in option_chain:
-                for exp_date, strikes in option_chain['callExpDateMap'].items():
-                    for strike_price, options in strikes.items():
-                        for option in options:
-                            if 'totalVolume' in option:
-                                call_volume += option['totalVolume']
-            
-            # Process put options
-            if 'putExpDateMap' in option_chain:
-                for exp_date, strikes in option_chain['putExpDateMap'].items():
-                    for strike_price, options in strikes.items():
-                        for option in options:
-                            if 'totalVolume' in option:
-                                put_volume += option['totalVolume']
-            
-            if DEBUG_MODE:
-                print(f"Call volume: {call_volume}, Put volume: {put_volume}")
-            
-            # Calculate ratio
-            if call_volume > 0:
-                ratio = put_volume / call_volume
+            # If no option chain or no underlying price, try to get it from quote
+            if not option_chain or 'underlying_price' not in option_chain or not option_chain['underlying_price']:
                 if DEBUG_MODE:
-                    print(f"Put/Call ratio: {ratio}")
-                return ratio
-            else:
-                if DEBUG_MODE:
-                    print("Call volume is zero, cannot calculate ratio")
-                return None
+                    print(f"No underlying price in option chain, trying to get quote")
                 
+                # Get quote to get current price
+                quote = self.get_quote(symbol)
+                if quote and isinstance(quote, dict):
+                    if 'mark' in quote:
+                        underlying_price = quote['mark']
+                        if DEBUG_MODE:
+                            print(f"Using underlying price from quote 'mark': {underlying_price}")
+                    elif 'lastPrice' in quote:
+                        underlying_price = quote['lastPrice']
+                        if DEBUG_MODE:
+                            print(f"Using underlying price from quote 'lastPrice': {underlying_price}")
+                    else:
+                        underlying_price = None
+                        if DEBUG_MODE:
+                            print(f"No suitable price found in quote")
+                    
+                    # Add underlying price to option chain
+                    if underlying_price and option_chain:
+                        option_chain['underlying_price'] = underlying_price
+            
+            return option_chain
         except Exception as e:
-            print(f"Error calculating put/call ratio for {symbol}: {str(e)}")
-            if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-            return None
-    
-    def get_open_interest(self, symbol, option_type='ALL'):
-        """
-        Get open interest data for a symbol
-        
-        Args:
-            symbol (str): The stock symbol
-            option_type (str): Option type - 'CALL', 'PUT', or 'ALL'
-            
-        Returns:
-            pd.DataFrame: Open interest data
-        """
-        try:
-            if DEBUG_MODE:
-                print(f"Getting open interest data for: {symbol}, type: {option_type}")
-            
-            # Get option data
-            options_df = self.get_option_data(symbol, option_type=option_type)
-            if options_df.empty:
-                return pd.DataFrame()
-            
-            # Extract open interest data
-            if 'openInterest' in options_df.columns:
-                oi_data = options_df[['strikePrice', 'expirationDate', 'optionType', 'openInterest']]
-                
-                if DEBUG_MODE:
-                    print(f"Open interest data shape: {oi_data.shape}")
-                
-                return oi_data
-            else:
-                if DEBUG_MODE:
-                    print("No openInterest column found in options data")
-                return pd.DataFrame()
-                
-        except Exception as e:
-            print(f"Error retrieving open interest data for {symbol}: {str(e)}")
-            if DEBUG_MODE:
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-            return pd.DataFrame()
-    
-    def get_streaming_data(self, symbols, fields=None):
-        """
-        Set up streaming data for symbols
-        
-        Args:
-            symbols (list): List of symbols to stream
-            fields (list): List of fields to stream
-            
-        Returns:
-            object: Streaming data handler
-        """
-        try:
-            if DEBUG_MODE:
-                print(f"Setting up streaming data for symbols: {symbols}")
-            
-            # Default fields if none provided
-            if not fields:
-                fields = [
-                    'LAST_PRICE', 'BID_PRICE', 'ASK_PRICE', 'TOTAL_VOLUME',
-                    'OPEN_PRICE', 'HIGH_PRICE', 'LOW_PRICE', 'CLOSE_PRICE',
-                    'NET_CHANGE', 'VOLATILITY', 'DELTA', 'GAMMA', 'THETA', 'VEGA'
-                ]
-            
-            # Initialize streamer
-            streamer = self.client.stream
-            
-            if DEBUG_MODE:
-                print(f"Streamer initialized: {type(streamer)}")
-            
-            # Return streamer for further configuration
-            return streamer
-                
-        except Exception as e:
-            print(f"Error setting up streaming data: {str(e)}")
+            print(f"Error retrieving option chain with underlying price for {symbol}: {str(e)}")
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
