@@ -66,6 +66,12 @@
   - Implemented comprehensive debugging for API responses to identify data structure issues
   - Fixed current price usage in recommendation engine to properly access underlying price from different data sources
   - Enhanced get_real_time_data method to handle nested quote structures and use multiple fallback price sources
+  - Fixed extreme percentage values in recommendations by adding reasonable upper bounds to potential_return (capped at 1000%)
+  - Added reasonable upper bounds to risk_reward calculations (capped at 100x) to prevent unrealistic values
+  - Properly normalized the confidence score calculation to ensure values stay within reasonable bounds (0-100%)
+  - Fixed "Length of values (0) does not match length of index (27)" error in validation visualization
+  - Implemented data alignment logic for all indicator data frames (RSI, MACD, Bollinger Bands) to ensure consistent lengths
+  - Added proper merging and fallback handling for empty data frames in visualization components
   - Improved the scoring algorithm to handle edge cases better in the recommendation engine
   - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
   - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
