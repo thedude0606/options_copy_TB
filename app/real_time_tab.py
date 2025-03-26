@@ -8,6 +8,7 @@ import plotly.graph_objs as go
 import pandas as pd
 import json
 from datetime import datetime
+from app.data_collector import DataCollector
 
 # Define the layout for the real-time data tab
 def get_real_time_tab_layout():
@@ -236,6 +237,92 @@ def register_real_time_callbacks(app):
             ])
             return status, connection_data, True
     
+    # Callback to update stream data
+    @app.callback(
+        Output("rt-stream-data", "data"),
+        [Input("rt-update-interval", "n_intervals")],
+        [State("rt-symbols-store", "data"),
+         State("rt-stream-data", "data"),
+         State("rt-connection-store", "data"),
+         State("rt-data-type", "value")]
+    )
+    def update_stream_data(n_intervals, symbols, stream_data, connection_data, data_type):
+        # Check if stream is active
+        if not connection_data or not connection_data.get("active", False):
+            return stream_data or {}
+        
+        # Check if we have symbols to fetch
+        if not symbols:
+            return stream_data or {}
+        
+        # Initialize stream data if needed
+        if not stream_data:
+            stream_data = {}
+        
+        try:
+            # Initialize data collector
+            data_collector = DataCollector()
+            
+            # Current timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Fetch data for each symbol
+            for symbol in symbols:
+                # Initialize symbol data if needed
+                if symbol not in stream_data:
+                    stream_data[symbol] = []
+                
+                # Fetch real-time data
+                if data_type == "quotes":
+                    # Fetch quote data
+                    quote_data = data_collector.get_real_time_data(symbol)
+                    
+                    if quote_data:
+                        # Extract relevant fields
+                        data_point = {
+                            "timestamp": timestamp,
+                            "price": quote_data.get("lastPrice", None),
+                            "change": quote_data.get("netChange", None),
+                            "percent_change": quote_data.get("netPercentChangeInDouble", None),
+                            "bid": quote_data.get("bidPrice", None),
+                            "ask": quote_data.get("askPrice", None),
+                            "volume": quote_data.get("totalVolume", None),
+                            "size": quote_data.get("lastSize", None)
+                        }
+                        
+                        # Add to stream data (limit to last 100 points)
+                        stream_data[symbol].append(data_point)
+                        if len(stream_data[symbol]) > 100:
+                            stream_data[symbol] = stream_data[symbol][-100:]
+                else:  # options
+                    # Fetch options data
+                    options_data = data_collector.get_option_chain_with_underlying_price(symbol)
+                    
+                    if options_data and "underlyingPrice" in options_data:
+                        # Extract relevant fields
+                        data_point = {
+                            "timestamp": timestamp,
+                            "price": options_data.get("underlyingPrice", None),
+                            "change": None,  # Not available in options data
+                            "percent_change": None,  # Not available in options data
+                            "bid": None,  # Would need specific option contract
+                            "ask": None,  # Would need specific option contract
+                            "volume": None,  # Would need specific option contract
+                            "open_interest": None,  # Would need specific option contract
+                            "size": None  # Not available in options data
+                        }
+                        
+                        # Add to stream data (limit to last 100 points)
+                        stream_data[symbol].append(data_point)
+                        if len(stream_data[symbol]) > 100:
+                            stream_data[symbol] = stream_data[symbol][-100:]
+            
+            return stream_data
+        
+        except Exception as e:
+            print(f"Error updating stream data: {str(e)}")
+            return stream_data or {}
+    
     # Callback to update price chart
     @app.callback(
         Output("rt-price-chart", "figure"),
@@ -271,26 +358,26 @@ def register_real_time_callbacks(app):
                     symbol_data = data_dict[symbol]
                     print(f"DEBUG - update_price_chart: Found {len(symbol_data)} data points for {symbol}")
                     
+                    if not symbol_data:
+                        print(f"DEBUG - update_price_chart: No data points for {symbol}")
+                        continue
+                    
                     # Extract time and price data
-                    times = [item["timestamp"] for item in symbol_data]
-                    prices = [item["price"] for item in symbol_data if item["price"] is not None]
+                    times = []
+                    prices = []
                     
-                    # Debug raw data
-                    if symbol_data:
-                        print(f"DEBUG - update_price_chart: First few data points for {symbol}:")
-                        for i, item in enumerate(symbol_data[:3]):  # Show first 3 items
-                            print(f"DEBUG - Item {i}: timestamp={item['timestamp']}, price={item['price']}, type={type(item['price'])}")
-                    
-                    valid_times = [times[i] for i in range(len(times)) if i < len(prices) and symbol_data[i]["price"] is not None]
-                    
-                    print(f"DEBUG - update_price_chart: {symbol} has {len(valid_times)} valid times and {len(prices)} valid prices")
+                    for item in symbol_data:
+                        if isinstance(item, dict) and "timestamp" in item and "price" in item:
+                            if item["price"] is not None:
+                                times.append(item["timestamp"])
+                                prices.append(float(item["price"]))
                     
                     # Only add trace if we have valid data
-                    if prices and valid_times:
+                    if prices and times:
                         print(f"DEBUG - update_price_chart: Adding trace for {symbol} with {len(prices)} price points")
                         # Add line trace
                         fig.add_trace(go.Scatter(
-                            x=valid_times,
+                            x=times,
                             y=prices,
                             mode="lines+markers",
                             name=symbol
@@ -371,15 +458,10 @@ def register_real_time_callbacks(app):
                 if symbol in data_dict and data_dict[symbol]:
                     # Get latest data point
                     latest = data_dict[symbol][-1]
-                    print(f"DEBUG - update_data_table: Latest data for {symbol}: {latest}")
                     
-                    # Debug raw data values
-                    print(f"DEBUG - update_data_table: {symbol} price={latest.get('price')} type={type(latest.get('price'))}")
-                    print(f"DEBUG - update_data_table: {symbol} change={latest.get('change')} type={type(latest.get('change'))}")
-                    print(f"DEBUG - update_data_table: {symbol} percent_change={latest.get('percent_change')} type={type(latest.get('percent_change'))}")
-                    print(f"DEBUG - update_data_table: {symbol} bid={latest.get('bid')} type={type(latest.get('bid'))}")
-                    print(f"DEBUG - update_data_table: {symbol} ask={latest.get('ask')} type={type(latest.get('ask'))}")
-                    print(f"DEBUG - update_data_table: {symbol} volume={latest.get('volume')} type={type(latest.get('volume'))}")
+                    if not isinstance(latest, dict):
+                        print(f"DEBUG - update_data_table: Latest data for {symbol} is not a dictionary: {type(latest)}")
+                        continue
                     
                     # Create row based on data type
                     if data_type == "quotes":
