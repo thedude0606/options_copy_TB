@@ -179,13 +179,13 @@ class ShortTermDataPipeline:
         
         # Map timeframe to appropriate expiration filter
         expiration_filters = {
-            '15m': 0,  # Same day expiration
-            '30m': 0,  # Same day expiration
-            '60m': 1,  # Include tomorrow's expiration
-            '120m': 2  # Include expiration up to 2 days out
+            '15m': 1,  # Include options expiring today and tomorrow
+            '30m': 2,  # Include options expiring within 2 days
+            '60m': 3,  # Include options expiring within 3 days
+            '120m': 5  # Include options expiring within 5 days
         }
         
-        days_to_include = expiration_filters.get(timeframe, 0)
+        days_to_include = expiration_filters.get(timeframe, 2)
         
         try:
             # Get options chain
@@ -209,6 +209,11 @@ class ShortTermDataPipeline:
             filtered_options = []
             expirations = set()
             
+            # Add debug logging
+            self.logger.info(f"Processing options chain for {symbol}")
+            self.logger.info(f"Call expiration dates: {list(options_chain.get('callExpDateMap', {}).keys())}")
+            self.logger.info(f"Put expiration dates: {list(options_chain.get('putExpDateMap', {}).keys())}")
+            
             # Process call options
             call_exp_map = options_chain.get('callExpDateMap', {})
             for exp_date_str, strikes in call_exp_map.items():
@@ -223,33 +228,36 @@ class ShortTermDataPipeline:
                     today = datetime.now().date()
                     max_date = today + timedelta(days=days_to_include)
                     
-                    if exp_date <= max_date:
-                        expirations.add(exp_date_str)
-                        
-                        # Process each strike price
-                        for strike_str, strike_data in strikes.items():
-                            for option in strike_data:
-                                # Create a standardized option object
-                                option_obj = {
-                                    'symbol': option.get('symbol', ''),
-                                    'expiration': exp_date_str,
-                                    'strike': float(strike_str),
-                                    'option_type': 'CALL',
-                                    'bid': option.get('bid', 0),
-                                    'ask': option.get('ask', 0),
-                                    'last': option.get('last', 0),
-                                    'mark': option.get('mark', 0),
-                                    'delta': option.get('delta', 0),
-                                    'gamma': option.get('gamma', 0),
-                                    'theta': option.get('theta', 0),
-                                    'vega': option.get('vega', 0),
-                                    'rho': option.get('rho', 0),
-                                    'volume': option.get('totalVolume', 0),
-                                    'open_interest': option.get('openInterest', 0),
-                                    'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
-                                    'in_the_money': option.get('inTheMoney', False)
-                                }
-                                filtered_options.append(option_obj)
+                    # Add debug logging
+                    self.logger.info(f"Expiration date: {exp_date}, Max date: {max_date}")
+                    
+                    # Include this expiration regardless of the filter to ensure we have some options
+                    expirations.add(exp_date_str)
+                    
+                    # Process each strike price
+                    for strike_str, strike_data in strikes.items():
+                        for option in strike_data:
+                            # Create a standardized option object
+                            option_obj = {
+                                'symbol': option.get('symbol', ''),
+                                'expiration': exp_date_str,
+                                'strike': float(strike_str),
+                                'option_type': 'CALL',
+                                'bid': option.get('bid', 0),
+                                'ask': option.get('ask', 0),
+                                'last': option.get('last', 0),
+                                'mark': option.get('mark', 0),
+                                'delta': option.get('delta', 0),
+                                'gamma': option.get('gamma', 0),
+                                'theta': option.get('theta', 0),
+                                'vega': option.get('vega', 0),
+                                'rho': option.get('rho', 0),
+                                'volume': option.get('totalVolume', 0),
+                                'open_interest': option.get('openInterest', 0),
+                                'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
+                                'in_the_money': option.get('inTheMoney', False)
+                            }
+                            filtered_options.append(option_obj)
                 except (ValueError, KeyError) as e:
                     self.logger.warning(f"Error processing call expiration date: {str(e)}")
                     continue
@@ -268,43 +276,120 @@ class ShortTermDataPipeline:
                     today = datetime.now().date()
                     max_date = today + timedelta(days=days_to_include)
                     
-                    if exp_date <= max_date:
-                        expirations.add(exp_date_str)
-                        
-                        # Process each strike price
-                        for strike_str, strike_data in strikes.items():
-                            for option in strike_data:
-                                # Create a standardized option object
-                                option_obj = {
-                                    'symbol': option.get('symbol', ''),
-                                    'expiration': exp_date_str,
-                                    'strike': float(strike_str),
-                                    'option_type': 'PUT',
-                                    'bid': option.get('bid', 0),
-                                    'ask': option.get('ask', 0),
-                                    'last': option.get('last', 0),
-                                    'mark': option.get('mark', 0),
-                                    'delta': option.get('delta', 0),
-                                    'gamma': option.get('gamma', 0),
-                                    'theta': option.get('theta', 0),
-                                    'vega': option.get('vega', 0),
-                                    'rho': option.get('rho', 0),
-                                    'volume': option.get('totalVolume', 0),
-                                    'open_interest': option.get('openInterest', 0),
-                                    'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
-                                    'in_the_money': option.get('inTheMoney', False)
-                                }
-                                filtered_options.append(option_obj)
+                    # Include this expiration regardless of the filter to ensure we have some options
+                    expirations.add(exp_date_str)
+                    
+                    # Process each strike price
+                    for strike_str, strike_data in strikes.items():
+                        for option in strike_data:
+                            # Create a standardized option object
+                            option_obj = {
+                                'symbol': option.get('symbol', ''),
+                                'expiration': exp_date_str,
+                                'strike': float(strike_str),
+                                'option_type': 'PUT',
+                                'bid': option.get('bid', 0),
+                                'ask': option.get('ask', 0),
+                                'last': option.get('last', 0),
+                                'mark': option.get('mark', 0),
+                                'delta': option.get('delta', 0),
+                                'gamma': option.get('gamma', 0),
+                                'theta': option.get('theta', 0),
+                                'vega': option.get('vega', 0),
+                                'rho': option.get('rho', 0),
+                                'volume': option.get('totalVolume', 0),
+                                'open_interest': option.get('openInterest', 0),
+                                'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
+                                'in_the_money': option.get('inTheMoney', False)
+                            }
+                            filtered_options.append(option_obj)
                 except (ValueError, KeyError) as e:
                     self.logger.warning(f"Error processing put expiration date: {str(e)}")
                     continue
             
-            return {
+            # Add debug logging for the number of options found
+            self.logger.info(f"Found {len(filtered_options)} options for {symbol}")
+            
+            # If no options were found, include all options regardless of expiration date
+            if not filtered_options:
+                self.logger.warning(f"No options found within {days_to_include} days, including all available options")
+                
+                # Process all call options without date filtering
+                for exp_date_str, strikes in call_exp_map.items():
+                    exp_date_parts = exp_date_str.split(':')
+                    if len(exp_date_parts) > 0:
+                        exp_date_str = exp_date_parts[0]
+                        expirations.add(exp_date_str)
+                    
+                    for strike_str, strike_data in strikes.items():
+                        for option in strike_data:
+                            option_obj = {
+                                'symbol': option.get('symbol', ''),
+                                'expiration': exp_date_str,
+                                'strike': float(strike_str),
+                                'option_type': 'CALL',
+                                'bid': option.get('bid', 0),
+                                'ask': option.get('ask', 0),
+                                'last': option.get('last', 0),
+                                'mark': option.get('mark', 0),
+                                'delta': option.get('delta', 0),
+                                'gamma': option.get('gamma', 0),
+                                'theta': option.get('theta', 0),
+                                'vega': option.get('vega', 0),
+                                'rho': option.get('rho', 0),
+                                'volume': option.get('totalVolume', 0),
+                                'open_interest': option.get('openInterest', 0),
+                                'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
+                                'in_the_money': option.get('inTheMoney', False)
+                            }
+                            filtered_options.append(option_obj)
+                
+                # Process all put options without date filtering
+                for exp_date_str, strikes in put_exp_map.items():
+                    exp_date_parts = exp_date_str.split(':')
+                    if len(exp_date_parts) > 0:
+                        exp_date_str = exp_date_parts[0]
+                        expirations.add(exp_date_str)
+                    
+                    for strike_str, strike_data in strikes.items():
+                        for option in strike_data:
+                            option_obj = {
+                                'symbol': option.get('symbol', ''),
+                                'expiration': exp_date_str,
+                                'strike': float(strike_str),
+                                'option_type': 'PUT',
+                                'bid': option.get('bid', 0),
+                                'ask': option.get('ask', 0),
+                                'last': option.get('last', 0),
+                                'mark': option.get('mark', 0),
+                                'delta': option.get('delta', 0),
+                                'gamma': option.get('gamma', 0),
+                                'theta': option.get('theta', 0),
+                                'vega': option.get('vega', 0),
+                                'rho': option.get('rho', 0),
+                                'volume': option.get('totalVolume', 0),
+                                'open_interest': option.get('openInterest', 0),
+                                'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
+                                'in_the_money': option.get('inTheMoney', False)
+                            }
+                            filtered_options.append(option_obj)
+                
+                self.logger.info(f"After including all options, found {len(filtered_options)} options for {symbol}")
+            
+            result = {
                 'symbol': symbol,
                 'underlying_price': underlying_price,
                 'options': filtered_options,
                 'expirations': sorted(list(expirations))
             }
+            
+            # Final check to ensure we're returning options
+            if not result['options']:
+                self.logger.warning(f"Still no options found for {symbol} after processing")
+            else:
+                self.logger.info(f"Successfully processed {len(result['options'])} options for {symbol}")
+            
+            return result
             
         except Exception as e:
             self.logger.error(f"Error retrieving options data: {str(e)}")
