@@ -101,7 +101,7 @@ class DataCollector:
         """
         # This is a wrapper around get_option_chain to match the expected method name
         # in the error logs and provide compatibility with both naming conventions
-        return self.get_option_chain(symbol)
+        return self.get_option_chain_with_underlying_price(symbol)
     
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', 
                            frequency=1, need_extended_hours_data=True):
