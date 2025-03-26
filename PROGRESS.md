@@ -95,6 +95,7 @@
   - Added detailed debugging for Greeks calculations to ensure accurate display
   - Improved Real-Time Data handling with better response processing and error handling
   - Fixed Technical Indicators feature by implementing proper data processing and visualization
+  - **Fixed market data showing zeros issue** by enhancing the quote response processing in data_collector.py to handle multiple response formats from the Schwab API, particularly adding support for when data is in a 'quotes' array
 
 ## Current Work in Progress
 

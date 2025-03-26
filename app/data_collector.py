@@ -65,8 +65,25 @@ class DataCollector:
                                     print(f"Quote data keys: {list(quote_data.keys() if isinstance(quote_data, dict) else [])}")
                                 
                                 # The Schwab API returns data in a specific format
-                                # The actual quote data might be nested under the symbol key
-                                if symbol in quote_data:
+                                # Debug the structure of the response
+                                if VERBOSE_DEBUG:
+                                    print(f"Full quote_data: {json.dumps(quote_data, indent=2)[:500]}...")
+                                
+                                # Check for different possible response structures
+                                if 'quotes' in quote_data:
+                                    # Handle case where data is in a 'quotes' array
+                                    quotes_array = quote_data.get('quotes', [])
+                                    if quotes_array and len(quotes_array) > 0:
+                                        quote_item = quotes_array[0]
+                                        return {
+                                            'lastPrice': quote_item.get('lastPrice', quote_item.get('last', quote_item.get('mark', 0))),
+                                            'netChange': quote_item.get('netChange', quote_item.get('change', quote_item.get('markChange', 0))),
+                                            'netPercentChangeInDouble': quote_item.get('netPercentChangeInDouble', quote_item.get('percentChange', quote_item.get('markPercentChange', 0))),
+                                            'totalVolume': quote_item.get('totalVolume', quote_item.get('volume', quote_item.get('totalVolume', 0))),
+                                            'description': quote_item.get('description', symbol)
+                                        }
+                                elif symbol in quote_data:
+                                    # Handle case where data is nested under the symbol key
                                     symbol_data = quote_data[symbol]
                                     return {
                                         'lastPrice': symbol_data.get('lastPrice', symbol_data.get('last', symbol_data.get('mark', 0))),
@@ -76,7 +93,7 @@ class DataCollector:
                                         'description': symbol_data.get('description', symbol)
                                     }
                                 else:
-                                    # If not nested, try to get data directly
+                                    # If not in expected format, try to get data directly from the root
                                     return {
                                         'lastPrice': quote_data.get('lastPrice', quote_data.get('last', quote_data.get('mark', 0))),
                                         'netChange': quote_data.get('netChange', quote_data.get('change', quote_data.get('markChange', 0))),

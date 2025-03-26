@@ -162,10 +162,14 @@
 - **Implementation**: Added validation for period types, frequency types, and frequency values with automatic correction of invalid values
 
 ### API Response Processing Improvement
-- **Decision**: Enhanced API response processing in run_dashboard.py and options_data.py
+- **Decision**: Enhanced API response processing in run_dashboard.py, options_data.py, and data_collector.py
 - **Rationale**: Different response formats from Schwab API require flexible handling to extract data correctly
 - **Benefits**: Properly displays market data and additional features, prevents zeros showing for every symbol
-- **Implementation**: Added type checking, multiple data extraction paths, and comprehensive error handling
+- **Implementation**: 
+  - Added type checking, multiple data extraction paths, and comprehensive error handling
+  - Enhanced data_collector.py to handle multiple response structures, particularly adding support for when data is in a 'quotes' array
+  - Added better debugging output to show the full response structure for troubleshooting
+  - Implemented cascading checks for price data in various locations within the response
 
 ### Options Chain Data Processing
 - **Decision**: Implemented robust options chain data processing in get_option_data method
