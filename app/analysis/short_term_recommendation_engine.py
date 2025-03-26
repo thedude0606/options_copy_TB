@@ -383,11 +383,17 @@ class ShortTermRecommendationEngine:
             # Calculate potential return
             potential_return = potential_profit / mid_price if mid_price > 0 else 0
             
+            # Apply reasonable upper bound to potential return (cap at 1000%)
+            potential_return = min(10.0, potential_return)
+            
             # Calculate maximum loss (simplified)
             max_loss = mid_price
             
             # Calculate risk/reward ratio
             risk_reward = potential_profit / max_loss if max_loss > 0 else 0
+            
+            # Apply reasonable upper bound to risk/reward (cap at 100x)
+            risk_reward = min(100.0, risk_reward)
             
             # Skip options with insufficient risk/reward
             if risk_reward < min_risk_reward:
@@ -414,13 +420,19 @@ class ShortTermRecommendationEngine:
             sentiment_adjustment = 1 + (sentiment_score - 0.5) * params['sentiment_weight']
             
             # Calculate final confidence score with weights
+            # Normalize risk/reward to [0,1] with a reasonable cap
+            normalized_risk_reward = min(1.0, risk_reward / 20)
+            
             confidence_score = (
                 signal_confidence * 0.4 +
                 moneyness_score * 0.2 +
                 liquidity_score * 0.2 +
                 volume_score * 0.1 +
-                risk_reward / 5 * 0.1  # Normalize risk/reward to [0,1]
+                normalized_risk_reward * 0.1
             ) * sentiment_adjustment
+            
+            # Ensure confidence score is within reasonable bounds (0-1)
+            confidence_score = max(0.0, min(1.0, confidence_score))
             
             # Skip options with insufficient confidence
             if confidence_score < min_confidence:

@@ -127,6 +127,25 @@ def create_validation_chart(validation_data):
         if not pd.api.types.is_datetime64_any_dtype(bb_data['datetime']):
             bb_data['datetime'] = pd.to_datetime(bb_data['datetime'])
             
+        # Ensure BB data has same length as price data
+        if len(bb_data) != len(price_data):
+            # Handle length mismatch by aligning on datetime
+            if len(bb_data) > 0 and len(price_data) > 0:
+                # Merge on datetime to ensure alignment
+                bb_data = pd.merge(
+                    price_data[['datetime']], 
+                    bb_data, 
+                    on='datetime', 
+                    how='left'
+                )
+            else:
+                # If no valid data, create empty DataFrame with same index
+                bb_data = pd.DataFrame(index=price_data.index)
+                bb_data['datetime'] = price_data['datetime']
+                bb_data['bb_upper'] = np.nan
+                bb_data['bb_middle'] = np.nan
+                bb_data['bb_lower'] = np.nan
+            
         fig.add_trace(
             go.Scatter(
                 x=bb_data['datetime'],
@@ -181,6 +200,23 @@ def create_validation_chart(validation_data):
         if not pd.api.types.is_datetime64_any_dtype(rsi_data['datetime']):
             rsi_data['datetime'] = pd.to_datetime(rsi_data['datetime'])
             
+        # Ensure RSI data has same length as price data
+        if len(rsi_data) != len(price_data):
+            # Handle length mismatch by aligning on datetime
+            if len(rsi_data) > 0 and len(price_data) > 0:
+                # Merge on datetime to ensure alignment
+                rsi_data = pd.merge(
+                    price_data[['datetime']], 
+                    rsi_data, 
+                    on='datetime', 
+                    how='left'
+                )
+            else:
+                # If no valid data, create empty DataFrame with same index
+                rsi_data = pd.DataFrame(index=price_data.index)
+                rsi_data['datetime'] = price_data['datetime']
+                rsi_data['rsi'] = np.nan
+            
         fig.add_trace(
             go.Scatter(
                 x=rsi_data['datetime'],
@@ -202,6 +238,25 @@ def create_validation_chart(validation_data):
         # Only add MACD if RSI is not shown (to avoid cluttering)
         if not pd.api.types.is_datetime64_any_dtype(macd_data['datetime']):
             macd_data['datetime'] = pd.to_datetime(macd_data['datetime'])
+            
+        # Ensure MACD data has same length as price data
+        if len(macd_data) != len(price_data):
+            # Handle length mismatch by aligning on datetime
+            if len(macd_data) > 0 and len(price_data) > 0:
+                # Merge on datetime to ensure alignment
+                macd_data = pd.merge(
+                    price_data[['datetime']], 
+                    macd_data, 
+                    on='datetime', 
+                    how='left'
+                )
+            else:
+                # If no valid data, create empty DataFrame with same index
+                macd_data = pd.DataFrame(index=price_data.index)
+                macd_data['datetime'] = price_data['datetime']
+                macd_data['macd'] = np.nan
+                macd_data['macd_signal'] = np.nan
+                macd_data['macd_hist'] = np.nan
             
         fig.add_trace(
             go.Scatter(
