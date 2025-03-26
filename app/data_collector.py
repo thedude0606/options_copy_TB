@@ -85,13 +85,26 @@ class DataCollector:
                                 elif symbol in quote_data:
                                     # Handle case where data is nested under the symbol key
                                     symbol_data = quote_data[symbol]
-                                    return {
-                                        'lastPrice': symbol_data.get('lastPrice', symbol_data.get('last', symbol_data.get('mark', 0))),
-                                        'netChange': symbol_data.get('netChange', symbol_data.get('change', symbol_data.get('markChange', 0))),
-                                        'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', symbol_data.get('percentChange', symbol_data.get('markPercentChange', 0))),
-                                        'totalVolume': symbol_data.get('totalVolume', symbol_data.get('volume', symbol_data.get('totalVolume', 0))),
-                                        'description': symbol_data.get('description', symbol)
-                                    }
+                                    
+                                    # Check if data is nested under 'extended' object based on user logs
+                                    if 'extended' in symbol_data:
+                                        extended_data = symbol_data.get('extended', {})
+                                        return {
+                                            'lastPrice': extended_data.get('lastPrice', 0),
+                                            'netChange': extended_data.get('netChange', 0),
+                                            'netPercentChangeInDouble': extended_data.get('netPercentChangeInDouble', 0),
+                                            'totalVolume': extended_data.get('totalVolume', 0),
+                                            'description': symbol_data.get('description', symbol)
+                                        }
+                                    else:
+                                        # Original approach if 'extended' is not present
+                                        return {
+                                            'lastPrice': symbol_data.get('lastPrice', symbol_data.get('last', symbol_data.get('mark', 0))),
+                                            'netChange': symbol_data.get('netChange', symbol_data.get('change', symbol_data.get('markChange', 0))),
+                                            'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', symbol_data.get('percentChange', symbol_data.get('markPercentChange', 0))),
+                                            'totalVolume': symbol_data.get('totalVolume', symbol_data.get('volume', symbol_data.get('totalVolume', 0))),
+                                            'description': symbol_data.get('description', symbol)
+                                        }
                                 else:
                                     # If not in expected format, try to get data directly from the root
                                     return {

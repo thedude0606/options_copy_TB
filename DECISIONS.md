@@ -170,6 +170,7 @@
   - Enhanced data_collector.py to handle multiple response structures, particularly adding support for when data is in a 'quotes' array
   - Added better debugging output to show the full response structure for troubleshooting
   - Implemented cascading checks for price data in various locations within the response
+  - Added specific handling for price data nested under the 'extended' object within symbol data based on user feedback and log analysis
 
 ### Options Chain Data Processing
 - **Decision**: Implemented robust options chain data processing in get_option_data method
