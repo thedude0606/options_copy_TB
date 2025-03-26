@@ -72,6 +72,13 @@
   - Fixed "Length of values (0) does not match length of index (27)" error in validation visualization
   - Implemented data alignment logic for all indicator data frames (RSI, MACD, Bollinger Bands) to ensure consistent lengths
   - Added proper merging and fallback handling for empty data frames in visualization components
+  - Redesigned recommendation engine scoring logic to produce varied and realistic values
+  - Added dampening factor to expected move calculation for more conservative price targets
+  - Implemented time value consideration in potential profit calculation based on days to expiration
+  - Enhanced risk/reward calculation with volatility and expiration factors to prevent unrealistic values
+  - Completely redesigned confidence score calculation with granular approaches for moneyness, liquidity, and volume
+  - Implemented tiered scoring system for bid-ask spreads and trading volumes
+  - Added sophisticated moneyness scoring with specific ranges for different option positions
   - Improved the scoring algorithm to handle edge cases better in the recommendation engine
   - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
   - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
