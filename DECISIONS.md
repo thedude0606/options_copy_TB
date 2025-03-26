@@ -174,74 +174,12 @@
   - Implemented calculation for netChange and netPercentChangeInDouble values using lastPrice from extended data and previousClose from fundamental data when not directly available in the API response
   - Added robust previousClose extraction with multiple fallback mechanisms to find previousClose values in various locations of the API response (fundamental object, regularMarketPreviousClose, underlying object) with reasonable defaults for common symbols
 
-### Options Chain Data Processing
-- **Decision**: Implemented robust options chain data processing in get_option_data method
-- **Rationale**: Options chain data structure is complex and requires careful extraction of nested information
-- **Benefits**: Properly displays options chain data including strikes, expirations, and Greeks
-- **Implementation**: Added support for processing both call and put options with proper filtering and data extraction
-
-### Historical Data Processing Enhancement
-- **Decision**: Improved historical data processing with multiple data structure handling
-- **Rationale**: Historical data can be returned in various formats depending on API version and parameters
-- **Benefits**: Ensures historical data is properly displayed regardless of response format
-- **Implementation**: Added support for multiple candle data locations and robust datetime conversion
-
-### Timeframe Mapping Approach
-- **Decision**: Redesigned timeframe mapping in indicators_tab.py to use tuple-based mapping
-- **Rationale**: Previous implementation had inconsistent handling of timeframes between UI and API calls
-- **Benefits**: Consistent timeframe handling, proper display of different time intervals, improved user experience
-- **Implementation**: Created a comprehensive mapping dictionary with proper frequency type and value pairs
-
-### Fallback Mechanism for Data Retrieval
-- **Decision**: Implemented multiple fallback mechanisms for retrieving critical data like underlying price
-- **Rationale**: Different API responses may contain data in different formats or locations
-- **Benefits**: More robust data retrieval, fewer missing data errors, improved reliability
-- **Implementation**: Added cascading checks for data in various locations with clear logging of data source
-
-### Type Checking and Exception Handling
-- **Decision**: Added extensive type checking and exception handling throughout the data processing pipeline
-- **Rationale**: Unexpected data types or structures from API responses can cause cascading failures
-- **Benefits**: More robust application, better error messages, graceful handling of unexpected data
-- **Implementation**: Wrapped critical operations in try-except blocks with appropriate fallback behavior and logging
-
-### Bollinger Bands Parameter Standardization
-- **Decision**: Changed parameter name from 'num_std' to 'std_dev' in Bollinger Bands calculation
-- **Rationale**: Parameter name mismatch between function call and implementation was causing errors
-- **Benefits**: Consistent parameter naming, proper technical indicator calculation, elimination of runtime errors
-- **Implementation**: Updated the parameter name in indicators_tab.py to match the expected parameter in technical_indicators.py
-
-### Recommendation Fallback Strategy
-- **Decision**: Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
-- **Rationale**: Users need recommendations even when market conditions don't produce high-confidence signals
-- **Benefits**: Ensures recommendations are always available, improves user experience, provides options in all market conditions
-- **Implementation**: Added fallback logic to select top 3 recommendations by confidence score when no recommendations meet the threshold
-
-### Recommendation Engine Logic Flow Correction
-- **Decision**: Fixed logic flow in recommendation engine to properly implement the fallback mechanism
-- **Rationale**: Initial implementation had incorrect conditional nesting that prevented the fallback mechanism from working
-- **Benefits**: Ensures recommendations are always displayed, improves reliability of the recommendation system
-- **Implementation**: Properly nested conditional statements to ensure filtered recommendations are correctly processed and returned
-
-### Trade Card Component Data Format Compatibility
-- **Decision**: Updated trade card component to handle both old and new recommendation data formats
-- **Rationale**: The UI component expected a different data structure than what the recommendation engine was providing
-- **Benefits**: Ensures recommendations appear in the UI, improves user experience, maintains backward compatibility
-- **Implementation**: Modified the trade card component to detect and handle both data formats, with proper fallbacks for missing data
-
-### Symbol Validation and Correction for Historical Data
-- **Decision**: Implemented symbol validation and correction for historical data to handle common ticker symbol mistakes
-- **Rationale**: Users may enter incorrect ticker symbols (e.g., "APPL" instead of "AAPL") leading to no data being displayed
-- **Benefits**: Improves user experience, reduces errors, ensures historical data is displayed even with common symbol typos
-- **Implementation**: Added a dictionary of common symbol corrections and logic to automatically correct known symbol mistakes
-
-### Technical Indicators Module Enhancement
-- **Decision**: Added missing calculate_sma and calculate_ema methods to technical indicators module
-- **Rationale**: The indicators chart was failing to display due to missing static methods that were being called in the indicators tab
-- **Benefits**: Fixes indicators chart display, ensures all technical indicators are properly calculated and displayed
-- **Implementation**: Added static calculate_sma and calculate_ema methods following the same pattern as other static methods in the class
-
-### Historical Data Processing Enhancement
-- **Decision**: Enhanced historical data processing with robust error handling and type checking
-- **Rationale**: Historical data was not being displayed because the code assumed data would always be in DataFrame format, but it could be None or other formats
-- **Benefits**: Ensures historical data is properly displayed regardless of the format returned by the API, provides detailed logging for troubleshooting
-- **Implementation**: Added comprehensive type checking, conversion of list data to DataFrame, and detailed error handling with informative logging
+### Feature Tab Integration in Simplified Dashboard
+- **Decision**: Implemented proper callback registration and content generation for additional feature tabs
+- **Rationale**: The simplified dashboard's additional features (Options Chain, Greeks, Technical Indicators, Historical Data, Real-Time Data) were showing only placeholder text instead of actual data
+- **Benefits**: Ensures all additional features display proper data when a symbol is searched, provides a complete user experience
+- **Implementation**:
+  - Modified integration.py to properly register callback functions for each tab (register_greeks_callbacks, register_historical_callbacks, register_real_time_callbacks, register_indicators_callbacks)
+  - Updated the update_feature_content callback to return actual component content instead of placeholder text
+  - Added symbol validation to ensure features only attempt to display data when a valid symbol is provided
+  - Implemented proper error handling to provide meaningful feedback when data cannot be retrieved

@@ -23,6 +23,12 @@ from app.visualizations.validation_charts import (
     create_risk_reward_visualization
 )
 
+# Import tab components and their callback registration functions
+from app.components.greeks_tab import create_greeks_tab, register_greeks_callbacks
+from app.components.indicators_tab import create_indicators_tab, register_indicators_callbacks
+from app.historical_tab import register_historical_callbacks
+from app.real_time_tab import register_real_time_callbacks
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -63,6 +69,12 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
         recommendation_engine: ShortTermRecommendationEngine instance
     """
     logger.info("Registering callbacks...")
+    
+    # Register callbacks for each feature tab
+    register_greeks_callbacks(app)
+    register_indicators_callbacks(app)
+    register_historical_callbacks(app)
+    register_real_time_callbacks(app)
     
     # Callback for symbol search
     @app.callback(
@@ -309,29 +321,144 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
     # Callback for feature tabs content
     @app.callback(
         Output("feature-content", "children"),
-        [Input("feature-tabs", "active_tab")]
+        [Input("feature-tabs", "active_tab"),
+         Input("symbol-input", "value")]
     )
-    def update_feature_content(active_tab):
+    def update_feature_content(active_tab, symbol):
         """Update feature content based on selected tab"""
+        if not symbol:
+            return html.Div([
+                html.P("Please enter a symbol and click Search to view data.")
+            ])
+            
         if active_tab == "tab-options-chain":
-            return html.Div([
-                html.P("Options chain will be displayed here. Select a symbol and expiration date to view options.")
-            ])
+            try:
+                # Get options chain data from data pipeline
+                options_data = data_pipeline.get_options_data_for_timeframe(symbol)
+                
+                if not options_data or not options_data.get('options'):
+                    return html.Div([
+                        html.P(f"No options data available for {symbol}. Please try another symbol.")
+                    ])
+                    
+                # Create options chain table
+                options_list = options_data.get('options', [])
+                
+                # Create DataFrame for display
+                df = pd.DataFrame(options_list)
+                
+                # Create the options chain table
+                return html.Div([
+                    html.H5(f"Options Chain for {symbol}"),
+                    dash_table.DataTable(
+                        id='options-chain-table',
+                        columns=[
+                            {"name": "Type", "id": "option_type"},
+                            {"name": "Strike", "id": "strike", "type": "numeric", "format": {"specifier": ".2f"}},
+                            {"name": "Expiration", "id": "expiration"},
+                            {"name": "Bid", "id": "bid", "type": "numeric", "format": {"specifier": ".2f"}},
+                            {"name": "Ask", "id": "ask", "type": "numeric", "format": {"specifier": ".2f"}},
+                            {"name": "Last", "id": "last", "type": "numeric", "format": {"specifier": ".2f"}},
+                            {"name": "Volume", "id": "volume", "type": "numeric"},
+                            {"name": "Open Int", "id": "open_interest", "type": "numeric"}
+                        ],
+                        data=df.to_dict('records'),
+                        style_table={'overflowX': 'auto'},
+                        style_cell={'textAlign': 'center'},
+                        style_data_conditional=[
+                            {
+                                'if': {'column_id': 'option_type', 'filter_query': '{option_type} eq "CALL"'},
+                                'backgroundColor': '#e6f3ff',
+                                'color': '#0066cc'
+                            },
+                            {
+                                'if': {'column_id': 'option_type', 'filter_query': '{option_type} eq "PUT"'},
+                                'backgroundColor': '#ffe6e6',
+                                'color': '#cc0000'
+                            }
+                        ],
+                        page_size=10
+                    )
+                ])
+                
+            except Exception as e:
+                logger.error(f"Error displaying options chain: {str(e)}")
+                return html.Div([
+                    html.P(f"Error retrieving options chain: {str(e)}")
+                ])
+                
         elif active_tab == "tab-greeks":
-            return html.Div([
-                html.P("Greeks visualization will be displayed here. Select a symbol and expiration date to view Greeks.")
-            ])
+            # Return the Greeks tab content
+            return create_greeks_tab()
+            
         elif active_tab == "tab-indicators":
-            return html.Div([
-                html.P("Technical indicators will be displayed here. Select a symbol and timeframe to view indicators.")
-            ])
+            # Return the Technical Indicators tab content
+            return create_indicators_tab()
+            
         elif active_tab == "tab-historical":
+            # Return the Historical Data tab content
             return html.Div([
-                html.P("Historical data will be displayed here. Select a symbol and timeframe to view historical data.")
+                html.H5(f"Historical Data for {symbol}"),
+                html.Div([
+                    html.Label("Period:"),
+                    dcc.Dropdown(
+                        id='historical-period',
+                        options=[
+                            {'label': '1 Day', 'value': 'day'},
+                            {'label': '1 Week', 'value': 'week'},
+                            {'label': '1 Month', 'value': 'month'},
+                            {'label': '3 Months', 'value': '3month'},
+                            {'label': '1 Year', 'value': 'year'}
+                        ],
+                        value='day',
+                        className='mb-3'
+                    ),
+                    html.Label("Frequency:"),
+                    dcc.Dropdown(
+                        id='historical-frequency',
+                        options=[
+                            {'label': '1 Minute', 'value': '1min'},
+                            {'label': '5 Minutes', 'value': '5min'},
+                            {'label': '15 Minutes', 'value': '15min'},
+                            {'label': '30 Minutes', 'value': '30min'},
+                            {'label': '1 Hour', 'value': '60min'},
+                            {'label': 'Daily', 'value': 'daily'}
+                        ],
+                        value='15min',
+                        className='mb-3'
+                    ),
+                    html.Button('Load Data', id='load-historical-data', className='btn btn-primary mb-3')
+                ]),
+                dcc.Loading(
+                    id="loading-historical",
+                    type="circle",
+                    children=[
+                        dcc.Graph(id='historical-chart')
+                    ]
+                )
             ])
+            
         elif active_tab == "tab-realtime":
+            # Return the Real-Time Data tab content
             return html.Div([
-                html.P("Real-time data will be displayed here. Select a symbol and click Start Stream to view real-time data.")
+                html.H5(f"Real-Time Data for {symbol}"),
+                html.Div([
+                    html.Button('Start Stream', id='start-stream', className='btn btn-success me-2'),
+                    html.Button('Stop Stream', id='stop-stream', className='btn btn-danger')
+                ], className='mb-3'),
+                dcc.Loading(
+                    id="loading-realtime",
+                    type="circle",
+                    children=[
+                        dcc.Graph(id='realtime-chart'),
+                        html.Div(id='realtime-data-table')
+                    ]
+                ),
+                dcc.Interval(
+                    id='realtime-interval',
+                    interval=1000,  # 1 second
+                    disabled=True
+                )
             ])
         
         return html.Div([
