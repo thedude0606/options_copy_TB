@@ -26,8 +26,8 @@ from app.visualizations.validation_charts import (
 # Import tab components and their callback registration functions
 from app.components.greeks_tab import create_greeks_tab, register_greeks_callbacks
 from app.components.indicators_tab import create_indicators_tab, register_indicators_callbacks
-from app.historical_tab import register_historical_callbacks
-from app.real_time_tab import register_real_time_callbacks
+from app.historical_tab import create_historical_tab, register_historical_callbacks
+from app.real_time_tab import get_real_time_tab_layout, register_real_time_callbacks
 
 # Set up logging
 logging.basicConfig(
@@ -389,81 +389,301 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
                 
         elif active_tab == "tab-greeks":
             # Return the Greeks tab content
-            return create_greeks_tab()
+            try:
+                # Pass the current symbol to the Greeks tab
+                greeks_content = create_greeks_tab()
+                
+                # Add a script to automatically fill the symbol input and click analyze
+                auto_fill_script = html.Script(f'''
+                    setTimeout(function() {{
+                        var symbolInput = document.getElementById("greeks-symbol-input");
+                        var analyzeButton = document.getElementById("greeks-analyze-button");
+                        if (symbolInput && analyzeButton) {{
+                            symbolInput.value = "{symbol}";
+                            analyzeButton.click();
+                        }}
+                    }}, 500);
+                ''')
+                
+                return html.Div([
+                    greeks_content,
+                    auto_fill_script
+                ])
+            except Exception as e:
+                logger.error(f"Error displaying Greeks tab: {str(e)}")
+                return html.Div([
+                    html.P(f"Error displaying Greeks tab: {str(e)}")
+                ])
             
         elif active_tab == "tab-indicators":
             # Return the Technical Indicators tab content
-            return create_indicators_tab()
+            try:
+                # Pass the current symbol to the Indicators tab
+                indicators_content = create_indicators_tab()
+                
+                # Add a script to automatically fill the symbol input and click analyze
+                auto_fill_script = html.Script(f'''
+                    setTimeout(function() {{
+                        var symbolInput = document.getElementById("indicator-symbol-input");
+                        var analyzeButton = document.getElementById("indicator-analyze-button");
+                        var updateButton = document.getElementById("update-indicators-button");
+                        if (symbolInput && analyzeButton) {{
+                            symbolInput.value = "{symbol}";
+                            analyzeButton.click();
+                            setTimeout(function() {{
+                                if (updateButton) {{
+                                    updateButton.click();
+                                }}
+                            }}, 1000);
+                        }}
+                    }}, 500);
+                ''')
+                
+                return html.Div([
+                    indicators_content,
+                    auto_fill_script
+                ])
+            except Exception as e:
+                logger.error(f"Error displaying Technical Indicators tab: {str(e)}")
+                return html.Div([
+                    html.P(f"Error displaying Technical Indicators tab: {str(e)}")
+                ])
             
         elif active_tab == "tab-historical":
             # Return the Historical Data tab content
-            return html.Div([
-                html.H5(f"Historical Data for {symbol}"),
-                html.Div([
-                    html.Label("Period:"),
-                    dcc.Dropdown(
-                        id='historical-period',
-                        options=[
-                            {'label': '1 Day', 'value': 'day'},
-                            {'label': '1 Week', 'value': 'week'},
-                            {'label': '1 Month', 'value': 'month'},
-                            {'label': '3 Months', 'value': '3month'},
-                            {'label': '1 Year', 'value': 'year'}
-                        ],
-                        value='day',
-                        className='mb-3'
-                    ),
-                    html.Label("Frequency:"),
-                    dcc.Dropdown(
-                        id='historical-frequency',
-                        options=[
-                            {'label': '1 Minute', 'value': '1min'},
-                            {'label': '5 Minutes', 'value': '5min'},
-                            {'label': '15 Minutes', 'value': '15min'},
-                            {'label': '30 Minutes', 'value': '30min'},
-                            {'label': '1 Hour', 'value': '60min'},
-                            {'label': 'Daily', 'value': 'daily'}
-                        ],
-                        value='15min',
-                        className='mb-3'
-                    ),
-                    html.Button('Load Data', id='load-historical-data', className='btn btn-primary mb-3')
-                ]),
-                dcc.Loading(
-                    id="loading-historical",
-                    type="circle",
-                    children=[
-                        dcc.Graph(id='historical-chart')
-                    ]
-                )
-            ])
+            try:
+                # Create the historical tab content
+                historical_content = create_historical_tab()
+                
+                # Add a script to automatically load data for the current symbol
+                auto_load_script = html.Script(f'''
+                    setTimeout(function() {{
+                        var loadButton = document.getElementById("load-historical-data");
+                        if (loadButton) {{
+                            // Set the current symbol in a hidden input
+                            var hiddenInput = document.createElement("input");
+                            hiddenInput.type = "hidden";
+                            hiddenInput.id = "hidden-symbol-input";
+                            hiddenInput.value = "{symbol}";
+                            document.body.appendChild(hiddenInput);
+                            
+                            // Click the load button
+                            loadButton.click();
+                        }}
+                    }}, 500);
+                ''')
+                
+                return html.Div([
+                    historical_content,
+                    auto_load_script
+                ])
+            except Exception as e:
+                logger.error(f"Error displaying Historical Data tab: {str(e)}")
+                return html.Div([
+                    html.P(f"Error displaying Historical Data tab: {str(e)}")
+                ])
             
         elif active_tab == "tab-realtime":
             # Return the Real-Time Data tab content
-            return html.Div([
-                html.H5(f"Real-Time Data for {symbol}"),
-                html.Div([
-                    html.Button('Start Stream', id='start-stream', className='btn btn-success me-2'),
-                    html.Button('Stop Stream', id='stop-stream', className='btn btn-danger')
-                ], className='mb-3'),
-                dcc.Loading(
-                    id="loading-realtime",
-                    type="circle",
-                    children=[
-                        dcc.Graph(id='realtime-chart'),
-                        html.Div(id='realtime-data-table')
-                    ]
-                ),
-                dcc.Interval(
-                    id='realtime-interval',
-                    interval=1000,  # 1 second
-                    disabled=True
-                )
-            ])
+            try:
+                # Create the real-time tab content
+                realtime_content = get_real_time_tab_layout()
+                
+                # Add a script to automatically add the symbol and start the stream
+                auto_start_script = html.Script(f'''
+                    setTimeout(function() {{
+                        var symbolInput = document.getElementById("rt-symbol-input");
+                        var addButton = document.getElementById("rt-add-symbol-button");
+                        var startButton = document.getElementById("rt-start-stream-button");
+                        
+                        if (symbolInput && addButton && startButton) {{
+                            symbolInput.value = "{symbol}";
+                            addButton.click();
+                            
+                            setTimeout(function() {{
+                                startButton.click();
+                            }}, 500);
+                        }}
+                    }}, 500);
+                ''')
+                
+                return html.Div([
+                    realtime_content,
+                    auto_start_script
+                ])
+            except Exception as e:
+                logger.error(f"Error displaying Real-Time Data tab: {str(e)}")
+                return html.Div([
+                    html.P(f"Error displaying Real-Time Data tab: {str(e)}")
+                ])
         
         return html.Div([
             html.P("Select a tab to view content.")
         ])
+    
+    # Add callback to update real-time data
+    @app.callback(
+        Output("rt-stream-data", "data"),
+        [Input("rt-update-interval", "n_intervals")],
+        [State("rt-symbols-store", "data"),
+         State("rt-connection-store", "data"),
+         State("rt-data-type", "value")]
+    )
+    def update_stream_data(n_intervals, symbols, connection_data, data_type):
+        """Update real-time data stream"""
+        if not n_intervals or not symbols or not connection_data or not connection_data.get("active", False):
+            return {}
+            
+        try:
+            # Get real-time data for each symbol
+            data_dict = {}
+            
+            for symbol in symbols:
+                # Get real-time data from data pipeline
+                if data_type == "quotes":
+                    quote_data = data_pipeline.get_real_time_data(symbol)
+                    
+                    if quote_data:
+                        # Format data for chart
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        price = quote_data.get("last_price", 0)
+                        
+                        # Initialize symbol data if not exists
+                        if symbol not in data_dict:
+                            data_dict[symbol] = {
+                                "timestamps": [],
+                                "prices": [],
+                                "volumes": [],
+                                "last_price": price,
+                                "change": quote_data.get("change", 0),
+                                "change_percent": quote_data.get("change_percent", 0),
+                                "bid": quote_data.get("bid", 0),
+                                "ask": quote_data.get("ask", 0),
+                                "volume": quote_data.get("volume", 0)
+                            }
+                        
+                        # Add new data point
+                        data_dict[symbol]["timestamps"].append(timestamp)
+                        data_dict[symbol]["prices"].append(price)
+                        data_dict[symbol]["volumes"].append(quote_data.get("volume", 0))
+                        
+                        # Keep only last 100 data points
+                        if len(data_dict[symbol]["timestamps"]) > 100:
+                            data_dict[symbol]["timestamps"] = data_dict[symbol]["timestamps"][-100:]
+                            data_dict[symbol]["prices"] = data_dict[symbol]["prices"][-100:]
+                            data_dict[symbol]["volumes"] = data_dict[symbol]["volumes"][-100:]
+                
+                elif data_type == "options":
+                    options_data = data_pipeline.get_options_data_for_timeframe(symbol)
+                    
+                    if options_data and options_data.get("options"):
+                        data_dict[symbol] = {
+                            "options": options_data.get("options", []),
+                            "timestamp": datetime.now().strftime("%H:%M:%S"),
+                            "underlying_price": options_data.get("underlying_price", 0)
+                        }
+            
+            return data_dict
+            
+        except Exception as e:
+            logger.error(f"Error updating stream data: {str(e)}")
+            return {}
+    
+    # Add callback to update historical data with hidden symbol input
+    @app.callback(
+        Output("historical-chart", "figure", allow_duplicate=True),
+        [Input("load-historical-data", "n_clicks")],
+        [State("hidden-symbol-input", "value"),
+         State("historical-period", "value"),
+         State("historical-frequency", "value")],
+        prevent_initial_call=True
+    )
+    def update_historical_data_from_hidden(n_clicks, symbol, period, frequency):
+        """Update historical data chart using hidden symbol input"""
+        if not n_clicks or not symbol:
+            return dash.no_update
+            
+        try:
+            # Map period and frequency to API parameters
+            period_mapping = {
+                'day': ('day', 1, 'minute', 5),
+                'week': ('day', 7, 'minute', 30),
+                'month': ('month', 1, 'daily', 1),
+                '3month': ('month', 3, 'daily', 1),
+                'year': ('year', 1, 'daily', 1)
+            }
+            
+            # Get period parameters
+            period_type, period_value, freq_type, freq_value = period_mapping.get(period, ('month', 1, 'daily', 1))
+            
+            # Override frequency if specified
+            if frequency:
+                freq_mapping = {
+                    '1min': ('minute', 1),
+                    '5min': ('minute', 5),
+                    '15min': ('minute', 15),
+                    '30min': ('minute', 30),
+                    '60min': ('minute', 60),
+                    'daily': ('daily', 1)
+                }
+                if frequency in freq_mapping:
+                    freq_type, freq_value = freq_mapping[frequency]
+            
+            # Get historical data
+            data_collector = DataCollector()
+            historical_data = data_collector.get_historical_data(
+                symbol, 
+                period_type=period_type, 
+                period=period_value, 
+                frequency_type=freq_type, 
+                frequency=freq_value
+            )
+            
+            # Create candlestick chart
+            if historical_data is not None and not historical_data.empty:
+                fig = go.Figure(data=[
+                    go.Candlestick(
+                        x=historical_data.index if hasattr(historical_data, 'index') else historical_data['datetime'],
+                        open=historical_data['open'],
+                        high=historical_data['high'],
+                        low=historical_data['low'],
+                        close=historical_data['close'],
+                        name="Price"
+                    )
+                ])
+                
+                # Add volume as bar chart on secondary y-axis
+                fig.add_trace(
+                    go.Bar(
+                        x=historical_data.index if hasattr(historical_data, 'index') else historical_data['datetime'],
+                        y=historical_data['volume'],
+                        name="Volume",
+                        yaxis="y2",
+                        marker_color='rgba(0, 0, 255, 0.5)'
+                    )
+                )
+                
+                # Update layout
+                fig.update_layout(
+                    title=f"Historical Data for {symbol}",
+                    xaxis_title="Date",
+                    yaxis_title="Price",
+                    yaxis2=dict(
+                        title="Volume",
+                        overlaying="y",
+                        side="right",
+                        showgrid=False
+                    ),
+                    height=600
+                )
+                
+                return fig
+            else:
+                return go.Figure()
+                
+        except Exception as e:
+            logger.error(f"Error updating historical chart: {str(e)}")
+            return go.Figure()
     
     logger.info("Callbacks registered successfully")
 
