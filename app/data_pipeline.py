@@ -191,32 +191,119 @@ class ShortTermDataPipeline:
             # Get options chain
             options_chain = self.data_collector.get_options_chain(symbol)
             
-            if not options_chain or 'options' not in options_chain:
+            # Check if we have a valid options chain with the expected structure
+            if not options_chain:
+                self.logger.warning(f"No options data returned for {symbol}")
+                return {'options': [], 'expirations': []}
+                
+            # Check for the actual structure returned by Schwab API
+            # Based on logs, we expect callExpDateMap and putExpDateMap instead of 'options'
+            if 'callExpDateMap' not in options_chain and 'putExpDateMap' not in options_chain:
                 self.logger.warning(f"No options data returned for {symbol}")
                 return {'options': [], 'expirations': []}
             
-            # Filter expirations based on timeframe
-            today = datetime.now().date()
-            max_date = today + timedelta(days=days_to_include)
+            # Extract underlying price
+            underlying_price = options_chain.get('underlyingPrice', 0)
             
+            # Process call and put options
             filtered_options = []
-            for option in options_chain.get('options', []):
+            expirations = set()
+            
+            # Process call options
+            call_exp_map = options_chain.get('callExpDateMap', {})
+            for exp_date_str, strikes in call_exp_map.items():
+                # Extract date part (format: "YYYY-MM-DD:X")
+                exp_date_parts = exp_date_str.split(':')
+                if len(exp_date_parts) > 0:
+                    exp_date_str = exp_date_parts[0]
+                    
                 try:
-                    exp_date = datetime.strptime(option['expiration'], '%Y-%m-%d').date()
+                    exp_date = datetime.strptime(exp_date_str, '%Y-%m-%d').date()
+                    # Check if this expiration is within our timeframe filter
+                    today = datetime.now().date()
+                    max_date = today + timedelta(days=days_to_include)
+                    
                     if exp_date <= max_date:
-                        filtered_options.append(option)
+                        expirations.add(exp_date_str)
+                        
+                        # Process each strike price
+                        for strike_str, strike_data in strikes.items():
+                            for option in strike_data:
+                                # Create a standardized option object
+                                option_obj = {
+                                    'symbol': option.get('symbol', ''),
+                                    'expiration': exp_date_str,
+                                    'strike': float(strike_str),
+                                    'option_type': 'CALL',
+                                    'bid': option.get('bid', 0),
+                                    'ask': option.get('ask', 0),
+                                    'last': option.get('last', 0),
+                                    'mark': option.get('mark', 0),
+                                    'delta': option.get('delta', 0),
+                                    'gamma': option.get('gamma', 0),
+                                    'theta': option.get('theta', 0),
+                                    'vega': option.get('vega', 0),
+                                    'rho': option.get('rho', 0),
+                                    'volume': option.get('totalVolume', 0),
+                                    'open_interest': option.get('openInterest', 0),
+                                    'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
+                                    'in_the_money': option.get('inTheMoney', False)
+                                }
+                                filtered_options.append(option_obj)
                 except (ValueError, KeyError) as e:
-                    self.logger.warning(f"Error processing expiration date: {str(e)}")
+                    self.logger.warning(f"Error processing call expiration date: {str(e)}")
                     continue
             
-            # Get unique expirations from filtered options
-            expirations = list(set([opt['expiration'] for opt in filtered_options if 'expiration' in opt]))
+            # Process put options
+            put_exp_map = options_chain.get('putExpDateMap', {})
+            for exp_date_str, strikes in put_exp_map.items():
+                # Extract date part (format: "YYYY-MM-DD:X")
+                exp_date_parts = exp_date_str.split(':')
+                if len(exp_date_parts) > 0:
+                    exp_date_str = exp_date_parts[0]
+                    
+                try:
+                    exp_date = datetime.strptime(exp_date_str, '%Y-%m-%d').date()
+                    # Check if this expiration is within our timeframe filter
+                    today = datetime.now().date()
+                    max_date = today + timedelta(days=days_to_include)
+                    
+                    if exp_date <= max_date:
+                        expirations.add(exp_date_str)
+                        
+                        # Process each strike price
+                        for strike_str, strike_data in strikes.items():
+                            for option in strike_data:
+                                # Create a standardized option object
+                                option_obj = {
+                                    'symbol': option.get('symbol', ''),
+                                    'expiration': exp_date_str,
+                                    'strike': float(strike_str),
+                                    'option_type': 'PUT',
+                                    'bid': option.get('bid', 0),
+                                    'ask': option.get('ask', 0),
+                                    'last': option.get('last', 0),
+                                    'mark': option.get('mark', 0),
+                                    'delta': option.get('delta', 0),
+                                    'gamma': option.get('gamma', 0),
+                                    'theta': option.get('theta', 0),
+                                    'vega': option.get('vega', 0),
+                                    'rho': option.get('rho', 0),
+                                    'volume': option.get('totalVolume', 0),
+                                    'open_interest': option.get('openInterest', 0),
+                                    'implied_volatility': option.get('volatility', 0) / 100 if option.get('volatility') else 0,
+                                    'in_the_money': option.get('inTheMoney', False)
+                                }
+                                filtered_options.append(option_obj)
+                except (ValueError, KeyError) as e:
+                    self.logger.warning(f"Error processing put expiration date: {str(e)}")
+                    continue
             
             return {
                 'symbol': symbol,
-                'underlying_price': options_chain.get('underlying_price', 0),
+                'underlying_price': underlying_price,
                 'options': filtered_options,
-                'expirations': sorted(expirations)
+                'expirations': sorted(list(expirations))
             }
             
         except Exception as e:
