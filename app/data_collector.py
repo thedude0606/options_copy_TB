@@ -69,19 +69,19 @@ class DataCollector:
                                 if symbol in quote_data:
                                     symbol_data = quote_data[symbol]
                                     return {
-                                        'lastPrice': symbol_data.get('lastPrice', 0),
-                                        'netChange': symbol_data.get('netChange', 0),
-                                        'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
-                                        'totalVolume': symbol_data.get('totalVolume', 0),
+                                        'lastPrice': symbol_data.get('lastPrice', symbol_data.get('last', symbol_data.get('mark', 0))),
+                                        'netChange': symbol_data.get('netChange', symbol_data.get('change', symbol_data.get('markChange', 0))),
+                                        'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', symbol_data.get('percentChange', symbol_data.get('markPercentChange', 0))),
+                                        'totalVolume': symbol_data.get('totalVolume', symbol_data.get('volume', symbol_data.get('totalVolume', 0))),
                                         'description': symbol_data.get('description', symbol)
                                     }
                                 else:
                                     # If not nested, try to get data directly
                                     return {
-                                        'lastPrice': quote_data.get('lastPrice', 0),
-                                        'netChange': quote_data.get('netChange', 0),
-                                        'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', 0),
-                                        'totalVolume': quote_data.get('totalVolume', 0),
+                                        'lastPrice': quote_data.get('lastPrice', quote_data.get('last', quote_data.get('mark', 0))),
+                                        'netChange': quote_data.get('netChange', quote_data.get('change', quote_data.get('markChange', 0))),
+                                        'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', quote_data.get('percentChange', quote_data.get('markPercentChange', 0))),
+                                        'totalVolume': quote_data.get('totalVolume', quote_data.get('volume', quote_data.get('totalVolume', 0))),
                                         'description': quote_data.get('description', symbol)
                                     }
                             except ValueError as e:
@@ -157,19 +157,19 @@ class DataCollector:
                                     if idx_symbol in quote_data:
                                         symbol_data = quote_data[idx_symbol]
                                         quotes[idx_symbol] = {
-                                            'lastPrice': symbol_data.get('lastPrice', 0),
-                                            'netChange': symbol_data.get('netChange', 0),
-                                            'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
-                                            'totalVolume': symbol_data.get('totalVolume', 0),
+                                            'lastPrice': symbol_data.get('lastPrice', symbol_data.get('last', symbol_data.get('mark', 0))),
+                                            'netChange': symbol_data.get('netChange', symbol_data.get('change', symbol_data.get('markChange', 0))),
+                                            'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', symbol_data.get('percentChange', symbol_data.get('markPercentChange', 0))),
+                                            'totalVolume': symbol_data.get('totalVolume', symbol_data.get('volume', symbol_data.get('totalVolume', 0))),
                                             'description': symbol_data.get('description', idx_symbol)
                                         }
                                     else:
                                         # If not nested, try to get data directly
                                         quotes[idx_symbol] = {
-                                            'lastPrice': quote_data.get('lastPrice', 0),
-                                            'netChange': quote_data.get('netChange', 0),
-                                            'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', 0),
-                                            'totalVolume': quote_data.get('totalVolume', 0),
+                                            'lastPrice': quote_data.get('lastPrice', quote_data.get('last', quote_data.get('mark', 0))),
+                                            'netChange': quote_data.get('netChange', quote_data.get('change', quote_data.get('markChange', 0))),
+                                            'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', quote_data.get('percentChange', quote_data.get('markPercentChange', 0))),
+                                            'totalVolume': quote_data.get('totalVolume', quote_data.get('volume', quote_data.get('totalVolume', 0))),
                                             'description': quote_data.get('description', idx_symbol)
                                         }
                                 except ValueError as e:
@@ -188,18 +188,18 @@ class DataCollector:
                             if idx_symbol in quote_response:
                                 symbol_data = quote_response[idx_symbol]
                                 quotes[idx_symbol] = {
-                                    'lastPrice': symbol_data.get('lastPrice', 0),
-                                    'netChange': symbol_data.get('netChange', 0),
-                                    'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
-                                    'totalVolume': symbol_data.get('totalVolume', 0),
+                                    'lastPrice': symbol_data.get('lastPrice', symbol_data.get('last', symbol_data.get('mark', 0))),
+                                    'netChange': symbol_data.get('netChange', symbol_data.get('change', symbol_data.get('markChange', 0))),
+                                    'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', symbol_data.get('percentChange', symbol_data.get('markPercentChange', 0))),
+                                    'totalVolume': symbol_data.get('totalVolume', symbol_data.get('volume', symbol_data.get('totalVolume', 0))),
                                     'description': symbol_data.get('description', idx_symbol)
                                 }
                             else:
                                 quotes[idx_symbol] = {
-                                    'lastPrice': quote_response.get('lastPrice', 0),
-                                    'netChange': quote_response.get('netChange', 0),
-                                    'netPercentChangeInDouble': quote_response.get('netPercentChangeInDouble', 0),
-                                    'totalVolume': quote_response.get('totalVolume', 0),
+                                    'lastPrice': quote_response.get('lastPrice', quote_response.get('last', quote_response.get('mark', 0))),
+                                    'netChange': quote_response.get('netChange', quote_response.get('change', quote_response.get('markChange', 0))),
+                                    'netPercentChangeInDouble': quote_response.get('netPercentChangeInDouble', quote_response.get('percentChange', quote_response.get('markPercentChange', 0))),
+                                    'totalVolume': quote_response.get('totalVolume', quote_response.get('volume', quote_response.get('totalVolume', 0))),
                                     'description': quote_response.get('description', idx_symbol)
                                 }
                         else:
@@ -334,11 +334,22 @@ class DataCollector:
             symbol (str): The stock symbol to get options for
             
         Returns:
-            dict: Option chain data with underlying price
+            dict: Option chain data with callExpDateMap and putExpDateMap
         """
-        # This is a wrapper around get_option_chain_with_underlying_price to match the expected method name
-        # in the error logs and provide compatibility with both naming conventions
-        return self.get_option_chain_with_underlying_price(symbol)
+        # Get the option chain with underlying price
+        option_data = self.get_option_chain_with_underlying_price(symbol)
+        
+        # Extract the raw option chain data to expose callExpDateMap and putExpDateMap directly
+        if option_data and 'option_chain' in option_data and option_data['option_chain']:
+            # Return the raw option chain which should contain callExpDateMap and putExpDateMap
+            return option_data['option_chain']
+        else:
+            # Return empty data with the expected structure
+            return {
+                'symbol': symbol,
+                'callExpDateMap': {},
+                'putExpDateMap': {}
+            }
     
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', 
                            frequency=1, need_extended_hours_data=True):
