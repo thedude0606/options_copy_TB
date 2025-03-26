@@ -89,10 +89,29 @@ class DataCollector:
                                     # Check if data is nested under 'extended' object based on user logs
                                     if 'extended' in symbol_data:
                                         extended_data = symbol_data.get('extended', {})
+                                        # Add more verbose debugging to examine extended data structure
+                                        if VERBOSE_DEBUG:
+                                            print(f"Extended data keys: {list(extended_data.keys() if isinstance(extended_data, dict) else [])}")
+                                            print(f"Extended data content: {json.dumps(extended_data, indent=2)[:500]}...")
+                                        
+                                        # Calculate netChange if not directly available
+                                        last_price = extended_data.get('lastPrice', 0)
+                                        previous_close = symbol_data.get('fundamental', {}).get('previousClose', 0)
+                                        if previous_close and previous_close > 0:
+                                            calculated_net_change = last_price - previous_close
+                                            calculated_percent_change = (calculated_net_change / previous_close) * 100 if previous_close > 0 else 0
+                                        else:
+                                            calculated_net_change = 0
+                                            calculated_percent_change = 0
+                                            
+                                        if VERBOSE_DEBUG:
+                                            print(f"lastPrice: {last_price}, previousClose: {previous_close}")
+                                            print(f"Calculated netChange: {calculated_net_change}, percentChange: {calculated_percent_change}")
+                                        
                                         return {
-                                            'lastPrice': extended_data.get('lastPrice', 0),
-                                            'netChange': extended_data.get('netChange', 0),
-                                            'netPercentChangeInDouble': extended_data.get('netPercentChangeInDouble', 0),
+                                            'lastPrice': last_price,
+                                            'netChange': extended_data.get('netChange', calculated_net_change),
+                                            'netPercentChangeInDouble': extended_data.get('netPercentChangeInDouble', calculated_percent_change),
                                             'totalVolume': extended_data.get('totalVolume', 0),
                                             'description': symbol_data.get('description', symbol)
                                         }

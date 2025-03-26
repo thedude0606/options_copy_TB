@@ -97,6 +97,7 @@
   - Fixed Technical Indicators feature by implementing proper data processing and visualization
   - **Fixed market data showing zeros issue** by enhancing the quote response processing in data_collector.py to handle multiple response formats from the Schwab API, particularly adding support for when data is in a 'quotes' array
   - **Enhanced market data extraction** to handle price data nested under the 'extended' object within symbol data based on user feedback and log analysis
+  - **Implemented calculation for netChange values** by using lastPrice from extended data and previousClose from fundamental data to ensure accurate price change information
 
 ## Current Work in Progress
 
