@@ -118,15 +118,15 @@ class DataCollector:
                     print(f"Error getting quote for {symbol}: {str(e)}")
                     if VERBOSE_DEBUG:
                         print(traceback.format_exc())
-                
-                # Return empty data if we couldn't get a quote
-                return {
-                    'lastPrice': 0,
-                    'netChange': 0,
-                    'netPercentChangeInDouble': 0,
-                    'totalVolume': 0,
-                    'description': symbol
-                }
+                    
+                    # Return empty data if we couldn't get a quote
+                    return {
+                        'lastPrice': 0,
+                        'netChange': 0,
+                        'netPercentChangeInDouble': 0,
+                        'totalVolume': 0,
+                        'description': symbol
+                    }
             
             # If no specific symbol is requested, get data for major indices
             else:
@@ -293,11 +293,37 @@ class DataCollector:
             
             # Process the response
             option_chain = None
-            if hasattr(option_chain_response, 'json'):
-                try:
-                    option_chain = option_chain_response.json()
-                    if DEBUG_MODE:
-                        print(f"Option chain received for {symbol}, keys: {list(option_chain.keys() if isinstance(option_chain, dict) else [])}")
+            if isinstance(option_chain_response, requests.Response):
+                if option_chain_response.status_code == 200:
+                    try:
+                        option_chain = option_chain_response.json()
+                        if DEBUG_MODE:
+                            print(f"Option chain received for {symbol}, keys: {list(option_chain.keys() if isinstance(option_chain, dict) else [])}")
+                            if isinstance(option_chain, dict) and 'underlying' in option_chain:
+                                print(f"Option chain structure for {symbol}:")
+                                print(f"Top-level keys: {list(option_chain.keys())}")
+                        return option_chain
+                    except ValueError as e:
+                        print(f"Error parsing JSON for option chain: {str(e)}")
+                        if DEBUG_MODE and hasattr(option_chain_response, 'text'):
+                            print(f"Response text: {option_chain_response.text[:200]}...")
+                else:
+                    print(f"Option chain response not OK. Status code: {option_chain_response.status_code}")
+            elif isinstance(option_chain_response, dict):
+                # If the client already returned a dict instead of a Response object
+                if DEBUG_MODE:
+                    print(f"Option chain response is already a dict for {symbol}")
+                return option_chain_response
+            else:
+                print(f"Unexpected option chain response type: {type(option_chain_response)}")
+            
+            return None
+        except Exception as e:
+            print(f"Error retrieving option chain for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return None
                 except Exception as e:
                     if DEBUG_MODE:
                         print(f"Error parsing option chain JSON: {str(e)}")
@@ -327,9 +353,9 @@ class DataCollector:
             symbol (str): The stock symbol to get options for
             
         Returns:
-            dict: Option chain data
+            dict: Option chain data with underlying price
         """
-        # This is a wrapper around get_option_chain to match the expected method name
+        # This is a wrapper around get_option_chain_with_underlying_price to match the expected method name
         # in the error logs and provide compatibility with both naming conventions
         return self.get_option_chain_with_underlying_price(symbol)
     
@@ -628,8 +654,39 @@ class DataCollector:
             if DEBUG_MODE:
                 print(f"Requesting option chain with underlying price for: {symbol}")
             
-            # Get option chain
-            option_chain = self.get_option_chain(symbol)
+            # Get option chain directly from client instead of calling get_option_chain to avoid circular reference
+            option_chain_response = self.client.option_chains(
+                symbol=symbol,
+                contractType="ALL",
+                strikeCount=10,  # Get options around the current price
+                includeUnderlyingQuote=True,
+                strategy="SINGLE"
+            )
+            
+            if DEBUG_MODE:
+                print(f"Option chain response type: {type(option_chain_response)}")
+                if hasattr(option_chain_response, 'status_code'):
+                    print(f"Status code: {option_chain_response.status_code}")
+            
+            # Process the response
+            option_chain = None
+            if isinstance(option_chain_response, requests.Response):
+                if option_chain_response.status_code == 200:
+                    try:
+                        option_chain = option_chain_response.json()
+                        if DEBUG_MODE:
+                            print(f"Option chain received for {symbol}, keys: {list(option_chain.keys() if isinstance(option_chain, dict) else [])}")
+                    except ValueError as e:
+                        print(f"Error parsing JSON for option chain: {str(e)}")
+                        return None
+                else:
+                    print(f"Option chain response not OK. Status code: {option_chain_response.status_code}")
+                    return None
+            elif isinstance(option_chain_response, dict):
+                option_chain = option_chain_response
+            else:
+                print(f"Unexpected option chain response type: {type(option_chain_response)}")
+                return None
             
             if option_chain:
                 # Extract underlying price
