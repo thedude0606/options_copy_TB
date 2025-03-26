@@ -733,7 +733,7 @@ def reset_indicator_params(n_clicks):
     """
     return 14, 70, 30, 12, 26, 9, 20, 2, 20, 50, 20
 
-def register_callbacks(app):
+def register_indicators_callbacks(app):
     """
     Register callbacks for the indicators tab
     
