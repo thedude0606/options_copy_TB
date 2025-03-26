@@ -291,7 +291,7 @@ class RecommendationEngine:
                 logger.info(f"Fetching options data for {symbol}")
             
             # Get option chain
-            option_chain = self.data_collector.get_option_chain(symbol)
+            option_chain = self.data_collector.get_option_chain_with_underlying_price(symbol)
             
             if not option_chain or 'options' not in option_chain or not option_chain['options']:
                 logger.warning(f"No options data returned for {symbol}")
@@ -1111,7 +1111,7 @@ class ShortTermRecommendationEngine(RecommendationEngine):
                 return []
             
             # Get option chain
-            option_chain = self.data_collector.get_option_chain(symbol)
+            option_chain = self.data_collector.get_option_chain_with_underlying_price(symbol)
             
             if not option_chain or 'options' not in option_chain or not option_chain['options']:
                 self.logger.warning(f"No options data available for {symbol}")
