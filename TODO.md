@@ -18,6 +18,7 @@
 - [x] Update main application layout
 - [x] Fix datetime handling error in options analysis
 - [x] Fix missing 'underlyingPrice' issue in options data retrieval
+- [x] Fix current price usage in recommendation engine to properly access underlying price
 - [x] Implement enhanced debugging for API responses to identify data structure issues
 - [x] Implement proper callback registrations for all dashboard tabs
 - [x] Create missing Historical Data tab functionality

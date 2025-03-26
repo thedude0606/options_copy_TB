@@ -64,6 +64,8 @@
   - Enhanced get_option_chain_with_underlying_price method to handle both camelCase 'underlyingPrice' and snake_case 'underlying_price'
   - Added support for extracting price from 'underlying' object in option chain data
   - Implemented comprehensive debugging for API responses to identify data structure issues
+  - Fixed current price usage in recommendation engine to properly access underlying price from different data sources
+  - Enhanced get_real_time_data method to handle nested quote structures and use multiple fallback price sources
   - Improved the scoring algorithm to handle edge cases better in the recommendation engine
   - Fixed Bollinger Bands calculation by correcting parameter name mismatch ('num_std' to 'std_dev')
   - Enhanced recommendation engine to always show top recommendations even when confidence threshold isn't met
