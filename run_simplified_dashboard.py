@@ -63,7 +63,7 @@ except Exception as e:
 # Create app layout
 try:
     logger.info("Creating app layout...")
-    app.layout = create_simplified_layout()
+    app.layout = create_simplified_layout(app, recommendation_engine)
     logger.info("App layout created successfully")
 except Exception as e:
     logger.error(f"Error creating app layout: {str(e)}")
