@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 import os
 import json
+import requests
 
 from app.data_collector import DataCollector
 from app.components.header import create_header
@@ -221,21 +222,67 @@ class OptionsDashboard:
                     print(f"Requesting quote for symbol: {symbol}")
                     quote_response = self.client.quote(symbol)
                     
-                    if hasattr(quote_response, 'json'):
-                        quote_data = quote_response.json()
-                        quotes[symbol] = {
-                            'lastPrice': quote_data.get('lastPrice', 0),
-                            'netChange': quote_data.get('netChange', 0),
-                            'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', 0),
-                            'totalVolume': quote_data.get('totalVolume', 0),
-                            'description': quote_data.get('description', symbol)
-                        }
-                        print(f"Quote received for {symbol}")
-                        print(f"Quote data keys: {list(quotes.keys())}")
+                    # Enhanced debugging for quote response
+                    print(f"Quote response type: {type(quote_response)}")
+                    
+                    # Check if response is a requests.Response object
+                    if isinstance(quote_response, requests.Response):
+                        if quote_response.status_code == 200:
+                            try:
+                                quote_data = quote_response.json()
+                                print(f"Quote JSON data for {symbol}: {quote_data}")
+                                
+                                # The Schwab API returns data in a specific format
+                                # The actual quote data might be nested under the symbol key
+                                if symbol in quote_data:
+                                    symbol_data = quote_data[symbol]
+                                    quotes[symbol] = {
+                                        'lastPrice': symbol_data.get('lastPrice', 0),
+                                        'netChange': symbol_data.get('netChange', 0),
+                                        'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
+                                        'totalVolume': symbol_data.get('totalVolume', 0),
+                                        'description': symbol_data.get('description', symbol)
+                                    }
+                                else:
+                                    # If not nested, try to get data directly
+                                    quotes[symbol] = {
+                                        'lastPrice': quote_data.get('lastPrice', 0),
+                                        'netChange': quote_data.get('netChange', 0),
+                                        'netPercentChangeInDouble': quote_data.get('netPercentChangeInDouble', 0),
+                                        'totalVolume': quote_data.get('totalVolume', 0),
+                                        'description': quote_data.get('description', symbol)
+                                    }
+                                print(f"Quote processed for {symbol}: {quotes[symbol]}")
+                            except ValueError as e:
+                                print(f"Error parsing JSON for {symbol}: {str(e)}")
+                                # Try to get the raw text for debugging
+                                print(f"Response text: {quote_response.text[:200]}...")
+                        else:
+                            print(f"Quote response not OK for {symbol}. Status code: {quote_response.status_code}")
+                    elif isinstance(quote_response, dict):
+                        # If the client already returned a dict instead of a Response object
+                        print(f"Quote response is already a dict for {symbol}")
+                        if symbol in quote_response:
+                            symbol_data = quote_response[symbol]
+                            quotes[symbol] = {
+                                'lastPrice': symbol_data.get('lastPrice', 0),
+                                'netChange': symbol_data.get('netChange', 0),
+                                'netPercentChangeInDouble': symbol_data.get('netPercentChangeInDouble', 0),
+                                'totalVolume': symbol_data.get('totalVolume', 0),
+                                'description': symbol_data.get('description', symbol)
+                            }
+                        else:
+                            quotes[symbol] = {
+                                'lastPrice': quote_response.get('lastPrice', 0),
+                                'netChange': quote_response.get('netChange', 0),
+                                'netPercentChangeInDouble': quote_response.get('netPercentChangeInDouble', 0),
+                                'totalVolume': quote_response.get('totalVolume', 0),
+                                'description': quote_response.get('description', symbol)
+                            }
+                        print(f"Quote processed for {symbol}: {quotes[symbol]}")
                     else:
-                        print(f"No quote data received for {symbol}")
-                        if hasattr(quote_response, 'status_code'):
-                            print(f"Quote response not OK. Status code: {quote_response.status_code}")
+                        print(f"Unexpected quote response type for {symbol}: {type(quote_response)}")
+                        print(f"Quote response: {quote_response}")
                 except Exception as e:
                     print(f"Error getting quote for {symbol}: {str(e)}")
             

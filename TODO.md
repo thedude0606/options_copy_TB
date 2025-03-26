@@ -39,6 +39,12 @@
 - [x] Add missing calculate_ema method to technical indicators module to fix indicators chart display
 - [x] Enhance historical data processing with robust error handling and type checking
 - [x] Implement authentication handling with token refresh and interactive authentication options
+- [x] Fix market data showing zeros for every symbol
+- [x] Fix Options Chain feature not showing data
+- [x] Fix Greeks feature not showing data
+- [x] Fix Technical Indicators feature not showing data
+- [x] Fix Historical Data feature not showing data
+- [x] Fix Real-Time Data feature not showing data
 - [ ] Test implemented fixes with various symbols and timeframes
 - [ ] Optimize performance for large options chains
 - [ ] Add comprehensive logging throughout the application

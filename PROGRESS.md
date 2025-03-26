@@ -89,10 +89,16 @@
   - Added missing calculate_ema method to technical indicators module to fix indicators chart display
   - Enhanced historical data processing with robust error handling and type checking to ensure data is properly displayed
   - Implemented authentication handling with token refresh and interactive authentication options
+  - Fixed market data showing zeros for every symbol by improving API response handling in run_dashboard.py
+  - Implemented comprehensive debugging and fixes for Options Chain feature to properly process and display options data
+  - Enhanced Historical Data feature with robust error handling and proper data processing
+  - Added detailed debugging for Greeks calculations to ensure accurate display
+  - Improved Real-Time Data handling with better response processing and error handling
+  - Fixed Technical Indicators feature by implementing proper data processing and visualization
 
 ## Current Work in Progress
 
-- Testing the implemented fixes for technical indicators and timeframe display issues
+- Testing the implemented fixes for market data and additional features
 - Validating the recommendation data population with different symbols
 - Enhancing error handling for edge cases in the Schwab API responses
 - Improving the robustness of the option chain processing pipeline
@@ -113,7 +119,7 @@
 
 ## Next Steps
 
-- Complete testing of the implemented fixes for technical indicators and timeframes
+- Complete testing of the implemented fixes for market data and additional features
 - Implement additional error handling for edge cases in API responses
 - Add more comprehensive logging throughout the application
 - Create automated tests for critical components

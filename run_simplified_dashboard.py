@@ -6,6 +6,7 @@ import os
 import sys
 import logging
 from datetime import datetime
+import traceback
 
 import dash
 from dash import html, dcc
@@ -27,6 +28,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger('main')
 
+# Enable debug mode for detailed logging
+DEBUG_MODE = True
+VERBOSE_DEBUG = True
+
 # Initialize Dash app with Bootstrap theme
 app = dash.Dash(
     __name__,
@@ -42,9 +47,25 @@ app.title = "Options Recommendation Platform"
 try:
     logger.info("Initializing data collector...")
     data_collector = DataCollector()
+    if DEBUG_MODE:
+        logger.info("Testing market data retrieval...")
+        test_symbols = ['SPY', 'QQQ']
+        for symbol in test_symbols:
+            try:
+                market_data = data_collector.get_market_data(symbol)
+                if market_data:
+                    logger.info(f"Successfully retrieved market data for {symbol}: {market_data}")
+                else:
+                    logger.warning(f"Market data for {symbol} is None or empty")
+            except Exception as e:
+                logger.error(f"Error retrieving market data for {symbol}: {str(e)}")
+                if VERBOSE_DEBUG:
+                    logger.error(traceback.format_exc())
     logger.info("Data collector initialized successfully")
 except Exception as e:
     logger.error(f"Error initializing data collector: {str(e)}")
+    if VERBOSE_DEBUG:
+        logger.error(traceback.format_exc())
     data_collector = None
 
 # Initialize components
@@ -58,6 +79,8 @@ try:
         data_pipeline, recommendation_engine = None, None
 except Exception as e:
     logger.error(f"Error initializing components: {str(e)}")
+    if VERBOSE_DEBUG:
+        logger.error(traceback.format_exc())
     data_pipeline, recommendation_engine = None, None
 
 # Create app layout
@@ -67,6 +90,8 @@ try:
     logger.info("App layout created successfully")
 except Exception as e:
     logger.error(f"Error creating app layout: {str(e)}")
+    if VERBOSE_DEBUG:
+        logger.error(traceback.format_exc())
     app.layout = html.Div("Error initializing application. Please check logs.")
 
 # Register callbacks
@@ -79,6 +104,8 @@ try:
         logger.error("Cannot register callbacks: components are None")
 except Exception as e:
     logger.error(f"Error registering callbacks: {str(e)}")
+    if VERBOSE_DEBUG:
+        logger.error(traceback.format_exc())
 
 # Run tests in development mode
 if os.environ.get('ENVIRONMENT') == 'development':
@@ -95,6 +122,8 @@ if os.environ.get('ENVIRONMENT') == 'development':
                 logger.warning("Test success rate below 80%. Some features may not work correctly.")
     except Exception as e:
         logger.error(f"Error running tests: {str(e)}")
+        if VERBOSE_DEBUG:
+            logger.error(traceback.format_exc())
 
 # Main entry point
 if __name__ == '__main__':

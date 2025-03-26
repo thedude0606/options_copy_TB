@@ -161,6 +161,24 @@
 - **Benefits**: Prevents API errors, ensures data quality, provides meaningful error messages
 - **Implementation**: Added validation for period types, frequency types, and frequency values with automatic correction of invalid values
 
+### API Response Processing Improvement
+- **Decision**: Enhanced API response processing in run_dashboard.py and options_data.py
+- **Rationale**: Different response formats from Schwab API require flexible handling to extract data correctly
+- **Benefits**: Properly displays market data and additional features, prevents zeros showing for every symbol
+- **Implementation**: Added type checking, multiple data extraction paths, and comprehensive error handling
+
+### Options Chain Data Processing
+- **Decision**: Implemented robust options chain data processing in get_option_data method
+- **Rationale**: Options chain data structure is complex and requires careful extraction of nested information
+- **Benefits**: Properly displays options chain data including strikes, expirations, and Greeks
+- **Implementation**: Added support for processing both call and put options with proper filtering and data extraction
+
+### Historical Data Processing Enhancement
+- **Decision**: Improved historical data processing with multiple data structure handling
+- **Rationale**: Historical data can be returned in various formats depending on API version and parameters
+- **Benefits**: Ensures historical data is properly displayed regardless of response format
+- **Implementation**: Added support for multiple candle data locations and robust datetime conversion
+
 ### Timeframe Mapping Approach
 - **Decision**: Redesigned timeframe mapping in indicators_tab.py to use tuple-based mapping
 - **Rationale**: Previous implementation had inconsistent handling of timeframes between UI and API calls
