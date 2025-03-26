@@ -7,6 +7,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import time
 import logging
+import re
 
 class ShortTermDataPipeline:
     """
@@ -32,6 +33,58 @@ class ShortTermDataPipeline:
         }
         self.logger = logging.getLogger('short_term_data_pipeline')
         
+    def standardize_timeframe(self, timeframe):
+        """
+        Standardize timeframe format to ensure consistency
+        
+        Args:
+            timeframe (str): Timeframe in various formats (e.g., '30m', '30min', '1h', '60min')
+            
+        Returns:
+            str: Standardized timeframe format ('15m', '30m', '60m', '120m')
+        """
+        # If already in standard format, return as is
+        if timeframe in ['15m', '30m', '60m', '120m']:
+            return timeframe
+            
+        # Convert to lowercase and remove any whitespace
+        tf = timeframe.lower().strip()
+        
+        # Extract numeric value and unit using regex
+        match = re.match(r'(\d+)\s*([a-z]+)', tf)
+        if not match:
+            self.logger.warning(f"Could not parse timeframe format: {timeframe}, defaulting to 30m")
+            return '30m'
+            
+        value, unit = match.groups()
+        value = int(value)
+        
+        # Convert to standard format
+        if unit in ['m', 'min', 'minute', 'minutes']:
+            if value == 15:
+                return '15m'
+            elif value == 30:
+                return '30m'
+            elif value in [60, 1] and unit.startswith('m'):  # 60min or 1min
+                return '60m' if value == 60 else '1m'
+            elif value == 120:
+                return '120m'
+        elif unit in ['h', 'hr', 'hour', 'hours']:
+            if value == 1:
+                return '60m'
+            elif value == 2:
+                return '120m'
+                
+        # If no match found, default to closest standard timeframe
+        if value < 22:  # Closer to 15m
+            return '15m'
+        elif value < 45:  # Closer to 30m
+            return '30m'
+        elif value < 90:  # Closer to 60m
+            return '60m'
+        else:  # Closer to 120m
+            return '120m'
+        
     def get_short_term_price_data(self, symbol, timeframe='30m', force_refresh=False):
         """
         Get price data for short-term analysis
@@ -44,6 +97,9 @@ class ShortTermDataPipeline:
         Returns:
             pd.DataFrame: Price data with OHLCV columns
         """
+        # Standardize timeframe format
+        timeframe = self.standardize_timeframe(timeframe)
+        
         cache_key = f"{symbol}_{timeframe}"
         current_time = time.time()
         
@@ -118,6 +174,9 @@ class ShortTermDataPipeline:
         Returns:
             dict: Options data optimized for the timeframe
         """
+        # Standardize timeframe format
+        timeframe = self.standardize_timeframe(timeframe)
+        
         # Map timeframe to appropriate expiration filter
         expiration_filters = {
             '15m': 0,  # Same day expiration
