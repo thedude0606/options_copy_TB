@@ -15,9 +15,9 @@ from app.components.greeks_tab import register_greeks_callbacks
 from app.components.recommendations_tab import create_recommendations_tab, register_recommendations_callbacks
 
 # Import data collectors and API clients
-from app.data.options_data_retriever import OptionsDataRetriever
-from app.data.data_collector import DataCollector
-from app.api.schwab_client import SchwabClient
+from app.options_data import OptionsDataRetriever
+from app.data_collector import DataCollector
+from schwabdev.client import Client as SchwabClient
 
 # Import analysis modules
 from app.analysis.enhanced_recommendation_engine import EnhancedRecommendationEngine
