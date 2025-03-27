@@ -10,13 +10,17 @@ class StreamDataHandler:
     """
     Class to process and format streaming data from Schwab API
     """
-    def __init__(self):
+    def __init__(self, streaming_manager=None):
         """
         Initialize the stream data handler
+        
+        Args:
+            streaming_manager: StreamingDataManager instance for managing streaming connections
         """
         self.logger = logging.getLogger(__name__)
         self.data_store = {}
         self.field_maps = self._initialize_field_maps()
+        self.streaming_manager = streaming_manager
     
     def _initialize_field_maps(self):
         """
@@ -298,73 +302,170 @@ class StreamDataHandler:
                 "bid": self._format_price(data.get("bid_price")),
                 "ask": self._format_price(data.get("ask_price")),
                 "volume": self._format_volume(data.get("total_volume")),
-                "open_interest": data.get("open_interest"),
-                "delta": data.get("delta"),
-                "gamma": data.get("gamma"),
-                "theta": data.get("theta"),
-                "vega": data.get("vega"),
-                "strike": self._format_price(data.get("strike_price")),
-                "expiration": self._format_expiration(
-                    data.get("expiration_year"),
-                    data.get("expiration_month"),
-                    data.get("expiration_day")
-                )
+                "open_interest": self._format_volume(data.get("open_interest")),
+                "delta": self._format_greek(data.get("delta")),
+                "gamma": self._format_greek(data.get("gamma")),
+                "theta": self._format_greek(data.get("theta")),
+                "vega": self._format_greek(data.get("vega")),
+                "rho": self._format_greek(data.get("rho")),
+                "strike_price": self._format_price(data.get("strike_price")),
+                "underlying_price": self._format_price(data.get("underlying_price")),
+                "days_to_expiration": data.get("days_to_expiration")
             })
         
         return formatted
     
-    def _format_price(self, price):
-        """Format price value"""
-        if price is None:
-            return None
-        try:
-            return round(float(price), 2)
-        except (ValueError, TypeError):
-            return None
-    
-    def _format_percent(self, percent):
-        """Format percent value"""
-        if percent is None:
-            return None
-        try:
-            return round(float(percent), 2)
-        except (ValueError, TypeError):
-            return None
-    
-    def _format_volume(self, volume):
-        """Format volume value"""
-        if volume is None:
-            return None
-        try:
-            vol = int(volume)
-            if vol >= 1000000:
-                return f"{vol/1000000:.2f}M"
-            elif vol >= 1000:
-                return f"{vol/1000:.2f}K"
-            return str(vol)
-        except (ValueError, TypeError):
-            return None
-    
-    def _format_expiration(self, year, month, day):
-        """Format expiration date"""
-        if None in (year, month, day):
-            return None
-        try:
-            return f"{year}-{month:02d}-{day:02d}"
-        except (ValueError, TypeError):
-            return f"{year}-{month}-{day}"
-    
-    def get_data_store(self):
+    def _format_price(self, value):
         """
-        Get the current data store
+        Format price value
         
+        Args:
+            value: Price value
+            
         Returns:
-            dict: Data store
+            str: Formatted price
         """
-        return self.data_store
+        if value is None:
+            return "N/A"
+        
+        try:
+            return f"${float(value):.2f}"
+        except (ValueError, TypeError):
+            return "N/A"
     
-    def clear_data_store(self):
+    def _format_percent(self, value):
         """
-        Clear the data store
+        Format percent value
+        
+        Args:
+            value: Percent value
+            
+        Returns:
+            str: Formatted percent
         """
-        self.data_store = {}
+        if value is None:
+            return "N/A"
+        
+        try:
+            return f"{float(value):.2f}%"
+        except (ValueError, TypeError):
+            return "N/A"
+    
+    def _format_volume(self, value):
+        """
+        Format volume value
+        
+        Args:
+            value: Volume value
+            
+        Returns:
+            str: Formatted volume
+        """
+        if value is None:
+            return "N/A"
+        
+        try:
+            volume = int(value)
+            if volume >= 1000000:
+                return f"{volume/1000000:.2f}M"
+            elif volume >= 1000:
+                return f"{volume/1000:.2f}K"
+            else:
+                return str(volume)
+        except (ValueError, TypeError):
+            return "N/A"
+    
+    def _format_greek(self, value):
+        """
+        Format Greek value
+        
+        Args:
+            value: Greek value
+            
+        Returns:
+            str: Formatted Greek
+        """
+        if value is None:
+            return "N/A"
+        
+        try:
+            return f"{float(value):.4f}"
+        except (ValueError, TypeError):
+            return "N/A"
+    
+    def subscribe_to_symbol(self, symbol, service="LEVELONE_EQUITIES"):
+        """
+        Subscribe to a symbol for streaming data
+        
+        Args:
+            symbol (str): Symbol to subscribe to
+            service (str): Service to subscribe to
+            
+        Returns:
+            bool: Success status
+        """
+        if not self.streaming_manager:
+            print("DEBUG - Cannot subscribe: No streaming manager available")
+            return False
+            
+        try:
+            print(f"DEBUG - Subscribing to {symbol} for {service}")
+            self.streaming_manager.subscribe(service, [symbol])
+            return True
+        except Exception as e:
+            self.logger.error(f"Error subscribing to {symbol}: {str(e)}")
+            print(f"DEBUG - Error subscribing to {symbol}: {str(e)}")
+            return False
+    
+    def unsubscribe_from_symbol(self, symbol, service="LEVELONE_EQUITIES"):
+        """
+        Unsubscribe from a symbol
+        
+        Args:
+            symbol (str): Symbol to unsubscribe from
+            service (str): Service to unsubscribe from
+            
+        Returns:
+            bool: Success status
+        """
+        if not self.streaming_manager:
+            print("DEBUG - Cannot unsubscribe: No streaming manager available")
+            return False
+            
+        try:
+            print(f"DEBUG - Unsubscribing from {symbol} for {service}")
+            self.streaming_manager.unsubscribe(service, [symbol])
+            return True
+        except Exception as e:
+            self.logger.error(f"Error unsubscribing from {symbol}: {str(e)}")
+            print(f"DEBUG - Error unsubscribing from {symbol}: {str(e)}")
+            return False
+    
+    def get_latest_data(self, symbol):
+        """
+        Get the latest data for a symbol
+        
+        Args:
+            symbol (str): Symbol to get data for
+            
+        Returns:
+            dict: Latest data
+        """
+        if symbol in self.data_store and self.data_store[symbol]:
+            return self.data_store[symbol][-1]
+        return None
+    
+    def get_historical_data(self, symbol, limit=100):
+        """
+        Get historical data for a symbol
+        
+        Args:
+            symbol (str): Symbol to get data for
+            limit (int): Maximum number of data points to return
+            
+        Returns:
+            list: Historical data
+        """
+        if symbol in self.data_store:
+            return self.data_store[symbol][-limit:]
+        return []
