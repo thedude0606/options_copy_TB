@@ -189,3 +189,59 @@
 - **Rationale**: Historical data was not being displayed because the code assumed data would always be in DataFrame format, but it could be None or other formats
 - **Benefits**: Ensures historical data is properly displayed regardless of the format returned by the API, provides detailed logging for troubleshooting
 - **Implementation**: Added comprehensive type checking, conversion of list data to DataFrame, and detailed error handling with informative logging
+
+## UI Redesign Decisions (March 2025)
+
+### Global Symbol Input
+- **Decision**: Implemented a single global symbol input in the application header
+- **Rationale**: Previous design had redundant symbol inputs across different tabs, causing confusion and inconsistency
+- **Benefits**: Simplified user experience, ensured data consistency across all tabs, reduced code duplication
+- **Implementation**: Created a global symbol input in the header and shared the input value across all components via dcc.Store
+
+### Tile-Based Recommendation Display
+- **Decision**: Redesigned recommendation display to use a tile-based grid layout
+- **Rationale**: Previous list-based display didn't effectively highlight key information and was difficult to scan quickly
+- **Benefits**: Improved information hierarchy, better visual distinction between recommendations, easier comparison of options
+- **Implementation**: Redesigned trade_card.py component to use a card-based layout with clear visual hierarchy
+
+### Color-Coding for Option Types
+- **Decision**: Implemented consistent color-coding for call and put options (green for calls, red for puts)
+- **Rationale**: Visual distinction between option types helps users quickly identify and categorize recommendations
+- **Benefits**: Improved scanability, reduced cognitive load, enhanced user experience
+- **Implementation**: Applied consistent color schemes in trade card headers and action buttons
+
+### Progress Bar for Confidence Scores
+- **Decision**: Added visual progress bars for confidence scores in recommendation tiles
+- **Rationale**: Numeric confidence scores alone don't provide immediate visual feedback on recommendation quality
+- **Benefits**: Improved at-a-glance assessment of recommendation quality, better visual hierarchy
+- **Implementation**: Created styled progress bars that reflect confidence percentages with appropriate coloring
+
+### Sidebar Layout for Controls
+- **Decision**: Moved filtering and timeframe controls to a dedicated sidebar
+- **Rationale**: Previous design scattered controls across different tabs, making them difficult to find and use
+- **Benefits**: Improved discoverability of controls, consistent placement of related functionality, cleaner main content area
+- **Implementation**: Created a structured sidebar with sections for trading timeframe, market overview, and watchlist
+
+### Responsive Grid Layout
+- **Decision**: Implemented a responsive grid layout for recommendation tiles
+- **Rationale**: Fixed-width layouts don't adapt well to different screen sizes and device types
+- **Benefits**: Better space utilization, improved experience across different devices, more flexible display options
+- **Implementation**: Used CSS grid with auto-fill and minmax to create a responsive tile layout
+
+### Simplified Tab Structure
+- **Decision**: Consolidated feature tabs under a single "Additional Features" section
+- **Rationale**: Previous tab structure gave equal prominence to all features, diluting focus on recommendations
+- **Benefits**: Clearer information hierarchy, emphasis on core recommendation functionality, reduced visual clutter
+- **Implementation**: Created a nested tab structure with primary focus on recommendations and secondary access to additional features
+
+### Consistent Action Buttons
+- **Decision**: Standardized action buttons across all recommendation tiles
+- **Rationale**: Inconsistent button styling and placement creates confusion and reduces usability
+- **Benefits**: Improved learnability, consistent interaction patterns, reduced cognitive load
+- **Implementation**: Created consistent "View Details" and "Trade Now" buttons with appropriate styling for each option type
+
+### Comprehensive CSS Styling
+- **Decision**: Created a dedicated CSS file for styling all UI components
+- **Rationale**: Previous inline styling approach led to inconsistencies and made global style changes difficult
+- **Benefits**: Improved maintainability, consistent styling across components, easier theme implementation
+- **Implementation**: Created a comprehensive styles.css file with structured organization for different component types

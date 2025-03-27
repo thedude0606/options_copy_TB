@@ -34,7 +34,12 @@
 - [x] Add missing calculate_sma method to technical indicators module to fix indicators chart display
 - [x] Add missing calculate_ema method to technical indicators module to fix indicators chart display
 - [x] Enhance historical data processing with robust error handling and type checking
-- [ ] Test implemented fixes with various symbols and timeframes
+- [x] Create new v2 branch for UI redesign
+- [x] Simplify UI with a single global symbol input
+- [x] Implement tile-based recommendation display
+- [x] Create comprehensive CSS styling for new UI components
+- [ ] Test new UI implementation with various symbols and timeframes
+- [ ] Ensure responsive design for different screen sizes
 - [ ] Optimize performance for large options chains
 - [ ] Add comprehensive logging throughout the application
 
@@ -48,6 +53,9 @@
 - [ ] Implement additional filtering options for recommendations
 - [ ] Add export functionality for recommendations and analysis
 - [ ] Create user preferences and settings storage
+- [ ] Implement watchlist functionality
+- [ ] Add market overview data with real-time updates
+- [ ] Enhance recommendation validation display
 
 ## Low Priority Tasks
 
@@ -57,6 +65,8 @@
 - [ ] Develop mobile-responsive design
 - [ ] Add dark/light theme toggle
 - [ ] Document the debugging process and solutions for future reference
+- [ ] Add user onboarding tutorial
+- [ ] Implement advanced settings panel for recommendation engine configuration
 
 ## Dependencies
 
@@ -68,3 +78,5 @@
 - Parameter validation → Robust API interactions
 - Error handling → Reliable data processing
 - Debugging capabilities → All components
+- Global symbol input → All data components
+- CSS styling → All UI components

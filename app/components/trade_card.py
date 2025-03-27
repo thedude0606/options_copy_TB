@@ -90,144 +90,84 @@ def create_trade_card(recommendation):
         if option_type == 'CALL':
             card_color = 'success'  # Green for calls
             header_color = '#28a745'
+            option_type_label = 'CALL'
         elif option_type == 'PUT':
             card_color = 'danger'  # Red for puts
             header_color = '#dc3545'
+            option_type_label = 'PUT'
         else:
             card_color = 'info'  # Blue for unknown
             header_color = '#17a2b8'
+            option_type_label = 'UNKNOWN'
         
-        # Create card header
-        header = dbc.CardHeader(
-            [
-                html.H4(f"{option_type} - Strike ${strike:.2f}", className="card-title"),
-                html.H6(f"Expires: {formatted_exp}", className="card-subtitle")
-            ],
-            style={"background-color": header_color, "color": "white"}
-        )
+        # Format confidence as percentage
+        confidence_pct = confidence * 100 if confidence <= 1 else confidence
         
-        # Create card body
-        body = dbc.CardBody(
-            [
-                # Price information
-                html.Div([
-                    html.H5("Price Information", className="section-title"),
-                    html.P([
-                        html.Span("Entry Price: ", className="label"),
-                        html.Span(f"${current_price:.2f}", className="value")
-                    ]),
-                    html.P([
-                        html.Span("Underlying Price: ", className="label"),
-                        html.Span(f"${underlying_price:.2f}", className="value")
-                    ])
-                ], className="section"),
-                
-                # Probability and risk metrics
-                html.Div([
-                    html.H5("Risk Metrics", className="section-title"),
-                    html.P([
-                        html.Span("Probability of Success: ", className="label"),
-                        html.Span(f"{probability*100:.1f}%", className="value")
-                    ]),
-                    html.P([
-                        html.Span("Risk-Reward Ratio: ", className="label"),
-                        html.Span(f"{risk_reward:.2f}", className="value")
-                    ]),
-                    html.P([
-                        html.Span("Potential Return: ", className="label"),
-                        html.Span(f"{potential_return:.1f}%", className="value")
-                    ]),
-                    html.P([
-                        html.Span("Confidence Score: ", className="label"),
-                        html.Span(f"{confidence*100:.1f}%", className="value")
-                    ])
-                ], className="section"),
-                
-                # Greeks (collapsible)
-                dbc.Collapse(
-                    html.Div([
-                        html.H5("Greeks", className="section-title"),
-                        html.P([
-                            html.Span("Delta: ", className="label"),
-                            html.Span(f"{delta:.3f}", className="value")
-                        ]),
-                        html.P([
-                            html.Span("Gamma: ", className="label"),
-                            html.Span(f"{gamma:.3f}", className="value")
-                        ]),
-                        html.P([
-                            html.Span("Theta: ", className="label"),
-                            html.Span(f"{theta:.3f}", className="value")
-                        ]),
-                        html.P([
-                            html.Span("Vega: ", className="label"),
-                            html.Span(f"{vega:.3f}", className="value")
-                        ])
-                    ], className="section"),
-                    id=f"collapse-{id(recommendation)}",
-                    is_open=False
-                ),
-                
-                # Toggle button for Greeks
-                dbc.Button(
-                    "Show Greeks",
-                    id=f"toggle-{id(recommendation)}",
-                    color="link",
-                    className="mt-2"
-                ),
-                
-                # Rationale
-                html.Div([
-                    html.H5("Rationale", className="section-title"),
-                    html.Div([
-                        html.P(str(value))
-                        for key, value in signal_details.items()
-                    ] if signal_details else [html.P("No signal details available")])
-                ], className="section mt-3")
-            ]
-        )
+        # Format potential return as percentage
+        potential_return_pct = potential_return * 100 if potential_return <= 1 else potential_return
         
-        # Create card footer with action buttons
-        footer = dbc.CardFooter(
-            [
-                dbc.Button("Trade Now", color=card_color, className="mr-2"),
-                dbc.Button("Add to Watchlist", color="secondary", outline=True)
-            ]
-        )
+        # Create card header with symbol and option type
+        header = html.Div([
+            html.Div("AAPL", className="card-symbol"),  # Symbol is hardcoded for now, should be dynamic
+            html.Div(option_type_label, className="card-option-type")
+        ], className=f"card-header {option_type.lower()}-header")
         
-        # Combine all components into a card
-        card = dbc.Card(
-            [header, body, footer],
-            className="mb-4 trade-card",
-            style={"max-width": "400px"}
-        )
+        # Create card body with strike price and expiration
+        body = html.Div([
+            # Strike price section
+            html.Div([
+                html.Div(f"${strike:.2f} Strike", className="strike-price"),
+                html.Div(f"Exp: {formatted_exp}", className="expiration-date")
+            ], className="price-section"),
+            
+            # Confidence meter
+            html.Div([
+                html.Div("Confidence", className="metric-label"),
+                html.Div(className="progress-bar-container", children=[
+                    html.Div(className="progress-bar", style={"width": f"{confidence_pct:.1f}%"})
+                ]),
+                html.Div(f"{confidence_pct:.1f}%", className="metric-value")
+            ], className="confidence-section"),
+            
+            # Potential return
+            html.Div([
+                html.Div("Potential Return", className="metric-label"),
+                html.Div(f"{potential_return_pct:.1f}%", className="potential-return-value")
+            ], className="return-section"),
+            
+            # Risk/Reward ratio
+            html.Div([
+                html.Div("Risk/Reward", className="metric-label"),
+                html.Div(f"{risk_reward:.2f}x", className="risk-reward-value")
+            ], className="risk-reward-section"),
+            
+            # Entry price
+            html.Div([
+                html.Div("Entry Price", className="metric-label"),
+                html.Div(f"${current_price:.2f}", className="entry-price-value")
+            ], className="entry-price-section"),
+            
+            # View details and trade buttons
+            html.Div([
+                html.Button("View Details", id={"type": "view-details-btn", "index": id(recommendation)}, className="view-details-btn"),
+                html.Button("Trade Now", id={"type": "trade-now-btn", "index": id(recommendation)}, className="trade-now-btn")
+            ], className="card-actions")
+        ], className="card-body")
         
-        # Add callback for toggling Greeks
-        @callback(
-            Output(f"collapse-{id(recommendation)}", "is_open"),
-            Output(f"toggle-{id(recommendation)}", "children"),
-            Input(f"toggle-{id(recommendation)}", "n_clicks"),
-            State(f"collapse-{id(recommendation)}", "is_open"),
-            prevent_initial_call=True
-        )
-        def toggle_collapse(n_clicks, is_open):
-            if n_clicks:
-                return not is_open, "Hide Greeks" if not is_open else "Show Greeks"
-            return is_open, "Show Greeks" if not is_open else "Hide Greeks"
+        # Combine header and body into a card
+        card = html.Div([header, body], className=f"trade-card {option_type.lower()}-card")
         
         return card
     
     except Exception as e:
         print(f"Error creating trade card: {str(e)}")
         # Return a simple error card
-        return dbc.Card(
-            dbc.CardBody([
-                html.H5("Error Creating Trade Card", className="card-title"),
-                html.P(f"Error: {str(e)}")
-            ]),
-            className="mb-4 trade-card bg-warning",
-            style={"max-width": "400px"}
-        )
+        return html.Div([
+            html.Div("Error", className="card-header error-header"),
+            html.Div([
+                html.Div(f"Error creating trade card: {str(e)}", className="error-message")
+            ], className="card-body")
+        ], className="trade-card error-card")
 
 def create_trade_cards_container(recommendations):
     """
@@ -242,15 +182,11 @@ def create_trade_cards_container(recommendations):
     if not recommendations:
         return html.Div(
             html.P("No recommendations available. Try adjusting your criteria."),
-            className="text-center my-5"
+            className="no-recommendations-message"
         )
     
+    # Create trade cards for each recommendation
     cards = [create_trade_card(rec) for rec in recommendations]
     
-    return html.Div(
-        dbc.Row(
-            [dbc.Col(card, md=4) for card in cards],
-            className="trade-cards-row"
-        ),
-        className="trade-cards-container"
-    )
+    # Organize cards into rows
+    return html.Div(cards, className="trade-cards-grid")

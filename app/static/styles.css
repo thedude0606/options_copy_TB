@@ -1,0 +1,363 @@
+/* Main application styles */
+.app-container {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* Header styles */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.app-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.symbol-search-container {
+    display: flex;
+    align-items: center;
+}
+
+.symbol-search-container input {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+    font-size: 14px;
+    width: 120px;
+}
+
+.search-button {
+    padding: 8px 16px;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.search-button:hover {
+    background-color: #1a252f;
+}
+
+/* Authentication status */
+.auth-status-container {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+/* Main content layout */
+.app-body {
+    display: flex;
+    gap: 20px;
+}
+
+/* Sidebar styles */
+.sidebar {
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.sidebar-section {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.sidebar-section h3 {
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.timeframe-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.apply-button {
+    width: 100%;
+    padding: 8px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.apply-button:hover {
+    background-color: #2980b9;
+}
+
+/* Main content styles */
+.main-content {
+    flex-grow: 1;
+}
+
+.main-section {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.recommendations-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.recommendations-header h2 {
+    font-size: 20px;
+    margin: 0;
+}
+
+.recommendation-filters {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-button {
+    padding: 6px 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.filter-button.active {
+    background-color: #2c3e50;
+    color: white;
+    border-color: #2c3e50;
+}
+
+.filter-button.settings {
+    background-color: #f1f1f1;
+}
+
+/* Trade cards grid */
+.trade-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Trade card styles */
+.trade-card {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background-color: white;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    color: white;
+}
+
+.call-header {
+    background-color: #28a745;
+}
+
+.put-header {
+    background-color: #dc3545;
+}
+
+.card-symbol {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.card-option-type {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 3px 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.card-body {
+    padding: 15px;
+}
+
+.price-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.strike-price {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.expiration-date {
+    font-size: 14px;
+    color: #666;
+}
+
+.confidence-section,
+.return-section,
+.risk-reward-section,
+.entry-price-section {
+    margin-bottom: 12px;
+}
+
+.metric-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #28a745;
+    border-radius: 4px;
+}
+
+.put-card .progress-bar {
+    background-color: #dc3545;
+}
+
+.metric-value,
+.potential-return-value,
+.risk-reward-value,
+.entry-price-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.potential-return-value {
+    color: #28a745;
+}
+
+.put-card .potential-return-value {
+    color: #dc3545;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.view-details-btn,
+.trade-now-btn {
+    flex: 1;
+    padding: 8px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.view-details-btn {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    color: #333;
+}
+
+.trade-now-btn {
+    background-color: #28a745;
+    border: none;
+    color: white;
+}
+
+.put-card .trade-now-btn {
+    background-color: #dc3545;
+}
+
+/* Validation section */
+.validation-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+.validation-passed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.validation-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.validation-failed {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.validation-details {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Feature tabs */
+.feature-tab {
+    padding: 10px 15px;
+}
+
+.feature-content {
+    padding: 15px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+/* Error and empty states */
+.no-recommendations-message,
+.no-data-message {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+    font-size: 16px;
+}
+
+.error-card {
+    background-color: #f8d7da;
+}
+
+.error-header {
+    background-color: #dc3545;
+}
+
+.error-message {
+    color: #721c24;
+}
