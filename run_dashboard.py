@@ -225,6 +225,12 @@ class OptionsDataRetriever:
 # Initialize the options data retriever
 options_data_retriever = OptionsDataRetriever(client)
 
+# Initialize the data collector for technical indicators
+data_collector = DataCollector()
+
+# Initialize the recommendation engine
+recommendation_engine = RecommendationEngine(data_collector)
+
 # Initialize the app
 app = dash.Dash(
     __name__,
@@ -350,7 +356,7 @@ register_indicators_callbacks(app)
 register_greeks_callbacks(app)
 register_historical_callbacks(app)
 register_real_time_callbacks(app)
-register_recommendations_callbacks(app)
+register_recommendations_callbacks(app, recommendation_engine)
 
 # Run the app
 if __name__ == "__main__":
