@@ -52,6 +52,7 @@
 - [x] Add comprehensive debugging for DataFrame operations in run_dashboard.py
 - [x] Fix symbol update issue with cache refresh mechanism
 - [x] Implement potential return percentage calculation
+- [x] Fix potential return calculation to prevent unrealistic values
 - [ ] Test new UI implementation with various symbols and timeframes
 - [ ] Ensure responsive design for different screen sizes
 - [ ] Optimize performance for large options chains

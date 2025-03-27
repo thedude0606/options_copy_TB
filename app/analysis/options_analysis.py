@@ -487,10 +487,20 @@ class OptionsAnalysis:
                 else:
                     risk_reward = 0
                 
-                # Calculate potential return percentage
+                # Calculate potential return percentage with caps and validation
                 if option_price > 0:
-                    potential_return_pct = (max_profit / option_price) * 100
-                    print(f"Calculated potential return: {potential_return_pct:.2f}% (Max profit: ${max_profit:.2f}, Option price: ${option_price:.2f})")
+                    # Calculate raw potential return
+                    raw_potential_return = (max_profit / option_price) * 100
+                    
+                    # Apply caps and validation
+                    if max_profit < 0:
+                        # For negative profits, cap at -100%
+                        potential_return_pct = max(-100, raw_potential_return)
+                    else:
+                        # For positive profits, cap at 200%
+                        potential_return_pct = min(200, raw_potential_return)
+                    
+                    print(f"Calculated potential return: {potential_return_pct:.2f}% (Raw: {raw_potential_return:.2f}%, Max profit: ${max_profit:.2f}, Option price: ${option_price:.2f}, Capped to range: -100% to 200%)")
                 else:
                     potential_return_pct = 0
                 

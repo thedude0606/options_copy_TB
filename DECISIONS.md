@@ -209,10 +209,10 @@
 - **Implementation**: Added tracking variable for last_symbol and force_refresh parameter to cache mechanism
 
 ### Potential Return Calculation
-- **Decision**: Implemented percentage-based potential return calculation for options
-- **Rationale**: Users need to see potential returns to evaluate option recommendations effectively
-- **Benefits**: Provides clear metric for comparing different options, shows realistic profit expectations
-- **Implementation**: Added calculation of potential return as percentage of max profit relative to option price
+- **Decision**: Implemented percentage-based potential return calculation for options with realistic caps
+- **Rationale**: Users need to see potential returns to evaluate option recommendations effectively, but values must be realistic
+- **Benefits**: Provides clear metric for comparing different options, shows realistic profit expectations, prevents misleading extreme values
+- **Implementation**: Added calculation of potential return as percentage of max profit relative to option price, with caps limiting values to -100% to 200% range
 
 ## UI Redesign Decisions (March 2025)
 

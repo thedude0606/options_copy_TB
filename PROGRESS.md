@@ -68,6 +68,7 @@
   - Fixed DataFrame truth value ambiguity error with proper type checking and explicit empty checks
   - Implemented symbol change detection with cache refresh to ensure new symbols load fresh data
   - Fixed potential return calculation to show meaningful percentage values instead of zeros
+  - Improved potential return calculation with caps to prevent unrealistic values (limited to -100% to 200% range)
 - **UI Redesign** (March 2025):
   - Created new v2 branch for UI redesign implementation
   - Simplified the UI with a single global symbol input shared across all tabs
