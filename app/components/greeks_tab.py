@@ -372,8 +372,18 @@ def register_greeks_callbacks(app):
             data_collector = DataCollector()
             options_data = data_collector.get_option_data(symbol)
             
-            if options_data.empty:
-                return []
+            # Check if options_data is a DataFrame or a dictionary
+            if isinstance(options_data, pd.DataFrame):
+                if options_data.empty:
+                    return []
+            elif isinstance(options_data, dict):
+                if not options_data:  # Check if dictionary is empty
+                    return []
+            else:
+                # If it's neither a DataFrame nor a dictionary, or is None
+                if options_data is None:
+                    return []
+                return []  # Return empty list for any other type
             
             # Get unique expiration dates
             expirations = options_data['expirationDate'].unique()

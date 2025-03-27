@@ -190,13 +190,36 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
             recommendation = recommendations[0]
             
             # Create validation visualization
-            validation_chart = create_validation_chart(
-                symbol=symbol,
-                option_type=recommendation["option_type"],
-                strike_price=recommendation["strike_price"],
-                expiration_date=recommendation["expiration_date"],
-                timeframe=timeframe or "30m"
-            )
+            try:
+                # Check if required keys exist in recommendation
+                required_keys = ["option_type", "strike_price", "expiration_date"]
+                if all(key in recommendation for key in required_keys):
+                    validation_chart = create_validation_chart(
+                        symbol=symbol,
+                        option_type=recommendation["option_type"],
+                        strike_price=recommendation["strike_price"],
+                        expiration_date=recommendation["expiration_date"],
+                        timeframe=timeframe or "30m"
+                    )
+                else:
+                    # Create a placeholder chart if keys are missing
+                    missing_keys = [key for key in required_keys if key not in recommendation]
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text=f"Cannot create validation chart: Missing data ({', '.join(missing_keys)})",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, showarrow=False
+                    )
+                    validation_chart = fig
+            except Exception as e:
+                logger.error(f"Error creating validation visualization: {str(e)}")
+                fig = go.Figure()
+                fig.add_annotation(
+                    text=f"Error creating validation chart: {str(e)}",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                validation_chart = fig
             
             # Create comparison chart
             comparison_chart = create_timeframe_comparison_chart(
