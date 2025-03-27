@@ -434,16 +434,40 @@ def generate_recommendations(n_clicks, symbol):
         return []
     
     try:
+        print(f"Generating recommendations for symbol: {symbol}")
         # Get recommendations from the engine
         recommendations = recommendation_engine.generate_recommendations(symbol)
         
+        # Debug information
+        print(f"Recommendations type: {type(recommendations)}")
+        if isinstance(recommendations, pd.DataFrame):
+            print(f"DataFrame shape: {recommendations.shape}")
+            print(f"DataFrame columns: {recommendations.columns.tolist() if not recommendations.empty else 'Empty DataFrame'}")
+            print(f"First row: {recommendations.iloc[0].to_dict() if not recommendations.empty and len(recommendations) > 0 else 'No data'}")
+        else:
+            print(f"Recommendations length: {len(recommendations) if recommendations else 0}")
+        
         # If recommendations is None or empty, return empty list
-        if not recommendations:
+        # Fix for DataFrame truth value ambiguity error
+        if isinstance(recommendations, pd.DataFrame):
+            if recommendations.empty:
+                print("Recommendations DataFrame is empty, returning empty list")
+                return []
+            # Convert DataFrame to list of dictionaries for proper JSON serialization
+            result = recommendations.to_dict('records')
+            print(f"Converted DataFrame to {len(result)} records")
+            return result
+        elif not recommendations:
+            print("Recommendations is empty or None, returning empty list")
             return []
         
+        print(f"Returning {len(recommendations)} recommendations")
         return recommendations
     except Exception as e:
         print(f"Error generating recommendations: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return []
 
 # Callback to update top recommendations container
@@ -455,6 +479,10 @@ def generate_recommendations(n_clicks, symbol):
      Input("filter-puts", "n_clicks")]
 )
 def update_top_recommendations(recommendations, all_clicks, calls_clicks, puts_clicks):
+    print(f"\n=== UPDATE TOP RECOMMENDATIONS DEBUG ===")
+    print(f"Recommendations type: {type(recommendations)}")
+    print(f"Recommendations data: {recommendations[:2] if recommendations and not isinstance(recommendations, pd.DataFrame) else 'DataFrame or None'}")
+    
     # Determine which filter button was clicked
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -468,13 +496,38 @@ def update_top_recommendations(recommendations, all_clicks, calls_clicks, puts_c
         else:
             filter_type = "ALL"
     
+    print(f"Selected filter type: {filter_type}")
+    
     # Filter recommendations based on option type
     if not recommendations:
+        print("No recommendations available")
         return html.Div("No recommendations available. Try a different symbol.", className="no-recommendations")
     
+    # Fix for DataFrame truth value ambiguity error
+    # Ensure recommendations is a list of dictionaries, not a DataFrame
     filtered_recommendations = recommendations
     if filter_type != "ALL":
-        filtered_recommendations = [r for r in recommendations if r.get('optionType', '').upper() == filter_type]
+        try:
+            # Safe list comprehension that works with both DataFrame and list of dicts
+            if isinstance(recommendations, pd.DataFrame):
+                print(f"Processing recommendations as DataFrame with shape: {recommendations.shape}")
+                # Filter DataFrame by column value
+                filtered_recommendations = recommendations[recommendations['optionType'].str.upper() == filter_type]
+                print(f"Filtered DataFrame shape: {filtered_recommendations.shape}")
+                # Convert to list of dictionaries for consistency
+                filtered_recommendations = filtered_recommendations.to_dict('records')
+                print(f"Converted to {len(filtered_recommendations)} records")
+            else:
+                print(f"Processing recommendations as list with length: {len(recommendations)}")
+                # Process as list of dictionaries
+                filtered_recommendations = [r for r in recommendations if r.get('optionType', '').upper() == filter_type]
+                print(f"Filtered to {len(filtered_recommendations)} records")
+        except Exception as e:
+            print(f"Error filtering recommendations: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            # Fall back to original recommendations if filtering fails
+            filtered_recommendations = recommendations
     
     # Create trade cards for the recommendations
     return create_trade_cards_container(filtered_recommendations)

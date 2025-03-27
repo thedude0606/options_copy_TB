@@ -118,6 +118,12 @@
 
 ## Recent Technical Decisions (March 2025)
 
+### DataFrame Truth Value Ambiguity Fix
+- **Decision**: Implemented explicit type checking for DataFrame objects in boolean contexts
+- **Rationale**: DataFrame objects cannot be directly evaluated in boolean contexts (if statements, list comprehensions)
+- **Benefits**: Prevents "The truth value of a DataFrame is ambiguous" errors, improves code reliability
+- **Implementation**: Added isinstance() checks to properly handle DataFrames, with explicit .empty checks and conversion to records when needed
+
 ### Enhanced Debugging System
 - **Decision**: Implemented a multi-level debugging system with DEBUG_MODE, VERBOSE_DEBUG, and LOG_API_RESPONSES flags
 - **Rationale**: Different debugging needs require different levels of detail and verbosity

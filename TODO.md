@@ -49,6 +49,7 @@
 - [x] Fix DataFrame boolean evaluation error ("The truth value of a DataFrame is ambiguous")
 - [x] Implement proper DataFrame handling across all recommendation components
 - [x] Create and test DataFrameEvaluationFix to systematically address DataFrame evaluation issues
+- [x] Add comprehensive debugging for DataFrame operations in run_dashboard.py
 - [ ] Test new UI implementation with various symbols and timeframes
 - [ ] Ensure responsive design for different screen sizes
 - [ ] Optimize performance for large options chains
