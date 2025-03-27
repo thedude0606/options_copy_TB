@@ -245,3 +245,95 @@
 - **Rationale**: Previous inline styling approach led to inconsistencies and made global style changes difficult
 - **Benefits**: Improved maintainability, consistent styling across components, easier theme implementation
 - **Implementation**: Created a comprehensive styles.css file with structured organization for different component types
+
+## Advanced Trading Analysis Decisions (March 2025)
+
+### Candlestick Pattern Recognition Architecture
+- **Decision**: Implemented a dedicated CandlestickPatterns class with pattern-specific detection methods
+- **Rationale**: Candlestick patterns require specialized detection logic that's distinct from traditional technical indicators
+- **Benefits**: More accurate pattern detection, ability to assign confidence levels to patterns, extensible for adding new patterns
+- **Implementation**: Created a comprehensive class with methods for detecting Hammer, Doji, Engulfing, Morning/Evening Star patterns and Order Blocks
+
+### Multi-Timeframe Analysis Approach
+- **Decision**: Developed a MultiTimeframeAnalyzer that weights signals from different timeframes
+- **Rationale**: Trading decisions should consider multiple timeframes to avoid false signals and confirm trends
+- **Benefits**: More robust trading signals, reduced false positives, better alignment with professional trading methodologies
+- **Implementation**: Created a weighted scoring system that prioritizes longer timeframes while still considering short-term signals
+
+### Pattern Confirmation Requirements
+- **Decision**: Implemented strict confirmation requirements for pattern identification
+- **Rationale**: Many candlestick patterns require specific context and confirmation to be valid trading signals
+- **Benefits**: Higher quality signals, reduced noise, better alignment with professional trading practices
+- **Implementation**: Added pre-pattern and post-pattern context validation for each pattern type
+
+### Order Block Detection Algorithm
+- **Decision**: Created a specialized algorithm for detecting institutional order blocks
+- **Rationale**: Order blocks represent significant supply/demand zones that are critical for advanced trading strategies
+- **Benefits**: Identifies high-probability reversal zones, aligns with institutional trading practices, improves entry/exit timing
+- **Implementation**: Developed an algorithm that identifies candles with specific characteristics followed by strong directional movement
+
+### Options Profit Prediction Model
+- **Decision**: Implemented a comprehensive ProfitPredictor class using Black-Scholes and Monte Carlo simulations
+- **Rationale**: Options profit prediction requires sophisticated mathematical modeling beyond simple technical analysis
+- **Benefits**: Accurate profit projections, time decay modeling, probability-based decision making
+- **Implementation**: Created a model that projects option prices forward in time while accounting for theta decay and volatility changes
+
+### Time Decay Projection Methodology
+- **Decision**: Used a day-by-day theta decay calculation approach rather than linear approximation
+- **Rationale**: Option time decay is non-linear and accelerates as expiration approaches
+- **Benefits**: More accurate profit projections, better exit timing recommendations, improved risk management
+- **Implementation**: Implemented a daily theta calculation that adjusts for the non-linear nature of time decay
+
+### Monte Carlo Simulation for Profit Probability
+- **Decision**: Used Monte Carlo simulations with 10,000 price paths to calculate profit probabilities
+- **Rationale**: Deterministic models fail to capture the range of possible outcomes in options trading
+- **Benefits**: More realistic profit expectations, better risk assessment, probability-based confidence scores
+- **Implementation**: Created a simulation engine that generates thousands of potential price paths based on historical volatility
+
+### Optimal Exit Strategy Algorithm
+- **Decision**: Developed an algorithm that balances profit potential against time decay risk
+- **Rationale**: Options traders need specific guidance on when to exit trades to maximize profits
+- **Benefits**: Concrete exit recommendations, improved trading discipline, better risk management
+- **Implementation**: Created an algorithm that identifies the optimal holding period based on the option's characteristics
+
+### Confidence Calculation System
+- **Decision**: Implemented a multi-factor ConfidenceCalculator that integrates technical, fundamental, and options-specific factors
+- **Rationale**: Confidence in options recommendations should consider multiple data points and analysis types
+- **Benefits**: More nuanced recommendations, detailed explanation of confidence factors, better decision support
+- **Implementation**: Created a weighted scoring system that evaluates and combines signals from different analysis components
+
+### Factor-Based Confidence Scoring
+- **Decision**: Used a factor-based approach with explicit weighting for different signal types
+- **Rationale**: Different factors have varying importance in different market conditions
+- **Benefits**: Transparent confidence calculation, ability to adjust weights based on performance, detailed signal breakdown
+- **Implementation**: Implemented separate scoring functions for technical, profit potential, market condition, and option-specific factors
+
+### Confidence Level Classification
+- **Decision**: Mapped numerical confidence scores to semantic confidence levels (very_high, high, moderate, low, very_low)
+- **Rationale**: Users need clear qualitative assessments in addition to numerical scores
+- **Benefits**: Easier interpretation of recommendations, consistent terminology, better user experience
+- **Implementation**: Created threshold-based mapping from numerical scores to semantic confidence levels
+
+### Data Integration Architecture
+- **Decision**: Implemented a DataIntegrator class as a facade for all recommendation components
+- **Rationale**: Components need to work together seamlessly without direct dependencies
+- **Benefits**: Simplified API for UI components, centralized data flow, easier testing and maintenance
+- **Implementation**: Created a class that coordinates data flow between data sources and analysis components
+
+### Caching Strategy for Market Data
+- **Decision**: Implemented time-based caching for market data with separate expiration for different data types
+- **Rationale**: Different types of market data change at different rates and have different freshness requirements
+- **Benefits**: Reduced API calls, improved performance, appropriate data freshness
+- **Implementation**: Created a caching system with configurable expiration times for different data categories
+
+### Recommendation Ranking Algorithm
+- **Decision**: Implemented a multi-stage filtering and ranking algorithm for options recommendations
+- **Rationale**: Users need a manageable number of high-quality recommendations sorted by confidence
+- **Benefits**: Focused recommendations, clear prioritization, better decision support
+- **Implementation**: Created an algorithm that filters by minimum confidence threshold, then ranks by confidence score
+
+### Testing Framework Design
+- **Decision**: Created a comprehensive testing framework with mock data generation
+- **Rationale**: Testing recommendation components requires realistic but controlled test data
+- **Benefits**: Reliable testing, consistent test conditions, ability to test edge cases
+- **Implementation**: Developed mock data generators for price data, option data, and market data with configurable parameters
