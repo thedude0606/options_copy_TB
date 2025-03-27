@@ -30,8 +30,11 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             ml_config_path (str, optional): Path to ML configuration file
             debug (bool, optional): Whether to enable debug output
         """
-        # Initialize the original recommendation engine
-        super().__init__(data_collector, debug=debug)
+        # Initialize the original recommendation engine (without debug parameter)
+        super().__init__(data_collector)
+        
+        # Store debug flag
+        self.debug = debug
         
         # Initialize the enhanced ML integration
         self.ml_integration = EnhancedMLIntegration(config_path=ml_config_path)
@@ -50,242 +53,108 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
         self.ml_cache_dir = os.path.join(self.cache_dir, 'ml_models')
         os.makedirs(self.ml_cache_dir, exist_ok=True)
     
-    def generate_recommendations(self, symbol, lookback_days=30, confidence_threshold=0.6):
+    def generate_recommendations(self, symbols=None, strategy_type='all', max_recommendations=10):
         """
-        Generate options trading recommendations using enhanced ML features.
+        Generate enhanced options trading recommendations using ML models.
         
         Args:
-            symbol (str): The stock symbol
-            lookback_days (int, optional): Number of days to look back for historical data
-            confidence_threshold (float, optional): Minimum confidence threshold for recommendations
+            symbols (list, optional): List of symbols to generate recommendations for
+            strategy_type (str, optional): Type of strategy to recommend
+            max_recommendations (int, optional): Maximum number of recommendations to return
             
         Returns:
-            pandas.DataFrame: DataFrame with recommendations
+            pandas.DataFrame: Enhanced recommendations
         """
-        if self.debug:
-            self.logger.debug(f"Generating enhanced recommendations for {symbol}")
-        
         try:
-            # Get options data using the original method
-            options_data = self._get_options_data(symbol)
+            # Log recommendation generation start
+            self.logger.info(f"Generating enhanced recommendations for {len(symbols) if symbols else 'all'} symbols")
             
-            if options_data is None or options_data.empty:
-                self.logger.warning(f"No options data available for {symbol}")
-                return pd.DataFrame()
+            # Get base recommendations from parent class
+            recommendations = super().generate_recommendations(symbols, strategy_type, max_recommendations)
             
-            # Get underlying price
-            underlying_price = self.get_underlying_price(symbol)
-            if underlying_price is None:
-                self.logger.warning(f"Could not retrieve underlying price for {symbol}")
-                return pd.DataFrame()
+            # If no recommendations or ML integration is not available, return base recommendations
+            if recommendations.empty or not hasattr(self, 'ml_integration'):
+                return recommendations
             
-            # Get technical indicators
-            indicators = self._get_technical_indicators(symbol, lookback_days)
+            # Apply ML enhancements
+            enhanced_recommendations = self._apply_ml_enhancements(recommendations)
             
-            # Prepare data for ML processing
-            ml_ready_data = self._prepare_data_for_ml(options_data, indicators, underlying_price, symbol)
+            # Apply risk management
+            risk_managed_recommendations = self._apply_risk_management(enhanced_recommendations)
             
-            if ml_ready_data is None or ml_ready_data.empty:
-                self.logger.warning(f"Failed to prepare data for ML processing for {symbol}")
-                return pd.DataFrame()
+            # Log recommendation generation completion
+            self.logger.info(f"Generated {len(risk_managed_recommendations)} enhanced recommendations")
             
-            # Process data through ML pipeline
-            if self.debug:
-                self.logger.debug(f"Processing {len(ml_ready_data)} options through ML pipeline")
-            
-            # Generate ML-enhanced recommendations
-            ml_recommendations = self._generate_ml_recommendations(ml_ready_data, confidence_threshold)
-            
-            if ml_recommendations is None or ml_recommendations.empty:
-                self.logger.warning(f"No ML recommendations generated for {symbol}")
-                
-                # Fall back to original recommendation method
-                self.logger.info(f"Falling back to original recommendation method for {symbol}")
-                return super().generate_recommendations(symbol, lookback_days, confidence_threshold)
-            
-            # Enhance recommendations with risk management
-            enhanced_recommendations = self._add_risk_management(ml_recommendations)
-            
-            if self.debug:
-                self.logger.debug(f"Generated {len(enhanced_recommendations)} enhanced recommendations for {symbol}")
-            
-            return enhanced_recommendations
+            return risk_managed_recommendations
             
         except Exception as e:
             self.logger.error(f"Error generating enhanced recommendations: {str(e)}")
-            
-            # Fall back to original recommendation method
-            self.logger.info(f"Falling back to original recommendation method due to error")
-            return super().generate_recommendations(symbol, lookback_days, confidence_threshold)
+            # Fall back to original recommendation engine
+            self.logger.info("Falling back to original recommendation engine")
+            return super().generate_recommendations(symbols, strategy_type, max_recommendations)
     
-    def _prepare_data_for_ml(self, options_data, indicators, underlying_price, symbol):
+    def _apply_ml_enhancements(self, recommendations):
         """
-        Prepare options data for ML processing.
+        Apply machine learning enhancements to recommendations.
         
         Args:
-            options_data (pandas.DataFrame): Options data
-            indicators (dict): Technical indicators
-            underlying_price (float): Current price of the underlying asset
-            symbol (str): The stock symbol
+            recommendations (pandas.DataFrame): Base recommendations
             
         Returns:
-            pandas.DataFrame: Prepared data for ML processing
+            pandas.DataFrame: Enhanced recommendations
         """
         try:
-            if self.debug:
-                self.logger.debug(f"Preparing data for ML processing for {symbol}")
-            
-            # Make a copy to avoid modifying the original
-            ml_data = options_data.copy()
-            
-            # Add symbol column
-            ml_data['symbol'] = symbol
-            
-            # Add underlying price
-            ml_data['underlyingPrice'] = underlying_price
-            
-            # Add technical indicators as features
-            for indicator, value in indicators.items():
-                ml_data[f'indicator_{indicator}'] = value
-            
-            # Calculate days to expiration
-            if 'expirationDate' in ml_data.columns:
-                today = datetime.now().date()
-                ml_data['daysToExpiration'] = (pd.to_datetime(ml_data['expirationDate']).dt.date - today).dt.days
-            
-            # Calculate moneyness
-            if 'strike' in ml_data.columns and underlying_price:
-                ml_data['moneyness'] = ml_data['strike'] / underlying_price
-            
-            # Calculate mid price
-            if 'bid' in ml_data.columns and 'ask' in ml_data.columns:
-                ml_data['midPrice'] = (ml_data['bid'] + ml_data['ask']) / 2
-            
-            # Calculate bid-ask spread
-            if 'bid' in ml_data.columns and 'ask' in ml_data.columns:
-                ml_data['bidAskSpread'] = ml_data['ask'] - ml_data['bid']
-                ml_data['bidAskSpreadPct'] = ml_data['bidAskSpread'] / ml_data['midPrice']
-            
-            return ml_data
-            
-        except Exception as e:
-            self.logger.error(f"Error preparing data for ML: {str(e)}")
-            return None
-    
-    def _generate_ml_recommendations(self, ml_data, confidence_threshold):
-        """
-        Generate recommendations using ML models.
-        
-        Args:
-            ml_data (pandas.DataFrame): Prepared data for ML processing
-            confidence_threshold (float): Minimum confidence threshold
-            
-        Returns:
-            pandas.DataFrame: ML-enhanced recommendations
-        """
-        try:
-            if self.debug:
-                self.logger.debug(f"Generating ML recommendations for {len(ml_data)} options")
-            
-            # Generate predictions using ML integration
-            prediction_result = self.ml_integration.generate_predictions(ml_data)
-            
-            if prediction_result is None:
-                self.logger.warning("ML prediction failed")
-                return pd.DataFrame()
-            
-            # Extract predictions
-            predictions = prediction_result.get('predictions', [])
-            confidence_scores = prediction_result.get('confidence_scores', [])
-            
-            if len(predictions) == 0:
-                self.logger.warning("No predictions generated")
-                return pd.DataFrame()
-            
-            # Add predictions to data
-            ml_data['ml_prediction'] = predictions
-            ml_data['ml_confidence'] = confidence_scores
-            
-            # Filter by confidence threshold
-            recommendations = ml_data[ml_data['ml_confidence'] >= confidence_threshold]
-            
-            # If no recommendations meet the threshold, get top 5
             if recommendations.empty:
-                recommendations = ml_data.nlargest(5, 'ml_confidence')
+                return recommendations
             
-            # Sort by confidence
-            recommendations = recommendations.sort_values('ml_confidence', ascending=False)
+            # Convert recommendations to list of dictionaries
+            rec_list = recommendations.to_dict('records')
             
-            # Format recommendations to match original format
-            formatted_recommendations = self._format_ml_recommendations(recommendations)
+            # Process each recommendation through ML models
+            enhanced_recs = []
+            for rec in rec_list:
+                # Get symbol and option data
+                symbol = rec.get('symbol', '')
+                
+                # Get technical indicators
+                indicators = self._get_technical_indicators(symbol, lookback_days=30)
+                
+                # Create feature vector
+                features = {
+                    'option_data': rec,
+                    'technical_indicators': indicators,
+                    'market_data': self._get_market_context()
+                }
+                
+                # Get ML prediction
+                ml_result = self.ml_integration.predict(features)
+                
+                # Enhance recommendation with ML insights
+                if ml_result and 'prediction' in ml_result:
+                    rec['mlConfidence'] = ml_result.get('confidence', 0.5)
+                    rec['mlPredictedReturn'] = ml_result.get('prediction', 0)
+                    rec['mlRiskScore'] = ml_result.get('risk_score', 0.5)
+                    
+                    # Adjust recommendation score based on ML
+                    base_score = rec.get('score', 0)
+                    ml_score = ml_result.get('confidence', 0.5) * 100
+                    rec['score'] = (base_score * 0.6) + (ml_score * 0.4)  # Weighted combination
+                
+                enhanced_recs.append(rec)
             
-            return formatted_recommendations
-            
-        except Exception as e:
-            self.logger.error(f"Error generating ML recommendations: {str(e)}")
-            return pd.DataFrame()
-    
-    def _format_ml_recommendations(self, ml_recommendations):
-        """
-        Format ML recommendations to match the original format.
-        
-        Args:
-            ml_recommendations (pandas.DataFrame): ML-enhanced recommendations
-            
-        Returns:
-            pandas.DataFrame: Formatted recommendations
-        """
-        try:
-            # Create a new DataFrame with the required columns
-            formatted = pd.DataFrame()
-            
-            # Map columns from ML recommendations to original format
-            column_mapping = {
-                'symbol': 'symbol',
-                'putCall': 'optionType',
-                'strike': 'strike',
-                'expirationDate': 'expirationDate',
-                'bid': 'bid',
-                'ask': 'ask',
-                'midPrice': 'price',
-                'underlyingPrice': 'underlyingPrice',
-                'delta': 'delta',
-                'gamma': 'gamma',
-                'theta': 'theta',
-                'vega': 'vega',
-                'rho': 'rho',
-                'daysToExpiration': 'daysToExpiration',
-                'ml_prediction': 'potentialReturn',
-                'ml_confidence': 'confidence'
-            }
-            
-            # Copy mapped columns
-            for ml_col, orig_col in column_mapping.items():
-                if ml_col in ml_recommendations.columns:
-                    formatted[orig_col] = ml_recommendations[ml_col]
-            
-            # Add additional columns
-            formatted['score'] = (formatted['confidence'] * 100).astype(int)
-            
-            # Add market direction and strategy
-            formatted['marketDirection'] = 'BULLISH'  # Default
-            formatted['strategy'] = 'ML_ENHANCED'  # Mark as ML-enhanced
-            
-            # Add signal details
-            formatted['signalDetails'] = 'Generated by enhanced ML model'
-            
-            return formatted
+            # Convert back to DataFrame
+            return pd.DataFrame(enhanced_recs)
             
         except Exception as e:
-            self.logger.error(f"Error formatting ML recommendations: {str(e)}")
-            return pd.DataFrame()
+            self.logger.error(f"Error applying ML enhancements: {str(e)}")
+            return recommendations
     
-    def _add_risk_management(self, recommendations):
+    def _apply_risk_management(self, recommendations):
         """
-        Add risk management features to recommendations.
+        Apply risk management to recommendations.
         
         Args:
-            recommendations (pandas.DataFrame): ML recommendations
+            recommendations (pandas.DataFrame): Enhanced recommendations
             
         Returns:
             pandas.DataFrame: Recommendations with risk management
@@ -405,3 +274,42 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
         except Exception as e:
             self.logger.error(f"Error calculating technical indicators: {str(e)}")
             return {}
+    
+    def _get_market_context(self):
+        """
+        Get current market context data.
+        
+        Returns:
+            dict: Market context data
+        """
+        try:
+            # Get market indices
+            spy_data = self.data_collector.get_quote('SPY')
+            vix_data = self.data_collector.get_quote('VIX')
+            
+            market_context = {
+                'market_trend': 0,  # Neutral by default
+                'volatility': 0,
+                'sector_performance': {}
+            }
+            
+            # Set market trend based on SPY
+            if spy_data and 'lastPrice' in spy_data and 'openPrice' in spy_data:
+                if spy_data['lastPrice'] > spy_data['openPrice']:
+                    market_context['market_trend'] = 1  # Bullish
+                elif spy_data['lastPrice'] < spy_data['openPrice']:
+                    market_context['market_trend'] = -1  # Bearish
+            
+            # Set volatility based on VIX
+            if vix_data and 'lastPrice' in vix_data:
+                market_context['volatility'] = vix_data['lastPrice']
+            
+            return market_context
+            
+        except Exception as e:
+            self.logger.error(f"Error getting market context: {str(e)}")
+            return {
+                'market_trend': 0,
+                'volatility': 0,
+                'sector_performance': {}
+            }
