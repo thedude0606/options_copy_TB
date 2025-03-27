@@ -17,7 +17,7 @@ from app.components.recommendations_tab import create_recommendations_tab, regis
 # Import data collectors and API clients
 from app.options_data import OptionsDataRetriever
 from app.data_collector import DataCollector
-from app.mock_client import MockSchwabClient  # Use mock client instead of real client
+from schwabdev.client import Client as SchwabClient
 
 # Import analysis modules
 from app.analysis.enhanced_recommendation_engine import EnhancedRecommendationEngine
@@ -38,9 +38,18 @@ logging.basicConfig(
 logger = logging.getLogger('dashboard')
 logger.info("Starting Options Dashboard with Enhanced ML Features")
 
-# Initialize the mock Schwab API client (no credentials required)
-client = MockSchwabClient()
-logger.info("Using MockSchwabClient for development")
+# Initialize the Schwab API client with authentication from environment variables
+app_key = os.getenv('app_key')
+app_secret = os.getenv('app_secret')
+callback_url = os.getenv('callback_url', 'https://127.0.0.1')
+
+if not app_key or not app_secret:
+    logger.warning("API credentials not found in environment variables. Using default values for development.")
+    app_key = "YOUR_APP_KEY"  # Replace with your actual key when deploying
+    app_secret = "YOUR_APP_SECRET"  # Replace with your actual secret when deploying
+
+client = SchwabClient(app_key, app_secret, callback_url)
+logger.info("Schwab API client initialized with authentication")
 
 # Initialize the options data retriever
 options_data_retriever = OptionsDataRetriever(client)
