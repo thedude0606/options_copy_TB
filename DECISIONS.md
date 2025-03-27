@@ -17,6 +17,16 @@
 - **Rationale**: Promotes reusability and consistent styling across the application
 - **Benefits**: Faster development, consistent user experience, easier maintenance
 
+### Machine Learning Pipeline Architecture
+- **Decision**: Implementing a modular ML pipeline with separate feature engineering, model training, and inference components
+- **Rationale**: Enables independent development and optimization of each ML component
+- **Benefits**: Easier to maintain, test, and extend ML capabilities; allows for component-level optimization
+
+### Risk Management Framework
+- **Decision**: Implementing a layered risk management framework with position, strategy, and portfolio levels
+- **Rationale**: Different risk aspects require different calculation approaches and integration points
+- **Benefits**: Comprehensive risk management, adaptable to different user risk profiles, modular implementation
+
 ## Technology Selections
 
 ### Dash Framework
@@ -39,6 +49,36 @@
 - **Rationale**: Provides direct access to market data without third-party dependencies
 - **Benefits**: Reliable data source, comprehensive options data including Greeks
 
+### Scikit-learn for Machine Learning
+- **Decision**: Using scikit-learn as the primary ML framework for feature engineering and model building
+- **Rationale**: Provides comprehensive, well-documented ML tools with consistent API
+- **Benefits**: Extensive feature engineering capabilities, wide range of algorithms, good integration with pandas
+
+### Ensemble Learning Libraries
+- **Decision**: Using XGBoost, LightGBM, and CatBoost for gradient boosting ensemble models
+- **Rationale**: Gradient boosting models typically perform well on financial data with complex patterns
+- **Benefits**: High prediction accuracy, ability to handle non-linear relationships, feature importance analysis
+
+### River for Online Learning
+- **Decision**: Using River for implementing online learning components
+- **Rationale**: Specialized library for incremental learning that can adapt to changing market conditions
+- **Benefits**: Models can update continuously with new data, reduced computational requirements, adaptive to market shifts
+
+### TensorFlow for Deep Learning
+- **Decision**: Using TensorFlow for deep learning models when needed
+- **Rationale**: Provides flexible architecture for complex neural network models
+- **Benefits**: Scalable performance, extensive ecosystem, good deployment options
+
+### Optuna for Hyperparameter Optimization
+- **Decision**: Using Optuna for automated hyperparameter tuning
+- **Rationale**: Efficient hyperparameter optimization is critical for ML model performance
+- **Benefits**: Automated search strategies, parallel optimization, visualization of parameter importance
+
+### Statsmodels for Statistical Analysis
+- **Decision**: Using statsmodels for statistical modeling and risk metrics
+- **Rationale**: Provides robust statistical tools for risk analysis and hypothesis testing
+- **Benefits**: Comprehensive statistical capabilities, well-documented, good for risk modeling
+
 ## Design Patterns
 
 ### Factory Pattern
@@ -60,6 +100,26 @@
 - **Decision**: Used repository pattern for data access layer
 - **Rationale**: Abstracts data source details from business logic
 - **Benefits**: Easier to switch data sources or implement caching, simplified testing
+
+### Pipeline Pattern
+- **Decision**: Implementing pipeline pattern for ML feature engineering and model training
+- **Rationale**: Standardizes data flow through multiple processing stages
+- **Benefits**: Consistent data transformation, reusable components, simplified testing
+
+### Adapter Pattern
+- **Decision**: Using adapter pattern to integrate ML predictions with existing recommendation engine
+- **Rationale**: Allows new ML components to work with existing system without major refactoring
+- **Benefits**: Smooth integration, backward compatibility, incremental deployment
+
+### Composite Pattern
+- **Decision**: Implementing composite pattern for ensemble models
+- **Rationale**: Enables treating individual models and ensemble models with a unified interface
+- **Benefits**: Flexible model composition, consistent prediction interface, simplified management
+
+### Decorator Pattern
+- **Decision**: Using decorator pattern for risk management integration
+- **Rationale**: Allows adding risk management capabilities to existing components without modifying their core functionality
+- **Benefits**: Separation of concerns, extensible design, non-invasive integration
 
 ## Technical Decisions
 
@@ -173,223 +233,83 @@
 - **Implementation**: Properly nested conditional statements to ensure filtered recommendations are correctly processed and returned
 
 ### Trade Card Component Data Format Compatibility
-- **Decision**: Updated trade card component to handle both old and new recommendation data formats
-- **Rationale**: The UI component expected a different data structure than what the recommendation engine was providing
-- **Benefits**: Ensures recommendations appear in the UI, improves user experience, maintains backward compatibility
-- **Implementation**: Modified the trade card component to detect and handle both data formats, with proper fallbacks for missing data
+- **Decision**: Updated trade card component to handle the current recommendation data format
+- **Rationale**: Changes in recommendation engine output format were causing display issues in the UI
+- **Benefits**: Consistent display of recommendations, proper rendering of all data fields, improved user experience
+- **Implementation**: Updated the trade card component to properly extract and display data from the current recommendation format
 
-### Symbol Validation and Correction for Historical Data
-- **Decision**: Implemented symbol validation and correction for historical data to handle common ticker symbol mistakes
-- **Rationale**: Users may enter incorrect ticker symbols (e.g., "APPL" instead of "AAPL") leading to no data being displayed
-- **Benefits**: Improves user experience, reduces errors, ensures historical data is displayed even with common symbol typos
-- **Implementation**: Added a dictionary of common symbol corrections and logic to automatically correct known symbol mistakes
+### Symbol Validation and Correction
+- **Decision**: Implemented symbol validation and correction for historical data
+- **Rationale**: Users may enter symbols with common mistakes (lowercase, extra spaces, missing exchange)
+- **Benefits**: More robust symbol handling, fewer errors in data retrieval, improved user experience
+- **Implementation**: Added preprocessing for symbol input with automatic correction of common issues
 
-### Technical Indicators Module Enhancement
-- **Decision**: Added missing calculate_sma and calculate_ema methods to technical indicators module
-- **Rationale**: The indicators chart was failing to display due to missing static methods that were being called in the indicators tab
-- **Benefits**: Fixes indicators chart display, ensures all technical indicators are properly calculated and displayed
-- **Implementation**: Added static calculate_sma and calculate_ema methods following the same pattern as other static methods in the class
+## Machine Learning Decisions (March 2025)
 
-### Historical Data Processing Enhancement
-- **Decision**: Enhanced historical data processing with robust error handling and type checking
-- **Rationale**: Historical data was not being displayed because the code assumed data would always be in DataFrame format, but it could be None or other formats
-- **Benefits**: Ensures historical data is properly displayed regardless of the format returned by the API, provides detailed logging for troubleshooting
-- **Implementation**: Added comprehensive type checking, conversion of list data to DataFrame, and detailed error handling with informative logging
+### Feature Engineering Approach
+- **Decision**: Implementing a comprehensive feature engineering pipeline with domain-specific transformations
+- **Rationale**: Options data requires specialized feature engineering to capture relevant patterns
+- **Benefits**: More predictive features, better model performance, domain knowledge integration
+- **Implementation**: Creating a modular pipeline with technical indicators, volatility metrics, and options-specific features
 
-### DataFrame Truth Value Ambiguity Fix
-- **Decision**: Implemented explicit type checking for DataFrame objects in boolean contexts
-- **Rationale**: DataFrame objects cannot be directly evaluated in boolean contexts (if statements, list comprehensions)
-- **Benefits**: Prevents "The truth value of a DataFrame is ambiguous" errors, improves code reliability
-- **Implementation**: Added isinstance() checks to properly handle DataFrames, with explicit .empty checks and conversion to records when needed
+### Model Selection Strategy
+- **Decision**: Using ensemble models combining multiple algorithms for prediction
+- **Rationale**: Financial markets have complex patterns that benefit from diverse modeling approaches
+- **Benefits**: Improved prediction accuracy, reduced overfitting, better generalization
+- **Implementation**: Combining gradient boosting, random forest, and neural network models with weighted averaging
 
-### Symbol Change Detection
-- **Decision**: Implemented last_symbol tracking with force_refresh mechanism for cache
-- **Rationale**: When users change symbols, the system needs to fetch fresh data rather than using cached data
-- **Benefits**: Ensures accurate data for new symbols, prevents confusion from stale data, improves user experience
-- **Implementation**: Added tracking variable for last_symbol and force_refresh parameter to cache mechanism
+### Online Learning Implementation
+- **Decision**: Implementing incremental learning with concept drift detection
+- **Rationale**: Market conditions change over time, requiring models to adapt continuously
+- **Benefits**: Models remain accurate as market conditions evolve, reduced need for full retraining
+- **Implementation**: Using River library with adaptive learning rate and concept drift detectors
 
-### Potential Return Calculation
-- **Decision**: Implemented percentage-based potential return calculation for options with realistic caps
-- **Rationale**: Users need to see potential returns to evaluate option recommendations effectively, but values must be realistic
-- **Benefits**: Provides clear metric for comparing different options, shows realistic profit expectations, prevents misleading extreme values
-- **Implementation**: Added calculation of potential return as percentage of max profit relative to option price, with caps limiting values to -100% to 200% range
+### Feature Selection Approach
+- **Decision**: Using a combination of domain knowledge and automated feature selection
+- **Rationale**: Balancing expert knowledge with data-driven selection improves model performance
+- **Benefits**: More interpretable models, better performance, reduced dimensionality
+- **Implementation**: Starting with domain-specific features and refining with mutual information and permutation importance
 
-## UI Redesign Decisions (March 2025)
+### Model Evaluation Metrics
+- **Decision**: Using financial-specific metrics for model evaluation
+- **Rationale**: Standard ML metrics may not align with financial performance objectives
+- **Benefits**: Models optimized for financial outcomes, better alignment with user goals
+- **Implementation**: Using profit factor, Sharpe ratio, and directional accuracy alongside traditional metrics
 
-### Global Symbol Input
-- **Decision**: Implemented a single global symbol input in the application header
-- **Rationale**: Previous design had redundant symbol inputs across different tabs, causing confusion and inconsistency
-- **Benefits**: Simplified user experience, ensured data consistency across all tabs, reduced code duplication
-- **Implementation**: Created a global symbol input in the header and shared the input value across all components via dcc.Store
+### Model Versioning Strategy
+- **Decision**: Implementing a comprehensive model versioning system
+- **Rationale**: Tracking model versions is critical for reproducibility and rollback capabilities
+- **Benefits**: Ability to revert to previous models, track performance over time, audit model changes
+- **Implementation**: Storing model metadata, parameters, and performance metrics with each version
 
-### Tile-Based Recommendation Display
-- **Decision**: Redesigned recommendation display to use a tile-based grid layout
-- **Rationale**: Previous list-based display didn't effectively highlight key information and was difficult to scan quickly
-- **Benefits**: Improved information hierarchy, better visual distinction between recommendations, easier comparison of options
-- **Implementation**: Redesigned trade_card.py component to use a card-based layout with clear visual hierarchy
+## Risk Management Decisions (March 2025)
 
-### Color-Coding for Option Types
-- **Decision**: Implemented consistent color-coding for call and put options (green for calls, red for puts)
-- **Rationale**: Visual distinction between option types helps users quickly identify and categorize recommendations
-- **Benefits**: Improved scanability, reduced cognitive load, enhanced user experience
-- **Implementation**: Applied consistent color schemes in trade card headers and action buttons
+### Position Sizing Approach
+- **Decision**: Implementing adaptive position sizing based on multiple risk factors
+- **Rationale**: Position size should adapt to market conditions, volatility, and user risk tolerance
+- **Benefits**: Better risk control, personalized recommendations, improved risk-adjusted returns
+- **Implementation**: Creating a position sizing module that considers volatility, account size, and risk preferences
 
-### Progress Bar for Confidence Scores
-- **Decision**: Added visual progress bars for confidence scores in recommendation tiles
-- **Rationale**: Numeric confidence scores alone don't provide immediate visual feedback on recommendation quality
-- **Benefits**: Improved at-a-glance assessment of recommendation quality, better visual hierarchy
-- **Implementation**: Created styled progress bars that reflect confidence percentages with appropriate coloring
+### Stop-Loss Strategy
+- **Decision**: Implementing dynamic stop-loss recommendations based on volatility and support/resistance levels
+- **Rationale**: Static stop-loss levels don't account for asset-specific volatility and market structure
+- **Benefits**: More effective risk management, fewer premature exits, better protection against significant losses
+- **Implementation**: Calculating optimal stop-loss levels using ATR, support/resistance, and option-specific metrics
 
-### Sidebar Layout for Controls
-- **Decision**: Moved filtering and timeframe controls to a dedicated sidebar
-- **Rationale**: Previous design scattered controls across different tabs, making them difficult to find and use
-- **Benefits**: Improved discoverability of controls, consistent placement of related functionality, cleaner main content area
-- **Implementation**: Created a structured sidebar with sections for trading timeframe, market overview, and watchlist
+### Take-Profit Approach
+- **Decision**: Implementing probability-based take-profit recommendations
+- **Rationale**: Take-profit levels should be based on realistic price targets with statistical support
+- **Benefits**: More achievable profit targets, better risk-reward ratios, improved trading discipline
+- **Implementation**: Using price projections, probability cones, and option characteristics to determine optimal exit points
 
-### Responsive Grid Layout
-- **Decision**: Implemented a responsive grid layout for recommendation tiles
-- **Rationale**: Fixed-width layouts don't adapt well to different screen sizes and device types
-- **Benefits**: Better space utilization, improved experience across different devices, more flexible display options
-- **Implementation**: Used CSS grid with auto-fill and minmax to create a responsive tile layout
+### Portfolio Risk Integration
+- **Decision**: Implementing a comprehensive portfolio risk management system
+- **Rationale**: Individual position risks must be considered in the context of the overall portfolio
+- **Benefits**: Better diversification, reduced correlation risk, improved overall risk-adjusted returns
+- **Implementation**: Calculating position correlations, sector exposures, and aggregate risk metrics
 
-### Simplified Tab Structure
-- **Decision**: Consolidated feature tabs under a single "Additional Features" section
-- **Rationale**: Previous tab structure gave equal prominence to all features, diluting focus on recommendations
-- **Benefits**: Clearer information hierarchy, emphasis on core recommendation functionality, reduced visual clutter
-- **Implementation**: Created a nested tab structure with primary focus on recommendations and secondary access to additional features
-
-### Consistent Action Buttons
-- **Decision**: Standardized action buttons across all recommendation tiles
-- **Rationale**: Inconsistent button styling and placement creates confusion and reduces usability
-- **Benefits**: Improved learnability, consistent interaction patterns, reduced cognitive load
-- **Implementation**: Created consistent "View Details" and "Trade Now" buttons with appropriate styling for each option type
-
-### Comprehensive CSS Styling
-- **Decision**: Created a dedicated CSS file for styling all UI components
-- **Rationale**: Previous inline styling approach led to inconsistencies and made global style changes difficult
-- **Benefits**: Improved maintainability, consistent styling across components, easier theme implementation
-- **Implementation**: Created a comprehensive styles.css file with structured organization for different component types
-
-## Advanced Trading Analysis Decisions (March 2025)
-
-### Candlestick Pattern Recognition Architecture
-- **Decision**: Implemented a dedicated CandlestickPatterns class with pattern-specific detection methods
-- **Rationale**: Candlestick patterns require specialized detection logic that's distinct from traditional technical indicators
-- **Benefits**: More accurate pattern detection, ability to assign confidence levels to patterns, extensible for adding new patterns
-- **Implementation**: Created a comprehensive class with methods for detecting Hammer, Doji, Engulfing, Morning/Evening Star patterns and Order Blocks
-
-### Multi-Timeframe Analysis Approach
-- **Decision**: Developed a MultiTimeframeAnalyzer that weights signals from different timeframes
-- **Rationale**: Trading decisions should consider multiple timeframes to avoid false signals and confirm trends
-- **Benefits**: More robust trading signals, reduced false positives, better alignment with professional trading methodologies
-- **Implementation**: Created a weighted scoring system that prioritizes longer timeframes while still considering short-term signals
-
-### Pattern Confirmation Requirements
-- **Decision**: Implemented strict confirmation requirements for pattern identification
-- **Rationale**: Many candlestick patterns require specific context and confirmation to be valid trading signals
-- **Benefits**: Higher quality signals, reduced noise, better alignment with professional trading practices
-- **Implementation**: Added pre-pattern and post-pattern context validation for each pattern type
-
-### Order Block Detection Algorithm
-- **Decision**: Created a specialized algorithm for detecting institutional order blocks
-- **Rationale**: Order blocks represent significant supply/demand zones that are critical for advanced trading strategies
-- **Benefits**: Identifies high-probability reversal zones, aligns with institutional trading practices, improves entry/exit timing
-- **Implementation**: Developed an algorithm that identifies candles with specific characteristics followed by strong directional movement
-
-### Options Profit Prediction Model
-- **Decision**: Implemented a comprehensive ProfitPredictor class using Black-Scholes and Monte Carlo simulations
-- **Rationale**: Options profit prediction requires sophisticated mathematical modeling beyond simple technical analysis
-- **Benefits**: Accurate profit projections, time decay modeling, probability-based decision making
-- **Implementation**: Created a model that projects option prices forward in time while accounting for theta decay and volatility changes
-
-### Time Decay Projection Methodology
-- **Decision**: Used a day-by-day theta decay calculation approach rather than linear approximation
-- **Rationale**: Option time decay is non-linear and accelerates as expiration approaches
-- **Benefits**: More accurate profit projections, better exit timing recommendations, improved risk management
-- **Implementation**: Implemented a daily theta calculation that adjusts for the non-linear nature of time decay
-
-### Monte Carlo Simulation for Profit Probability
-- **Decision**: Used Monte Carlo simulations with 10,000 price paths to calculate profit probabilities
-- **Rationale**: Deterministic models fail to capture the range of possible outcomes in options trading
-- **Benefits**: More realistic profit expectations, better risk assessment, probability-based confidence scores
-- **Implementation**: Created a simulation engine that generates thousands of potential price paths based on historical volatility
-
-### Optimal Exit Strategy Algorithm
-- **Decision**: Developed an algorithm that balances profit potential against time decay risk
-- **Rationale**: Options traders need specific guidance on when to exit trades to maximize profits
-- **Benefits**: Concrete exit recommendations, improved trading discipline, better risk management
-- **Implementation**: Created an algorithm that identifies the optimal holding period based on the option's characteristics
-
-### Confidence Calculation System
-- **Decision**: Implemented a multi-factor ConfidenceCalculator that integrates technical, fundamental, and options-specific factors
-- **Rationale**: Confidence in options recommendations should consider multiple data points and analysis types
-- **Benefits**: More nuanced recommendations, detailed explanation of confidence factors, better decision support
-- **Implementation**: Created a weighted scoring system that evaluates and combines signals from different analysis components
-
-### Factor-Based Confidence Scoring
-- **Decision**: Used a factor-based approach with explicit weighting for different signal types
-- **Rationale**: Different factors have varying importance in different market conditions
-- **Benefits**: Transparent confidence calculation, ability to adjust weights based on performance, detailed signal breakdown
-- **Implementation**: Implemented separate scoring functions for technical, profit potential, market condition, and option-specific factors
-
-### Confidence Level Classification
-- **Decision**: Mapped numerical confidence scores to semantic confidence levels (very_high, high, moderate, low, very_low)
-- **Rationale**: Users need clear qualitative assessments in addition to numerical scores
-- **Benefits**: Easier interpretation of recommendations, consistent terminology, better user experience
-- **Implementation**: Created threshold-based mapping from numerical scores to semantic confidence levels
-
-### Data Integration Architecture
-- **Decision**: Implemented a DataIntegrator class as a facade for all recommendation components
-- **Rationale**: Components need to work together seamlessly without direct dependencies
-- **Benefits**: Simplified API for UI components, centralized data flow, easier testing and maintenance
-- **Implementation**: Created a class that coordinates data flow between data sources and analysis components
-
-### Caching Strategy for Market Data
-- **Decision**: Implemented time-based caching for market data with separate expiration for different data types
-- **Rationale**: Different types of market data change at different rates and have different freshness requirements
-- **Benefits**: Reduced API calls, improved performance, appropriate data freshness
-- **Implementation**: Created a caching system with configurable expiration times for different data categories
-
-### Recommendation Ranking Algorithm
-- **Decision**: Implemented a multi-stage filtering and ranking algorithm for options recommendations
-- **Rationale**: Users need a manageable number of high-quality recommendations sorted by confidence
-- **Benefits**: Focused recommendations, clear prioritization, better decision support
-- **Implementation**: Created an algorithm that filters by minimum confidence threshold, then ranks by confidence score
-
-### Testing Framework Design
-- **Decision**: Created a comprehensive testing framework with mock data generation
-- **Rationale**: Testing recommendation components requires realistic but controlled test data
-- **Benefits**: Reliable testing, consistent test conditions, ability to test edge cases
-- **Implementation**: Developed mock data generators for price data, option data, and market data with configurable parameters
-
-## DataFrame Evaluation Fix Decisions (March 2025)
-
-### Comprehensive DataFrame Boolean Evaluation Fix
-- **Decision**: Implemented a systematic approach to fix DataFrame boolean evaluation errors across multiple components
-- **Rationale**: The "truth value of a DataFrame is ambiguous" error occurs when a DataFrame is used in a boolean context without specifying how to evaluate it
-- **Benefits**: Prevents runtime errors, ensures reliable recommendation generation, improves application stability
-- **Implementation**: Created a dedicated DataFrameEvaluationFix class that applies fixes to all affected components
-
-### Explicit DataFrame Emptiness Checks
-- **Decision**: Added explicit checks for DataFrame emptiness using .empty attribute
-- **Rationale**: DataFrames should be checked for emptiness before being used in boolean contexts or operations
-- **Benefits**: Prevents ambiguous truth value errors, provides clear control flow, improves code readability
-- **Implementation**: Added `if data is None or (isinstance(data, pd.DataFrame) and data.empty)` checks in critical methods
-
-### DataFrame to Dictionary Conversion
-- **Decision**: Implemented automatic conversion of DataFrames to dictionaries in the DataIntegrator
-- **Rationale**: Recommendation display components expect dictionary format, but analysis components may return DataFrames
-- **Benefits**: Ensures consistent data format throughout the application, prevents type-related errors
-- **Implementation**: Added conversion logic in get_recommendations method to handle both DataFrame and list inputs
-
-### Fallback Return Values
-- **Decision**: Added appropriate fallback return values for methods that process DataFrames
-- **Rationale**: When a DataFrame is empty or None, methods should return a sensible default value rather than proceeding with invalid data
-- **Benefits**: Prevents cascading errors, ensures graceful degradation, improves user experience
-- **Implementation**: Added early returns with empty DataFrames or default values when input validation fails
-
-### Systematic Testing Approach
-- **Decision**: Created a dedicated test script to verify the effectiveness of DataFrame evaluation fixes
-- **Rationale**: Comprehensive testing is needed to ensure all instances of the error are addressed
-- **Benefits**: Confirms fix effectiveness, provides regression testing capability, documents the issue resolution
-- **Implementation**: Developed test_recommendation_fix.py with mock data to simulate the recommendation generation process
+### Risk Visualization Approach
+- **Decision**: Creating intuitive risk visualizations for user decision-making
+- **Rationale**: Complex risk metrics need clear visualization for effective user decisions
+- **Benefits**: Better user understanding, more informed decisions, improved risk management
+- **Implementation**: Developing risk heatmaps, probability cones, and risk contribution charts
