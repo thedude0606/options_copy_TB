@@ -209,34 +209,23 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
             
             # Create risk/reward visualization
             risk_reward_viz = create_risk_reward_visualization(
-                potential_return=recommendation["potential_return"],
-                risk_reward=recommendation["risk_reward"],
-                confidence=recommendation["confidence"]
+                symbol=symbol,
+                option_type=recommendation["option_type"],
+                strike_price=recommendation["strike_price"],
+                expiration_date=recommendation["expiration_date"]
             )
             
             # Combine all visualizations
             return html.Div([
-                html.H4("Validation Details"),
+                html.H4(f"Validation for {symbol} {recommendation['option_type']} {recommendation['strike_price']} {recommendation['expiration_date']}"),
                 html.Div([
-                    html.Div([
-                        html.H5("Price Action & Entry/Exit Points"),
-                        validation_chart
-                    ], className="col-md-6"),
-                    html.Div([
-                        html.H5("Timeframe Comparison"),
-                        comparison_chart
-                    ], className="col-md-6")
+                    html.Div([validation_chart], className="col-md-6"),
+                    html.Div([comparison_chart], className="col-md-6")
                 ], className="row"),
                 html.Div([
-                    html.Div([
-                        html.H5("Sentiment Analysis"),
-                        sentiment_chart
-                    ], className="col-md-6"),
-                    html.Div([
-                        html.H5("Risk/Reward Profile"),
-                        risk_reward_viz
-                    ], className="col-md-6")
-                ], className="row mt-4")
+                    html.Div([sentiment_chart], className="col-md-6"),
+                    html.Div([risk_reward_viz], className="col-md-6")
+                ], className="row mt-3")
             ])
             
         except Exception as e:
@@ -260,42 +249,37 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
             # Create table rows
             rows = []
             for symbol, data in market_data.items():
-                if not data:
-                    continue
-                    
-                # Extract values
-                last_price = data.get('last_price', 0)
+                price = data.get('last_price', 0)
                 change = data.get('change', 0)
                 change_percent = data.get('change_percent', 0)
                 
                 # Format change with color
-                if change > 0:
-                    change_text = html.Span(f"+{change:.2f} (+{change_percent:.2f}%)", style={"color": "green"})
-                elif change < 0:
-                    change_text = html.Span(f"{change:.2f} ({change_percent:.2f}%)", style={"color": "red"})
-                else:
-                    change_text = html.Span(f"{change:.2f} ({change_percent:.2f}%)")
+                change_class = "text-success" if change >= 0 else "text-danger"
+                change_sign = "+" if change >= 0 else ""
                 
-                # Create row
                 row = html.Tr([
                     html.Td(symbol),
-                    html.Td(f"${last_price:.2f}"),
-                    html.Td(change_text)
+                    html.Td(f"${price:.2f}"),
+                    html.Td(f"{change_sign}{change:.2f} ({change_sign}{change_percent:.2f}%)", className=change_class)
                 ])
-                
                 rows.append(row)
-            
+                
             # Create table
-            table = html.Table([
-                html.Thead(
-                    html.Tr([
-                        html.Th("Index"),
-                        html.Th("Price"),
-                        html.Th("Change")
-                    ])
-                ),
-                html.Tbody(rows)
-            ], className="table table-striped")
+            table = dbc.Table(
+                [html.Thead(html.Tr([
+                    html.Th("Index"),
+                    html.Th("Price"),
+                    html.Th("Change")
+                ]))],
+                bordered=False,
+                hover=True,
+                responsive=True,
+                striped=True,
+                className="mb-0"
+            )
+            
+            # Add rows to table
+            table.children.append(html.Tbody(rows))
             
             return table
             
@@ -305,397 +289,267 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
     
     # Callback for timeframe selection
     @app.callback(
-        Output("apply-timeframe", "children"),
+        Output("timeframe-output", "children"),
         [Input("trading-timeframe", "value")]
     )
-    def update_timeframe_button(timeframe):
-        """Update timeframe button text"""
-        return f"Apply {timeframe or '30m'} Timeframe"
+    def update_timeframe_output(timeframe):
+        """Update timeframe output"""
+        if not timeframe:
+            return "Selected timeframe: 30 Minutes (default)"
+            
+        timeframe_map = {
+            "15m": "15 Minutes",
+            "30m": "30 Minutes",
+            "60m": "60 Minutes",
+            "120m": "120 Minutes"
+        }
+        
+        return f"Selected timeframe: {timeframe_map.get(timeframe, timeframe)}"
     
     # Callback for feature tab content
     @app.callback(
         Output("feature-content", "children"),
-        [Input("feature-tabs", "value")]
+        [Input("feature-tabs", "active_tab")],
+        [State("symbol-input", "value")]
     )
-    def update_feature_content(tab):
+    def update_feature_content(active_tab, symbol):
         """Update feature tab content based on selected tab"""
-        if tab == "options-chain":
-            try:
-                return create_options_chain_tab()
-            except Exception as e:
-                logger.error(f"Error displaying options chain: {str(e)}")
-                return html.Div(f"Error loading Options Chain: {str(e)}")
-                
-        elif tab == "greeks":
-            try:
-                return create_greeks_tab()
-            except Exception as e:
-                logger.error(f"Error displaying Greeks: {str(e)}")
-                return html.Div(f"Error loading Greeks: {str(e)}")
-                
-        elif tab == "indicators":
-            try:
-                return create_indicators_tab()
-            except Exception as e:
-                logger.error(f"Error displaying indicators: {str(e)}")
-                return html.Div(f"Error loading Technical Indicators: {str(e)}")
-                
-        elif tab == "historical":
-            try:
-                return create_historical_tab()
-            except Exception as e:
-                logger.error(f"Error displaying historical data: {str(e)}")
-                return html.Div(f"Error loading Historical Data: {str(e)}")
-                
-        elif tab == "real-time":
-            try:
-                return get_real_time_tab_layout()
-            except Exception as e:
-                logger.error(f"Error displaying real-time data: {str(e)}")
-                return html.Div(f"Error loading Real-Time Data: {str(e)}")
-                
-        return html.Div([
-            html.P("Select a tab to view content.")
-        ])
-    
-    # Add callback to update real-time data
-    @app.callback(
-        Output("rt-stream-data", "data", allow_duplicate=True),
-        [Input("rt-update-interval", "n_intervals")],
-        [State("rt-symbols-store", "data"),
-         State("rt-connection-store", "data"),
-         State("rt-data-type", "value")]
-    )
-    def update_stream_data(n_intervals, symbols, connection_data, data_type):
-        """Update real-time data stream"""
-        if not n_intervals or not symbols or not connection_data or not connection_data.get("active", False):
-            return {}
+        if not active_tab:
+            return html.Div("Select a feature tab to view content")
+            
+        if not symbol:
+            return html.Div("Enter a symbol and click Search to view feature content")
             
         try:
-            # This is a simplified implementation that would be replaced with actual streaming data
-            # In a real implementation, this would connect to the Schwab API streaming service
-            
-            # Create dummy data for demonstration
-            data = {}
-            for symbol in symbols:
-                # Generate random price data
-                base_price = 100 + (hash(symbol) % 400)  # Different base price for each symbol
-                current_time = datetime.now().isoformat()
+            if active_tab == "tab-options-chain":
+                try:
+                    # Get options chain data
+                    options_chain = data_pipeline.get_options_chain(symbol)
+                    if not options_chain or not options_chain.get('calls') or not options_chain.get('puts'):
+                        return html.Div("No options chain data available for this symbol")
+                    
+                    # Create DataTable for calls
+                    calls_df = pd.DataFrame(options_chain['calls'])
+                    calls_table = dash_table.DataTable(
+                        id='calls-table',
+                        columns=[{"name": col, "id": col} for col in calls_df.columns],
+                        data=calls_df.to_dict('records'),
+                        style_table={'overflowX': 'auto'},
+                        style_cell={'textAlign': 'left'},
+                        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+                        page_size=10
+                    )
+                    
+                    # Create DataTable for puts
+                    puts_df = pd.DataFrame(options_chain['puts'])
+                    puts_table = dash_table.DataTable(
+                        id='puts-table',
+                        columns=[{"name": col, "id": col} for col in puts_df.columns],
+                        data=puts_df.to_dict('records'),
+                        style_table={'overflowX': 'auto'},
+                        style_cell={'textAlign': 'left'},
+                        style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+                        page_size=10
+                    )
+                    
+                    return html.Div([
+                        html.H4(f"Options Chain for {symbol}"),
+                        html.Div([
+                            html.H5("Calls"),
+                            calls_table,
+                            html.H5("Puts", className="mt-4"),
+                            puts_table
+                        ])
+                    ])
+                except Exception as e:
+                    logger.error(f"Error displaying options chain: {str(e)}")
+                    return html.Div(f"Error retrieving options chain: {str(e)}")
                 
-                if data_type == "quotes":
-                    # Quote data
-                    data[symbol] = {
-                        "last_price": base_price + (n_intervals % 10) * 0.25,
-                        "bid": base_price + (n_intervals % 10) * 0.25 - 0.05,
-                        "ask": base_price + (n_intervals % 10) * 0.25 + 0.05,
-                        "volume": 1000 + (n_intervals * 100),
-                        "timestamp": current_time
-                    }
-                else:
-                    # Options data
-                    data[symbol] = {
-                        "calls": [
-                            {
-                                "strike": base_price - 5,
-                                "last": 5.25 + (n_intervals % 5) * 0.1,
-                                "bid": 5.20 + (n_intervals % 5) * 0.1,
-                                "ask": 5.30 + (n_intervals % 5) * 0.1,
-                                "volume": 500 + (n_intervals * 50),
-                                "open_interest": 2000,
-                                "timestamp": current_time
-                            },
-                            {
-                                "strike": base_price,
-                                "last": 2.50 + (n_intervals % 5) * 0.1,
-                                "bid": 2.45 + (n_intervals % 5) * 0.1,
-                                "ask": 2.55 + (n_intervals % 5) * 0.1,
-                                "volume": 800 + (n_intervals * 50),
-                                "open_interest": 3500,
-                                "timestamp": current_time
-                            },
-                            {
-                                "strike": base_price + 5,
-                                "last": 1.25 + (n_intervals % 5) * 0.05,
-                                "bid": 1.20 + (n_intervals % 5) * 0.05,
-                                "ask": 1.30 + (n_intervals % 5) * 0.05,
-                                "volume": 600 + (n_intervals * 50),
-                                "open_interest": 2500,
-                                "timestamp": current_time
-                            }
-                        ],
-                        "puts": [
-                            {
-                                "strike": base_price - 5,
-                                "last": 1.15 + (n_intervals % 5) * 0.05,
-                                "bid": 1.10 + (n_intervals % 5) * 0.05,
-                                "ask": 1.20 + (n_intervals % 5) * 0.05,
-                                "volume": 450 + (n_intervals * 40),
-                                "open_interest": 1800,
-                                "timestamp": current_time
-                            },
-                            {
-                                "strike": base_price,
-                                "last": 2.40 + (n_intervals % 5) * 0.1,
-                                "bid": 2.35 + (n_intervals % 5) * 0.1,
-                                "ask": 2.45 + (n_intervals % 5) * 0.1,
-                                "volume": 750 + (n_intervals * 40),
-                                "open_interest": 3200,
-                                "timestamp": current_time
-                            },
-                            {
-                                "strike": base_price + 5,
-                                "last": 5.10 + (n_intervals % 5) * 0.1,
-                                "bid": 5.05 + (n_intervals % 5) * 0.1,
-                                "ask": 5.15 + (n_intervals % 5) * 0.1,
-                                "volume": 550 + (n_intervals * 40),
-                                "open_interest": 2300,
-                                "timestamp": current_time
-                            }
-                        ]
-                    }
+            elif active_tab == "tab-greeks":
+                # Return the Greeks tab content
+                return create_greeks_tab(symbol)
+                
+            elif active_tab == "tab-indicators":
+                # Return the Technical Indicators tab content
+                return create_indicators_tab(symbol)
+                
+            elif active_tab == "tab-historical":
+                # Return the Historical Data tab content
+                return create_historical_tab(symbol)
+                
+            elif active_tab == "tab-real-time":
+                # Return the Real-Time Data tab content
+                return get_real_time_tab_layout(symbol)
+                
+            else:
+                return html.Div(f"Content for {active_tab} not implemented yet")
+                
+        except Exception as e:
+            logger.error(f"Error updating feature content: {str(e)}")
+            return html.Div(f"Error: {str(e)}")
+    
+    # Callback for real-time data stream
+    @app.callback(
+        Output("rt-stream-data", "data", allow_duplicate=True),
+        [Input("interval-component", "n_intervals")],
+        [State("symbol-input", "value")]
+    )
+    def update_stream_data(n_intervals, symbol):
+        """Update real-time data stream"""
+        if not symbol:
+            return {"symbols": [], "data": {}}
             
-            return data
+        try:
+            # Get real-time data
+            stream_data = data_pipeline.get_real_time_data(symbol)
+            
+            if not stream_data:
+                return {"symbols": [symbol], "data": {}}
+                
+            return {"symbols": [symbol], "data": stream_data}
             
         except Exception as e:
             logger.error(f"Error updating stream data: {str(e)}")
-            return {}
-    
-    # Callback for price chart
-    @app.callback(
-        Output("rt-price-chart", "figure"),
-        [Input("rt-stream-data", "data")]
-    )
-    def update_price_chart(stream_data):
-        """Update price chart with streaming data"""
-        # Create empty figure
-        fig = go.Figure()
-        
-        # Check if we have data
-        if not stream_data:
-            fig.update_layout(
-                title="No streaming data available",
-                xaxis_title="Time",
-                yaxis_title="Price",
-                height=400
-            )
-            return fig
-        
-        try:
-            # Process each symbol
-            for symbol, data in stream_data.items():
-                if "last_price" in data:  # Quote data
-                    # In a real implementation, we would accumulate data points over time
-                    # For demonstration, we'll just plot the current point
-                    fig.add_trace(go.Scatter(
-                        x=[datetime.now().strftime("%H:%M:%S")],
-                        y=[data["last_price"]],
-                        mode="markers+lines",
-                        name=symbol
-                    ))
-            
-            # Update layout
-            fig.update_layout(
-                title="Real-Time Price Data",
-                xaxis_title="Time",
-                yaxis_title="Price",
-                height=400,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            
-            return fig
-            
-        except Exception as e:
-            logger.error(f"Error updating price chart: {str(e)}")
-            fig.update_layout(
-                title=f"Error: {str(e)}",
-                xaxis_title="Time",
-                yaxis_title="Price",
-                height=400
-            )
-            return fig
-    
-    # Callback for data table
-    @app.callback(
-        Output("rt-data-table", "children"),
-        [Input("rt-stream-data", "data")]
-    )
-    def update_data_table(stream_data):
-        """Update data table with streaming data"""
-        if not stream_data:
-            return html.Div("No streaming data available")
-        
-        try:
-            # Create table rows
-            rows = []
-            for symbol, data in stream_data.items():
-                if "last_price" in data:  # Quote data
-                    # Create row
-                    row = html.Tr([
-                        html.Td(symbol),
-                        html.Td(f"${data['last_price']:.2f}"),
-                        html.Td(f"${data['bid']:.2f}"),
-                        html.Td(f"${data['ask']:.2f}"),
-                        html.Td(f"{data['volume']:,}"),
-                        html.Td(data['timestamp'])
-                    ])
-                    rows.append(row)
-            
-            if not rows:
-                return html.Div("No quote data available")
-            
-            # Create table
-            table = html.Table([
-                html.Thead(
-                    html.Tr([
-                        html.Th("Symbol"),
-                        html.Th("Last"),
-                        html.Th("Bid"),
-                        html.Th("Ask"),
-                        html.Th("Volume"),
-                        html.Th("Timestamp")
-                    ])
-                ),
-                html.Tbody(rows)
-            ], className="table table-striped")
-            
-            return table
-            
-        except Exception as e:
-            logger.error(f"Error updating data table: {str(e)}")
-            return html.Div(f"Error: {str(e)}")
-    
-    # Callback for time & sales
-    @app.callback(
-        Output("rt-time-sales", "children"),
-        [Input("rt-stream-data", "data")]
-    )
-    def update_time_sales(stream_data):
-        """Update time & sales with streaming data"""
-        if not stream_data:
-            return html.Div("No streaming data available")
-        
-        try:
-            # In a real implementation, this would show individual trades
-            # For demonstration, we'll just show the current data
-            
-            # Create content
-            content = html.Div([
-                html.P("Time & Sales data would be displayed here."),
-                html.P("This would typically show individual trades as they occur."),
-                html.Pre(json.dumps(stream_data, indent=2))
-            ])
-            
-            return content
-            
-        except Exception as e:
-            logger.error(f"Error updating time & sales: {str(e)}")
-            return html.Div(f"Error: {str(e)}")
-    
-    logger.info("Callbacks registered successfully")
+            return {"symbols": [], "data": {}, "error": str(e)}
 
-def create_options_chain_tab():
+def run_all_tests(recommendation_engine, data_pipeline):
     """
-    Create the options chain tab
-    
-    Returns:
-        html.Div: The options chain tab component
-    """
-    return html.Div([
-        html.H3("Options Chain"),
-        
-        # Symbol and expiration selection
-        html.Div([
-            html.Div([
-                html.Label("Symbol:"),
-                dcc.Input(
-                    id="oc-symbol-input",
-                    type="text",
-                    value="",
-                    placeholder="Enter symbol (e.g., AAPL)",
-                    style={"width": "150px", "margin-right": "10px"}
-                ),
-            ], className="col-md-3"),
-            
-            html.Div([
-                html.Label("Expiration:"),
-                dcc.Dropdown(
-                    id="oc-expiration-dropdown",
-                    options=[],
-                    value=None,
-                    placeholder="Select expiration date",
-                    style={"width": "100%"}
-                ),
-            ], className="col-md-3"),
-            
-            html.Div([
-                html.Button(
-                    "Load Chain",
-                    id="oc-load-button",
-                    n_clicks=0,
-                    style={"margin-top": "24px"}
-                ),
-            ], className="col-md-2"),
-        ], className="row mb-3"),
-        
-        # Options chain display
-        html.Div([
-            # Calls
-            html.Div([
-                html.H4("Calls"),
-                html.Div(id="oc-calls-table")
-            ], className="col-md-6"),
-            
-            # Puts
-            html.Div([
-                html.H4("Puts"),
-                html.Div(id="oc-puts-table")
-            ], className="col-md-6"),
-        ], className="row"),
-        
-        # Hidden divs for storing data
-        dcc.Store(id="oc-data-store"),
-    ])
-
-def test_platform(data_collector):
-    """
-    Test the options recommendation platform
+    Run all tests for the options recommendation platform
     
     Args:
-        data_collector: DataCollector instance
+        recommendation_engine: ShortTermRecommendationEngine instance
+        data_pipeline: ShortTermDataPipeline instance
         
     Returns:
-        bool: True if tests pass, False otherwise
+        dict: Test results with summary statistics
     """
-    logger.info("Testing platform...")
+    logger.info("Running all tests...")
     
+    test_results = {
+        "data_pipeline_tests": {},
+        "recommendation_engine_tests": {},
+        "integration_tests": {},
+        "summary": {}
+    }
+    
+    # Test symbols
+    test_symbols = ['SPY', 'QQQ', 'AAPL', 'MSFT']
+    
+    # Test data pipeline
+    data_pipeline_success = 0
+    data_pipeline_total = 0
+    
+    for symbol in test_symbols:
+        try:
+            # Test market data retrieval
+            market_data = data_pipeline.get_market_data(symbol)
+            test_results["data_pipeline_tests"][f"market_data_{symbol}"] = {
+                "success": market_data is not None,
+                "data": str(market_data)[:100] + "..." if market_data else None
+            }
+            data_pipeline_total += 1
+            if market_data is not None:
+                data_pipeline_success += 1
+                
+            # Test options chain retrieval
+            options_chain = data_pipeline.get_options_chain(symbol)
+            test_results["data_pipeline_tests"][f"options_chain_{symbol}"] = {
+                "success": options_chain is not None and len(options_chain.get('calls', [])) > 0,
+                "data": f"Found {len(options_chain.get('calls', []))} calls and {len(options_chain.get('puts', []))} puts" if options_chain else None
+            }
+            data_pipeline_total += 1
+            if options_chain is not None and len(options_chain.get('calls', [])) > 0:
+                data_pipeline_success += 1
+                
+            # Test historical data retrieval
+            historical_data = data_pipeline.get_historical_data(symbol, period_type="month", period=1, freq_type="daily", freq=1)
+            test_results["data_pipeline_tests"][f"historical_data_{symbol}"] = {
+                "success": historical_data is not None and len(historical_data) > 0,
+                "data": f"Found {len(historical_data)} historical data points" if historical_data is not None else None
+            }
+            data_pipeline_total += 1
+            if historical_data is not None and len(historical_data) > 0:
+                data_pipeline_success += 1
+                
+        except Exception as e:
+            logger.error(f"Error in data pipeline test for {symbol}: {str(e)}")
+            test_results["data_pipeline_tests"][f"error_{symbol}"] = {
+                "success": False,
+                "error": str(e)
+            }
+            data_pipeline_total += 1
+    
+    # Test recommendation engine
+    recommendation_engine_success = 0
+    recommendation_engine_total = 0
+    
+    for symbol in test_symbols:
+        try:
+            # Test recommendation generation
+            recommendations = recommendation_engine.generate_recommendations(
+                symbol=symbol,
+                timeframe="30m",
+                option_type="ALL",
+                min_confidence=0.6,
+                min_risk_reward=1.5
+            )
+            test_results["recommendation_engine_tests"][f"recommendations_{symbol}"] = {
+                "success": recommendations is not None,
+                "data": f"Found {len(recommendations)} recommendations" if recommendations else None
+            }
+            recommendation_engine_total += 1
+            if recommendations is not None:
+                recommendation_engine_success += 1
+                
+        except Exception as e:
+            logger.error(f"Error in recommendation engine test for {symbol}: {str(e)}")
+            test_results["recommendation_engine_tests"][f"error_{symbol}"] = {
+                "success": False,
+                "error": str(e)
+            }
+            recommendation_engine_total += 1
+    
+    # Test integration
+    integration_success = 0
+    integration_total = 0
+    
+    # Test market overview
     try:
-        # Initialize components
-        data_pipeline = ShortTermDataPipeline(data_collector)
-        recommendation_engine = ShortTermRecommendationEngine(data_pipeline)
-        
-        # Test market data retrieval
-        market_data = data_pipeline.get_market_overview()
-        if not market_data:
-            logger.error("Failed to retrieve market data")
-            return False
-        logger.info(f"Successfully retrieved market data: {market_data}")
-        
-        # Test recommendation generation
-        symbol = "SPY"
-        recommendations = recommendation_engine.generate_recommendations(
-            symbol=symbol,
-            timeframe="30m",
-            option_type="ALL",
-            min_confidence=0.6,
-            min_risk_reward=1.5
-        )
-        if not recommendations:
-            logger.warning(f"No recommendations generated for {symbol}")
-        else:
-            logger.info(f"Successfully generated {len(recommendations)} recommendations for {symbol}")
-        
-        return True
-        
+        market_overview = data_pipeline.get_market_overview()
+        test_results["integration_tests"]["market_overview"] = {
+            "success": market_overview is not None and len(market_overview) > 0,
+            "data": f"Found {len(market_overview)} market overview items" if market_overview else None
+        }
+        integration_total += 1
+        if market_overview is not None and len(market_overview) > 0:
+            integration_success += 1
     except Exception as e:
-        logger.error(f"Platform test failed: {str(e)}")
-        return False
+        logger.error(f"Error in integration test for market overview: {str(e)}")
+        test_results["integration_tests"]["error_market_overview"] = {
+            "success": False,
+            "error": str(e)
+        }
+        integration_total += 1
+    
+    # Calculate success rates
+    data_pipeline_success_rate = data_pipeline_success / data_pipeline_total if data_pipeline_total > 0 else 0
+    recommendation_engine_success_rate = recommendation_engine_success / recommendation_engine_total if recommendation_engine_total > 0 else 0
+    integration_success_rate = integration_success / integration_total if integration_total > 0 else 0
+    
+    total_success = data_pipeline_success + recommendation_engine_success + integration_success
+    total_tests = data_pipeline_total + recommendation_engine_total + integration_total
+    overall_success_rate = total_success / total_tests if total_tests > 0 else 0
+    
+    # Add summary to test results
+    test_results["summary"] = {
+        "data_pipeline_success_rate": data_pipeline_success_rate,
+        "recommendation_engine_success_rate": recommendation_engine_success_rate,
+        "integration_success_rate": integration_success_rate,
+        "overall_success_rate": overall_success_rate,
+        "total_tests": total_tests,
+        "total_success": total_success
+    }
+    
+    logger.info(f"Test results: {overall_success_rate:.2%} success rate ({total_success}/{total_tests})")
+    
+    return test_results
