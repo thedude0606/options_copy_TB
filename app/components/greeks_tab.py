@@ -12,9 +12,12 @@ import numpy as np
 from app.analysis.options_analysis import OptionsAnalysis
 from app.data_collector import DataCollector
 
-def create_greeks_tab():
+def create_greeks_tab(symbol=None):
     """
     Create the Greeks analysis tab layout
+    
+    Args:
+        symbol (str, optional): Stock symbol to pre-populate
     
     Returns:
         html.Div: Greeks analysis tab layout

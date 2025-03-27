@@ -12,9 +12,12 @@ import numpy as np
 from app.indicators.technical_indicators import TechnicalIndicators
 from app.data_collector import DataCollector
 
-def create_indicators_tab():
+def create_indicators_tab(symbol=None):
     """
     Create the technical indicators tab layout
+    
+    Args:
+        symbol (str, optional): Stock symbol to pre-populate
     
     Returns:
         html.Div: Technical indicators tab layout

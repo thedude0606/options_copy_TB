@@ -8,9 +8,12 @@ import pandas as pd
 from datetime import datetime, timedelta
 from app.data_collector import DataCollector
 
-def create_historical_tab():
+def create_historical_tab(symbol=None):
     """
     Create the historical data tab layout
+    
+    Args:
+        symbol (str, optional): Stock symbol to pre-populate
     
     Returns:
         html.Div: Historical data tab layout

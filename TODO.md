@@ -56,6 +56,8 @@
 - [x] Implement missing get_options_chain method in ShortTermDataPipeline
 - [x] Implement missing get_price_history method in DataCollector
 - [x] Implement missing get_quote method in DataCollector
+- [x] Fix tab creation function parameter errors (create_greeks_tab, create_indicators_tab, create_historical_tab)
+- [x] Fix validation visualization 'strike_price' error
 - [x] Test implemented fixes with various symbols and timeframes
 - [ ] Optimize performance for large options chains
 - [ ] Add comprehensive logging throughout the application
