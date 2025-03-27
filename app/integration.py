@@ -392,7 +392,8 @@ def register_callbacks(app, data_pipeline, recommendation_engine):
     @app.callback(
         Output("rt-stream-data", "data", allow_duplicate=True),
         [Input("interval-component", "n_intervals")],
-        [State("symbol-input", "value")]
+        [State("symbol-input", "value")],
+        prevent_initial_call=True
     )
     def update_stream_data(n_intervals, symbol):
         """Update real-time data stream"""

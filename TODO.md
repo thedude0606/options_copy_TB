@@ -52,6 +52,9 @@
 - [x] Implement proper data validation and error handling for real-time data streaming
 - [x] Fix duplicate output error in real-time data streaming callbacks
 - [x] Implement missing run_all_tests function in integration.py
+- [x] Fix "allow_duplicate requires prevent_initial_call to be True" error in callback configurations
+- [x] Implement missing get_options_chain method in ShortTermDataPipeline
+- [x] Implement missing get_price_history method in DataCollector
 - [x] Test implemented fixes with various symbols and timeframes
 - [ ] Optimize performance for large options chains
 - [ ] Add comprehensive logging throughout the application

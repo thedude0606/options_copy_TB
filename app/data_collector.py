@@ -453,6 +453,42 @@ class DataCollector:
             traceback.print_exc()
             return None
     
+    def get_options_chain(self, symbol):
+        """
+        Get options chain data for a symbol
+        
+        Args:
+            symbol (str): The stock symbol to get options for
+            
+        Returns:
+            dict: Options chain data
+        """
+        # This is an alias for get_option_chain_with_underlying_price to maintain compatibility
+        return self.get_option_chain_with_underlying_price(symbol)
+        
+    def get_price_history(self, symbol, period_type='day', period=1, frequency_type='minute', frequency=30):
+        """
+        Get price history data for a symbol
+        
+        Args:
+            symbol (str): Symbol to get data for
+            period_type (str): Type of period (day, month, year, ytd)
+            period (int): Number of periods
+            frequency_type (str): Type of frequency (minute, daily, weekly, monthly)
+            frequency (int): Frequency value
+            
+        Returns:
+            pandas.DataFrame: Historical price data
+        """
+        # This is a wrapper for get_historical_data to maintain compatibility
+        return self.get_historical_data(
+            symbol=symbol,
+            period_type=period_type,
+            period_value=period,
+            freq_type=frequency_type,
+            freq_value=frequency
+        )
+    
     def get_option_chain_with_underlying_price(self, symbol):
         """
         Get the option chain for a symbol with underlying price

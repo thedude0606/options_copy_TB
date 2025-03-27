@@ -112,6 +112,9 @@
   - **Enhanced real-time data streaming** with robust error handling, data validation, and proper formatting to ensure consistent data structure for visualization components
   - **Fixed duplicate output error in real-time data streaming** by adding allow_duplicate=True to the callback in integration.py that was conflicting with the callback in real_time_tab.py, resolving the "Output 0 (rt-stream-data.data) is already in use" error
   - **Implemented missing run_all_tests function** in integration.py to fix the "ImportError: cannot import name 'run_all_tests'" error in run_simplified_dashboard.py, adding comprehensive testing capabilities for data pipeline, recommendation engine, and integration components with detailed success rate reporting
+  - **Fixed "allow_duplicate requires prevent_initial_call to be True" error** by adding prevent_initial_call=True parameter to the callback in integration.py that was using allow_duplicate=True without the required parameter
+  - **Implemented missing get_options_chain method** in the DataCollector class to fix the missing method error, creating an alias for the existing get_option_chain_with_underlying_price method to maintain compatibility
+  - **Implemented missing get_price_history method** in the DataCollector class to fix the missing method error, creating a wrapper for the existing get_historical_data method to maintain compatibility with the expected parameter structure
 
 ## Current Work in Progress
 
