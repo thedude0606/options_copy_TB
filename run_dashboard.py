@@ -1,226 +1,47 @@
 """
-Full-featured Schwab Options Dashboard application with real API data integration
+Main dashboard application for options trading.
+Integrates enhanced machine learning and risk management features.
 """
-import os
-import sys
 import dash
-from dash import dcc, html, Input, Output, State, dash_table
-import plotly.graph_objs as go
-import pandas as pd
-from dotenv import load_dotenv
-import requests
-import json
-from datetime import datetime, timedelta
-import time
-import webbrowser
-import random
-import math
 import dash_bootstrap_components as dbc
+from dash import html, dcc
+import webbrowser
+import os
+import logging
 
-# Import custom modules
-from app.streaming_data import StreamingDataManager
-from app.stream_data_handler import StreamDataHandler
-from app.real_time_tab import register_real_time_callbacks
-from app.components.indicators_tab import register_indicators_callbacks, create_indicators_tab
+# Import components
+from app.components.indicators_tab import create_indicators_tab, register_indicators_callbacks
 from app.components.greeks_tab import register_greeks_callbacks
-from app.historical_tab import register_historical_callbacks
+from app.components.historical_tab import register_historical_callbacks
+from app.components.real_time_tab import register_real_time_callbacks
 from app.components.recommendations_tab import create_recommendations_tab, register_recommendations_callbacks
-from app.components.trade_card import create_trade_cards_container
-from app.analysis.recommendation_engine import RecommendationEngine
-from app.data_collector import DataCollector
 
-# Import debugging tools for timeline selector
-from tests.debug_timeline_selector import add_debug_callback_to_app, add_debug_div_to_layout
+# Import data collectors and API clients
+from app.data.options_data_retriever import OptionsDataRetriever
+from app.data.data_collector import DataCollector
+from app.api.schwab_client import SchwabClient
 
-# Load environment variables
-load_dotenv()
+# Import analysis modules
+from app.analysis.enhanced_recommendation_engine import EnhancedRecommendationEngine
 
-# Authentication and API credentials
-SCHWAB_APP_KEY = os.getenv('SCHWAB_APP_KEY')
-SCHWAB_APP_SECRET = os.getenv('SCHWAB_APP_SECRET')
-SCHWAB_CALLBACK_URL = os.getenv('SCHWAB_CALLBACK_URL')
+# Import debugging utilities
+from app.utils.debug_utils import add_debug_div_to_layout, add_debug_callback_to_app
 
-# Token management
-TOKENS_FILE = 'tokens.json'
-
-# Force authentication at startup
-print("\n" + "="*80)
-print("SCHWAB API AUTHENTICATION")
-print("="*80)
-print("You need to authenticate with Schwab API to use this dashboard.")
-print("Please follow the prompts below to complete authentication.")
-print("="*80 + "\n")
-
-# Import the Client class after displaying the authentication message
-from schwabdev.client import Client
-
-# Initialize the Schwab client - authentication is handled automatically by the library
-client = Client(
-    app_key=SCHWAB_APP_KEY,
-    app_secret=SCHWAB_APP_SECRET,
-    callback_url=SCHWAB_CALLBACK_URL,
-    tokens_file=TOKENS_FILE
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('dashboard.log'),
+        logging.StreamHandler()
+    ]
 )
 
-# Force token refresh to trigger authentication
-if not os.path.exists(TOKENS_FILE) or os.path.getsize(TOKENS_FILE) == 0:
-    print("No existing tokens found. Starting authentication process...")
-    # Access tokens property to trigger authentication
-    if hasattr(client, 'tokens'):
-        client.tokens.update_refresh_token()
+logger = logging.getLogger('dashboard')
+logger.info("Starting Options Dashboard with Enhanced ML Features")
 
-class OptionsDataRetriever:
-    """
-    Class to retrieve options data from Schwab API
-    """
-    def __init__(self, client):
-        self.client = client
-    
-    def get_option_chain(self, symbol):
-        """
-        Get the option chain for a symbol
-        
-        Args:
-            symbol (str): The stock symbol to get options for
-            
-        Returns:
-            dict: Option chain data
-        """
-        try:
-            # Get the current price of the underlying
-            quote_response = self.client.quote(symbol)
-            if hasattr(quote_response, 'json'):
-                quote_data = quote_response.json()
-                current_price = quote_data.get('lastPrice', 0)
-            else:
-                current_price = 0
-            
-            # Get option chain data
-            option_chain_response = self.client.option_chains(
-                symbol=symbol,
-                contractType="ALL",
-                strikeCount=10,  # Get options around the current price
-                includeUnderlyingQuote=True,
-                strategy="SINGLE"
-            )
-            
-            if hasattr(option_chain_response, 'json'):
-                option_chain_data = option_chain_response.json()
-            else:
-                option_chain_data = {}
-            
-            # Process the option chain data
-            expiration_dates = []
-            options = []
-            
-            # Extract expiration dates and options data
-            for exp_date in option_chain_data.get('callExpDateMap', {}).keys():
-                expiration_dates.append(exp_date.split(':')[0])
-                
-                # Process call options
-                for strike in option_chain_data.get('callExpDateMap', {}).get(exp_date, {}):
-                    for call_option in option_chain_data.get('callExpDateMap', {}).get(exp_date, {}).get(strike, []):
-                        options.append({
-                            "option_type": "CALL",
-                            "symbol": call_option.get('symbol'),
-                            "strike": float(strike),
-                            "expiration": exp_date.split(':')[0],
-                            "bid": call_option.get('bid', 0),
-                            "ask": call_option.get('ask', 0),
-                            "last": call_option.get('last', 0),
-                            "volume": call_option.get('totalVolume', 0),
-                            "open_interest": call_option.get('openInterest', 0),
-                            "delta": call_option.get('delta', 0),
-                            "gamma": call_option.get('gamma', 0),
-                            "theta": call_option.get('theta', 0),
-                            "vega": call_option.get('vega', 0),
-                            "implied_volatility": call_option.get('volatility', 0) / 100  # Convert to decimal
-                        })
-                
-                # Process put options
-                for strike in option_chain_data.get('putExpDateMap', {}).get(exp_date, {}):
-                    for put_option in option_chain_data.get('putExpDateMap', {}).get(exp_date, {}).get(strike, []):
-                        options.append({
-                            "option_type": "PUT",
-                            "symbol": put_option.get('symbol'),
-                            "strike": float(strike),
-                            "expiration": exp_date.split(':')[0],
-                            "bid": put_option.get('bid', 0),
-                            "ask": put_option.get('ask', 0),
-                            "last": put_option.get('last', 0),
-                            "volume": put_option.get('totalVolume', 0),
-                            "open_interest": put_option.get('openInterest', 0),
-                            "delta": put_option.get('delta', 0),
-                            "gamma": put_option.get('gamma', 0),
-                            "theta": put_option.get('theta', 0),
-                            "vega": put_option.get('vega', 0),
-                            "implied_volatility": put_option.get('volatility', 0) / 100  # Convert to decimal
-                        })
-            
-            return {
-                "symbol": symbol,
-                "underlying_price": current_price,
-                "expirations": list(set(expiration_dates)),  # Remove duplicates
-                "options": options
-            }
-        except Exception as e:
-            print(f"Error retrieving option chain: {str(e)}")
-            return {
-                "symbol": symbol,
-                "underlying_price": 0,
-                "expirations": [],
-                "options": []
-            }
-    
-    def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', frequency=1):
-        """
-        Get historical price data for a symbol
-        
-        Args:
-            symbol (str): The stock symbol
-            period_type (str): Type of period - 'day', 'month', 'year', 'ytd'
-            period (int): Number of periods
-            frequency_type (str): Type of frequency - 'minute', 'daily', 'weekly', 'monthly'
-            frequency (int): Frequency value
-            
-        Returns:
-            pd.DataFrame: Historical price data
-        """
-        try:
-            # Get historical data
-            history_response = self.client.price_history(
-                symbol=symbol,
-                periodType=period_type,
-                period=period,
-                frequencyType=frequency_type,
-                frequency=frequency,
-                needExtendedHoursData=True
-            )
-            
-            if hasattr(history_response, 'json'):
-                history_data = history_response.json()
-            else:
-                history_data = {}
-            
-            # Process the historical data
-            candles = history_data.get('candles', [])
-            
-            if not candles:
-                return pd.DataFrame()
-            
-            # Convert to DataFrame
-            df = pd.DataFrame(candles)
-            
-            # Convert datetime
-            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-            
-            # Set datetime as index
-            df.set_index('datetime', inplace=True)
-            
-            return df
-        except Exception as e:
-            print(f"Error retrieving historical data: {str(e)}")
-            return pd.DataFrame()
+# Initialize the Schwab API client
+client = SchwabClient()
 
 # Initialize the options data retriever
 options_data_retriever = OptionsDataRetriever(client)
@@ -228,8 +49,9 @@ options_data_retriever = OptionsDataRetriever(client)
 # Initialize the data collector for technical indicators
 data_collector = DataCollector()
 
-# Initialize the recommendation engine
-recommendation_engine = RecommendationEngine(data_collector)
+# Initialize the enhanced recommendation engine with ML capabilities
+recommendation_engine = EnhancedRecommendationEngine(data_collector, debug=True)
+logger.info("Enhanced recommendation engine initialized")
 
 # Initialize the app
 app = dash.Dash(
@@ -246,7 +68,7 @@ app.layout = html.Div([
     # Header
     html.Div([
         html.H1("Schwab Options Dashboard", className="display-4"),
-        html.P("Real-time options data and analysis powered by Schwab API", className="lead"),
+        html.P("Real-time options data and analysis powered by Schwab API and ML", className="lead"),
         html.Hr()
     ], className="container mt-4"),
     
@@ -281,8 +103,8 @@ app.layout = html.Div([
 
 # Callback to render tab content
 @app.callback(
-    Output("tab-content", "children"),
-    Input("tabs", "value")
+    dash.Output("tab-content", "children"),
+    dash.Input("tabs", "value")
 )
 def render_tab_content(tab):
     """
