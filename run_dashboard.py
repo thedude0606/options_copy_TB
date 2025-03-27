@@ -12,8 +12,6 @@ import logging
 # Import components
 from app.components.indicators_tab import create_indicators_tab, register_indicators_callbacks
 from app.components.greeks_tab import register_greeks_callbacks
-from app.components.historical_tab import register_historical_callbacks
-from app.components.real_time_tab import register_real_time_callbacks
 from app.components.recommendations_tab import create_recommendations_tab, register_recommendations_callbacks
 
 # Import data collectors and API clients
@@ -78,9 +76,7 @@ app.layout = html.Div([
         dcc.Tabs(id="tabs", value="recommendations-tab", children=[
             dcc.Tab(label="Recommendations", value="recommendations-tab"),
             dcc.Tab(label="Technical Indicators", value="indicators-tab"),
-            dcc.Tab(label="Greeks Analysis", value="greeks-tab"),
-            dcc.Tab(label="Historical Data", value="historical-tab"),
-            dcc.Tab(label="Real-Time Data", value="real-time-tab")
+            dcc.Tab(label="Greeks Analysis", value="greeks-tab")
         ]),
         
         # Tab content
@@ -89,9 +85,7 @@ app.layout = html.Div([
     
     # Store components for sharing data between callbacks
     dcc.Store(id="options-data-store"),
-    dcc.Store(id="historical-data-store"),
     dcc.Store(id="selected-options-store"),
-    dcc.Store(id="streaming-data-store"),
     
     # Interval component for periodic updates
     dcc.Interval(
@@ -143,31 +137,6 @@ def render_tab_content(tab):
             ]),
             html.Div(id="greeks-content")
         ])
-    elif tab == "historical-tab":
-        return html.Div([
-            html.H3("Historical Options Data"),
-            html.Div([
-                html.Label("Symbol:"),
-                dbc.InputGroup([
-                    dbc.Input(id="historical-symbol-input", type="text", placeholder="Enter symbol (e.g., AAPL)"),
-                    dbc.Button("Fetch Data", id="historical-fetch-button", color="primary")
-                ], className="mb-3")
-            ]),
-            html.Div(id="historical-content")
-        ])
-    elif tab == "real-time-tab":
-        return html.Div([
-            html.H3("Real-Time Options Data"),
-            html.Div([
-                html.Label("Symbol:"),
-                dbc.InputGroup([
-                    dbc.Input(id="real-time-symbol-input", type="text", placeholder="Enter symbol (e.g., AAPL)"),
-                    dbc.Button("Start Streaming", id="real-time-start-button", color="primary"),
-                    dbc.Button("Stop Streaming", id="real-time-stop-button", color="danger", className="ml-2")
-                ], className="mb-3")
-            ]),
-            html.Div(id="real-time-content")
-        ])
     else:
         return html.Div([
             html.H3("Tab content not implemented")
@@ -176,8 +145,6 @@ def render_tab_content(tab):
 # Register callbacks
 register_indicators_callbacks(app)
 register_greeks_callbacks(app)
-register_historical_callbacks(app)
-register_real_time_callbacks(app)
 register_recommendations_callbacks(app, recommendation_engine)
 
 # Run the app
