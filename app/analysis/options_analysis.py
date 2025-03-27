@@ -448,6 +448,7 @@ class OptionsAnalysis:
                 
                 if option_price <= 0:
                     result.at[idx, 'riskRewardRatio'] = 0
+                    result.at[idx, 'potentialReturn'] = 0
                     continue
                 
                 # Calculate maximum potential profit and loss
@@ -486,9 +487,17 @@ class OptionsAnalysis:
                 else:
                     risk_reward = 0
                 
+                # Calculate potential return percentage
+                if option_price > 0:
+                    potential_return_pct = (max_profit / option_price) * 100
+                    print(f"Calculated potential return: {potential_return_pct:.2f}% (Max profit: ${max_profit:.2f}, Option price: ${option_price:.2f})")
+                else:
+                    potential_return_pct = 0
+                
                 result.at[idx, 'riskRewardRatio'] = risk_reward
                 result.at[idx, 'maxProfit'] = max_profit
                 result.at[idx, 'maxLoss'] = max_loss
+                result.at[idx, 'potentialReturn'] = potential_return_pct
             except Exception as e:
                 print(f"Error calculating risk-reward ratio for row {idx}: {str(e)}")
         

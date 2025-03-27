@@ -196,6 +196,24 @@
 - **Benefits**: Ensures historical data is properly displayed regardless of the format returned by the API, provides detailed logging for troubleshooting
 - **Implementation**: Added comprehensive type checking, conversion of list data to DataFrame, and detailed error handling with informative logging
 
+### DataFrame Truth Value Ambiguity Fix
+- **Decision**: Implemented explicit type checking for DataFrame objects in boolean contexts
+- **Rationale**: DataFrame objects cannot be directly evaluated in boolean contexts (if statements, list comprehensions)
+- **Benefits**: Prevents "The truth value of a DataFrame is ambiguous" errors, improves code reliability
+- **Implementation**: Added isinstance() checks to properly handle DataFrames, with explicit .empty checks and conversion to records when needed
+
+### Symbol Change Detection
+- **Decision**: Implemented last_symbol tracking with force_refresh mechanism for cache
+- **Rationale**: When users change symbols, the system needs to fetch fresh data rather than using cached data
+- **Benefits**: Ensures accurate data for new symbols, prevents confusion from stale data, improves user experience
+- **Implementation**: Added tracking variable for last_symbol and force_refresh parameter to cache mechanism
+
+### Potential Return Calculation
+- **Decision**: Implemented percentage-based potential return calculation for options
+- **Rationale**: Users need to see potential returns to evaluate option recommendations effectively
+- **Benefits**: Provides clear metric for comparing different options, shows realistic profit expectations
+- **Implementation**: Added calculation of potential return as percentage of max profit relative to option price
+
 ## UI Redesign Decisions (March 2025)
 
 ### Global Symbol Input

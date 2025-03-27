@@ -37,6 +37,8 @@ class RecommendationEngine:
         # Create cache directory if it doesn't exist
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
+        # Track last symbol to detect changes
+        self.last_symbol = None
     
     def generate_recommendations(self, symbol, lookback_days=30, confidence_threshold=0.6, strategy_types=None):
         """
@@ -52,6 +54,15 @@ class RecommendationEngine:
             pd.DataFrame: Recommendations with details
         """
         try:
+            # Check if symbol has changed - force cache refresh if needed
+            force_refresh = False
+            if symbol != self.last_symbol:
+                if self.debug:
+                    print(f"\n=== SYMBOL CHANGE DETECTED ===")
+                    print(f"Symbol changed from {self.last_symbol} to {symbol}, forcing cache refresh")
+                force_refresh = True
+                self.last_symbol = symbol
+            
             if self.debug:
                 print(f"\n=== RECOMMENDATION ENGINE DEBUG ===")
                 print(f"Generating recommendations for {symbol}")
@@ -61,7 +72,7 @@ class RecommendationEngine:
             
             # Check cache for historical data
             historical_data = self._get_cached_data(f"{symbol}_historical", self._fetch_historical_data, 
-                                                   symbol=symbol, lookback_days=lookback_days)
+                                                   symbol=symbol, lookback_days=lookback_days, force_refresh=force_refresh)
             
             if self.debug:
                 print(f"Historical data shape: {historical_data.shape if not historical_data.empty else 'Empty'}")
@@ -71,7 +82,7 @@ class RecommendationEngine:
                 return pd.DataFrame()
             
             # Check cache for options data
-            options_data = self._get_cached_data(f"{symbol}_options", self._fetch_options_data, symbol=symbol)
+            options_data = self._get_cached_data(f"{symbol}_options", self._fetch_options_data, symbol=symbol, force_refresh=force_refresh)
             
             if self.debug:
                 print(f"Options data shape: {options_data.shape if not options_data.empty else 'Empty'}")
@@ -151,14 +162,17 @@ class RecommendationEngine:
             cache_key (str): Key for the cached data
             fetch_function (callable): Function to call if cache miss
             **kwargs: Arguments to pass to fetch_function
+                force_refresh (bool): If True, ignore cache and fetch fresh data
             
         Returns:
             pd.DataFrame: The requested data
         """
+        # Extract force_refresh parameter if present
+        force_refresh = kwargs.pop('force_refresh', False)
         cache_file = os.path.join(self.cache_dir, f"{cache_key}.pkl")
         
-        # Check if cache file exists and is not expired
-        if os.path.exists(cache_file):
+        # Check if cache file exists and is not expired, unless force_refresh is True
+        if not force_refresh and os.path.exists(cache_file):
             file_age = time.time() - os.path.getmtime(cache_file)
             if file_age < self.cache_expiry:
                 if self.debug:
@@ -173,8 +187,13 @@ class RecommendationEngine:
                 if self.debug:
                     print(f"Cache expired for {cache_key} (age: {file_age:.1f}s)")
         else:
-            if self.debug:
-                print(f"No cache found for {cache_key}")
+            if force_refresh:
+                if self.debug:
+                    print(f"=== FORCE REFRESH ACTIVE ===")
+                    print(f"Force refresh requested for {cache_key}, fetching fresh data")
+            else:
+                if self.debug:
+                    print(f"No cache found for {cache_key}")
         
         # Fetch data
         data = fetch_function(**kwargs)

@@ -65,6 +65,9 @@
   - Added missing calculate_sma method to technical indicators module to fix indicators chart display
   - Added missing calculate_ema method to technical indicators module to fix indicators chart display
   - Enhanced historical data processing with robust error handling and type checking to ensure data is properly displayed
+  - Fixed DataFrame truth value ambiguity error with proper type checking and explicit empty checks
+  - Implemented symbol change detection with cache refresh to ensure new symbols load fresh data
+  - Fixed potential return calculation to show meaningful percentage values instead of zeros
 - **UI Redesign** (March 2025):
   - Created new v2 branch for UI redesign implementation
   - Simplified the UI with a single global symbol input shared across all tabs
