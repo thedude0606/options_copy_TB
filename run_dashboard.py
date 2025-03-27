@@ -17,7 +17,7 @@ from app.components.recommendations_tab import create_recommendations_tab, regis
 # Import data collectors and API clients
 from app.options_data import OptionsDataRetriever
 from app.data_collector import DataCollector
-from schwabdev.client import Client as SchwabClient
+from app.mock_client import MockSchwabClient  # Use mock client instead of real client
 
 # Import analysis modules
 from app.analysis.enhanced_recommendation_engine import EnhancedRecommendationEngine
@@ -38,8 +38,9 @@ logging.basicConfig(
 logger = logging.getLogger('dashboard')
 logger.info("Starting Options Dashboard with Enhanced ML Features")
 
-# Initialize the Schwab API client
-client = SchwabClient()
+# Initialize the mock Schwab API client (no credentials required)
+client = MockSchwabClient()
+logger.info("Using MockSchwabClient for development")
 
 # Initialize the options data retriever
 options_data_retriever = OptionsDataRetriever(client)
