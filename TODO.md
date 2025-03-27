@@ -38,6 +38,12 @@
 - [x] Simplify UI with a single global symbol input
 - [x] Implement tile-based recommendation display
 - [x] Create comprehensive CSS styling for new UI components
+- [x] Implement candlestick pattern recognition module with support for multiple patterns
+- [x] Create multi-timeframe analyzer to integrate patterns with technical indicators
+- [ ] Implement options profit prediction model with time decay projections
+- [ ] Develop confidence probability calculation system
+- [ ] Integrate multi-timeframe data collection with Schwab API
+- [ ] Update UI to display enhanced recommendations with pattern recognition
 - [ ] Test new UI implementation with various symbols and timeframes
 - [ ] Ensure responsive design for different screen sizes
 - [ ] Optimize performance for large options chains
@@ -45,6 +51,8 @@
 
 ## Medium Priority Tasks
 
+- [ ] Test candlestick pattern recognition with real market data
+- [ ] Fine-tune pattern detection parameters for different market conditions
 - [ ] Enhance error handling for edge cases in API responses
 - [ ] Create automated tests for critical components
 - [ ] Improve user interface feedback during data loading
@@ -67,6 +75,8 @@
 - [ ] Document the debugging process and solutions for future reference
 - [ ] Add user onboarding tutorial
 - [ ] Implement advanced settings panel for recommendation engine configuration
+- [ ] Add visualization for candlestick patterns in technical analysis charts
+- [ ] Create educational content about identified patterns in recommendations
 
 ## Dependencies
 
@@ -80,3 +90,7 @@
 - Debugging capabilities → All components
 - Global symbol input → All data components
 - CSS styling → All UI components
+- Candlestick patterns → Multi-timeframe analyzer
+- Multi-timeframe analyzer → Enhanced recommendation engine
+- Options profit prediction → Confidence probability calculation
+- Confidence probability calculation → Enhanced recommendation display
