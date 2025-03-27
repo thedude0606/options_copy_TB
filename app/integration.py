@@ -486,7 +486,7 @@ def run_all_tests(recommendation_engine, data_pipeline):
                 data_pipeline_success += 1
                 
             # Test historical data retrieval
-            historical_data = data_pipeline.get_historical_data(symbol, period_type="month", period=1, freq_type="daily", freq=1)
+            historical_data = data_pipeline.get_historical_data(symbol, period_type="month", period_value=1, freq_type="daily", freq_value=1)
             test_results["data_pipeline_tests"][f"historical_data_{symbol}"] = {
                 "success": historical_data is not None and len(historical_data) > 0,
                 "data": f"Found {len(historical_data)} historical data points" if historical_data is not None else None
