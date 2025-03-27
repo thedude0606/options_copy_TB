@@ -213,6 +213,9 @@ class MultiTimeframeAnalyzer:
         # Analyze each timeframe
         timeframe_results = {}
         for timeframe, data in multi_timeframe_data.items():
+            # Ensure data is not empty before analysis
+            if data is None or (isinstance(data, pd.DataFrame) and data.empty):
+                continue
             timeframe_results[timeframe] = self.analyze_timeframe(data, timeframe)
         
         # Combine signals across timeframes

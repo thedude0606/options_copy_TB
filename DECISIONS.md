@@ -337,3 +337,35 @@
 - **Rationale**: Testing recommendation components requires realistic but controlled test data
 - **Benefits**: Reliable testing, consistent test conditions, ability to test edge cases
 - **Implementation**: Developed mock data generators for price data, option data, and market data with configurable parameters
+
+## DataFrame Evaluation Fix Decisions (March 2025)
+
+### Comprehensive DataFrame Boolean Evaluation Fix
+- **Decision**: Implemented a systematic approach to fix DataFrame boolean evaluation errors across multiple components
+- **Rationale**: The "truth value of a DataFrame is ambiguous" error occurs when a DataFrame is used in a boolean context without specifying how to evaluate it
+- **Benefits**: Prevents runtime errors, ensures reliable recommendation generation, improves application stability
+- **Implementation**: Created a dedicated DataFrameEvaluationFix class that applies fixes to all affected components
+
+### Explicit DataFrame Emptiness Checks
+- **Decision**: Added explicit checks for DataFrame emptiness using .empty attribute
+- **Rationale**: DataFrames should be checked for emptiness before being used in boolean contexts or operations
+- **Benefits**: Prevents ambiguous truth value errors, provides clear control flow, improves code readability
+- **Implementation**: Added `if data is None or (isinstance(data, pd.DataFrame) and data.empty)` checks in critical methods
+
+### DataFrame to Dictionary Conversion
+- **Decision**: Implemented automatic conversion of DataFrames to dictionaries in the DataIntegrator
+- **Rationale**: Recommendation display components expect dictionary format, but analysis components may return DataFrames
+- **Benefits**: Ensures consistent data format throughout the application, prevents type-related errors
+- **Implementation**: Added conversion logic in get_recommendations method to handle both DataFrame and list inputs
+
+### Fallback Return Values
+- **Decision**: Added appropriate fallback return values for methods that process DataFrames
+- **Rationale**: When a DataFrame is empty or None, methods should return a sensible default value rather than proceeding with invalid data
+- **Benefits**: Prevents cascading errors, ensures graceful degradation, improves user experience
+- **Implementation**: Added early returns with empty DataFrames or default values when input validation fails
+
+### Systematic Testing Approach
+- **Decision**: Created a dedicated test script to verify the effectiveness of DataFrame evaluation fixes
+- **Rationale**: Comprehensive testing is needed to ensure all instances of the error are addressed
+- **Benefits**: Confirms fix effectiveness, provides regression testing capability, documents the issue resolution
+- **Implementation**: Developed test_recommendation_fix.py with mock data to simulate the recommendation generation process
