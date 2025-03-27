@@ -163,6 +163,31 @@ class ShortTermDataPipeline:
             self.logger.error(f"Error retrieving price data: {str(e)}")
             return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
     
+    def get_options_chain(self, symbol):
+        """
+        Get options chain data for a symbol
+        
+        Args:
+            symbol (str): Stock symbol
+            
+        Returns:
+            dict: Options chain data
+        """
+        try:
+            # Get options chain from data collector
+            options_chain = self.data_collector.get_options_chain(symbol)
+            
+            # Check if we have a valid options chain
+            if not options_chain:
+                self.logger.warning(f"No options chain data returned for {symbol}")
+                return None
+                
+            return options_chain
+                
+        except Exception as e:
+            self.logger.error(f"Error retrieving options chain: {str(e)}")
+            return None
+    
     def get_options_data_for_timeframe(self, symbol, timeframe='30m'):
         """
         Get options data optimized for the specified short-term timeframe

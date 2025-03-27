@@ -115,6 +115,8 @@
   - **Fixed "allow_duplicate requires prevent_initial_call to be True" error** by adding prevent_initial_call=True parameter to the callback in integration.py that was using allow_duplicate=True without the required parameter
   - **Implemented missing get_options_chain method** in the DataCollector class to fix the missing method error, creating an alias for the existing get_option_chain_with_underlying_price method to maintain compatibility
   - **Implemented missing get_price_history method** in the DataCollector class to fix the missing method error, creating a wrapper for the existing get_historical_data method to maintain compatibility with the expected parameter structure
+  - **Implemented missing get_quote method** in the DataCollector class to fix the 'DataCollector' object has no attribute 'get_quote' error, providing comprehensive error handling and response processing
+  - **Implemented missing get_options_chain method** in the ShortTermDataPipeline class to fix the 'ShortTermDataPipeline' object has no attribute 'get_options_chain' error, properly delegating to the data_collector's get_options_chain method
 
 ## Current Work in Progress
 

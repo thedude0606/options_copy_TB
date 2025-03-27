@@ -488,6 +488,52 @@ class DataCollector:
             freq_type=frequency_type,
             freq_value=frequency
         )
+        
+    def get_quote(self, symbol):
+        """
+        Get current quote for a symbol
+        
+        Args:
+            symbol (str): The stock symbol
+            
+        Returns:
+            dict: Quote data
+        """
+        try:
+            print(f"Getting quote for {symbol}")
+            
+            # Get quote data
+            quote_response = self.client.quote(symbol)
+            
+            # Debug: Print quote response structure
+            if DEBUG_MODE:
+                print(f"Quote response type: {type(quote_response)}")
+            
+            # Process the response
+            if isinstance(quote_response, requests.Response):
+                if quote_response.status_code == 200:
+                    try:
+                        quote_data = quote_response.json()
+                        if VERBOSE_DEBUG:
+                            print(f"Quote JSON data for {symbol}: {quote_data}")
+                        return quote_data
+                    except Exception as e:
+                        print(f"Error parsing quote JSON: {str(e)}")
+                        return None
+                else:
+                    print(f"Quote response not OK for {symbol}. Status code: {quote_response.status_code}")
+                    return None
+            else:
+                # If it's already a dict or other data structure
+                if VERBOSE_DEBUG:
+                    print(f"Quote response is already processed for {symbol}")
+                return quote_response
+                
+        except Exception as e:
+            print(f"Error retrieving quote for {symbol}: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return None
     
     def get_option_chain_with_underlying_price(self, symbol):
         """
