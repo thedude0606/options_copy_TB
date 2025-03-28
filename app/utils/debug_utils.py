@@ -36,7 +36,7 @@ def add_debug_callback_to_app(app):
         app: The Dash app
     """
     @app.callback(
-        dash.Output("debug-output", "children"),
+        dash.Output("debug-output", "children", allow_duplicate=True),
         [dash.Input("clear-debug-button", "n_clicks")],
         prevent_initial_call=True
     )
@@ -62,7 +62,7 @@ def add_debug_callback_to_app(app):
             return "No errors";
         }
         """,
-        dash.Output("debug-output", "children"),
+        dash.Output("debug-output", "children", allow_duplicate=True),
         [dash.Input("_dash-app-content", "errors")],
         prevent_initial_call=True
     )
