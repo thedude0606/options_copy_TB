@@ -1,6 +1,7 @@
 """
-Main dashboard application for options trading with exit strategy prediction.
-Integrates enhanced machine learning, risk management, and exit strategy features.
+Updated run_dashboard_with_exit_strategy.py to use real data throughout the application.
+This version integrates the SchwabAPIConfig for proper API authentication and uses
+the real OptionsDatabase for persistent data storage.
 """
 import dash
 import dash_bootstrap_components as dbc
@@ -21,33 +22,14 @@ from app.components.recommendations_tab import create_recommendations_tab, regis
 # Import data collectors and API clients
 from app.options_data import OptionsDataRetriever
 from app.data_collector import DataCollector
-from app.data.options_collector import OptionsDataCollector  # Added missing import
-from schwabdev.client import Client as SchwabClient
+from app.data.options_collector import OptionsDataCollector
+
+# Import real data infrastructure
+from app.database.options_db import OptionsDatabase
+from app.config.schwab_api_config import SchwabAPIConfig
 
 # Import recommendation engine with exit strategy
 from app.analysis.exit_strategy_recommendation_engine import ExitStrategyEnhancedRecommendationEngine
-
-# Import database module (mock implementation for standalone usage)
-class MockDatabase:
-    def __init__(self):
-        self.logger = logging.getLogger('mock_database')
-        self.logger.info("Initialized mock database")
-    
-    def store_options_data(self, options_data):
-        self.logger.info(f"Mock storing {len(options_data)} options data records")
-        return True
-    
-    def store_underlying_data(self, underlying_data):
-        self.logger.info(f"Mock storing {len(underlying_data)} underlying data records")
-        return True
-    
-    def get_options_data(self, symbol=None, start_date=None, end_date=None):
-        self.logger.info(f"Mock retrieving options data for {symbol}")
-        return []
-    
-    def get_underlying_data(self, symbol=None, start_date=None, end_date=None):
-        self.logger.info(f"Mock retrieving underlying data for {symbol}")
-        return []
 
 def main():
     # Configure logging
@@ -61,28 +43,30 @@ def main():
     )
     
     logger = logging.getLogger('dashboard_exit_strategy')
-    logger.info("Starting Options Dashboard with Exit Strategy Prediction")
+    logger.info("Starting Options Dashboard with Exit Strategy Prediction using real data")
     
-    # Initialize the Schwab API client with authentication from environment variables
-    app_key = os.getenv('app_key')
-    app_secret = os.getenv('app_secret')
-    callback_url = os.getenv('callback_url', 'https://127.0.0.1')
+    # Initialize Schwab API client with proper configuration
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'schwab_api_config.json')
+    api_config = SchwabAPIConfig(config_file)
+    client = api_config.get_client()
     
-    if not app_key or not app_secret:
-        logger.warning("API credentials not found in environment variables. Using default values for development.")
-        app_key = "YOUR_APP_KEY"  # Replace with your actual key when deploying
-        app_secret = "YOUR_APP_SECRET"  # Replace with your actual secret when deploying
+    # Test API connection
+    if not api_config.test_connection():
+        logger.warning("API connection test failed. Check your credentials.")
+        logger.info("Continuing with available functionality...")
     
-    # Initialize API client
-    client = SchwabClient(app_key, app_secret, callback_url)
-    logger.info("Schwab API client initialized with authentication")
+    # Initialize real database for data storage
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'options_data.db')
+    db = OptionsDatabase(db_path)
+    logger.info(f"Real options database initialized at {db_path}")
     
-    # Initialize mock database for standalone usage
-    db = MockDatabase()
-    
-    # Initialize the options data collector with required parameters
+    # Initialize the options data collector with real data sources
     data_collector = OptionsDataCollector(api_client=client, db=db)
-    logger.info("Options data collector initialized")
+    logger.info("Options data collector initialized with real database")
+    
+    # Start real-time data collection in background
+    data_collector.start_collection()
+    logger.info("Real-time data collection started in background")
     
     # Initialize the data collector for technical indicators
     technical_data_collector = DataCollector()
@@ -107,7 +91,7 @@ def main():
         # Header
         html.Div([
             html.H1("Options Trading Platform with Exit Strategy Prediction", className="display-4"),
-            html.P("Complete options trading recommendations with entry and exit strategies", className="lead"),
+            html.P("Complete options trading recommendations with entry and exit strategies using real data", className="lead"),
             html.Hr()
         ], className="container mt-4"),
         

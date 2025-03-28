@@ -1,8 +1,8 @@
 """
-Options Data Collector Module
+Options Data Collector Module with real-time data collection.
 
 This module provides a data collector for options and underlying asset data.
-It uses the Schwab API to collect data and stores it in the options database.
+It uses the Schwab API to collect real data and stores it in the options database.
 """
 
 import time
@@ -16,6 +16,15 @@ logger = logging.getLogger('options_collector')
 
 class OptionsDataCollector:
     def __init__(self, api_client, db, symbols=None, collection_interval=60):
+        """
+        Initialize the options data collector with real data sources.
+        
+        Args:
+            api_client: The Schwab API client for data retrieval
+            db: The database instance for data storage
+            symbols: List of symbols to collect data for (default: ["SPY", "QQQ", "AAPL", "MSFT", "AMZN"])
+            collection_interval: Interval in seconds between data collection (default: 60)
+        """
         self.symbols = symbols or ["SPY", "QQQ", "AAPL", "MSFT", "AMZN"]
         self.collection_interval = collection_interval
         self.client = api_client
@@ -24,7 +33,7 @@ class OptionsDataCollector:
         logger.info(f"Initialized options collector for symbols: {', '.join(self.symbols)}")
         
     def start_collection(self):
-        """Start the data collection process"""
+        """Start the real-time data collection process"""
         if self.running:
             logger.warning("Collection already running")
             return
@@ -33,7 +42,7 @@ class OptionsDataCollector:
         self.collection_thread = threading.Thread(target=self._collection_loop)
         self.collection_thread.daemon = True
         self.collection_thread.start()
-        logger.info("Started options data collection")
+        logger.info("Started real-time options data collection")
         
     def stop_collection(self):
         """Stop the data collection process"""
@@ -45,7 +54,7 @@ class OptionsDataCollector:
         logger.info("Stopped options data collection")
         
     def _collection_loop(self):
-        """Main collection loop"""
+        """Main collection loop for real-time data"""
         while self.running:
             try:
                 self._collect_data()
@@ -54,23 +63,23 @@ class OptionsDataCollector:
             time.sleep(self.collection_interval)
     
     def _collect_data(self):
-        """Collect options and underlying data for all symbols"""
+        """Collect real options and underlying data for all symbols"""
         collection_time = datetime.now().isoformat()
-        logger.info(f"Collecting data at {collection_time}")
+        logger.info(f"Collecting real-time data at {collection_time}")
         
         for symbol in self.symbols:
             try:
-                # Get options chain
+                # Get options chain from real API
                 options_chain = self.client.get_options_chain(symbol)
                 if options_chain:
-                    # Process and store options data
+                    # Process and store real options data
                     options_data = self._process_options_chain(options_chain, collection_time)
                     self.db.store_options_data(options_data)
-                    logger.info(f"Collected options data for {symbol}")
+                    logger.info(f"Collected real options data for {symbol}")
                     
-                # Get underlying data
+                # Get underlying data from real API
                 # Try regular symbol first
-                logger.info(f"Requesting quote for symbol: {symbol}")
+                logger.info(f"Requesting real quote data for symbol: {symbol}")
                 quote = self.client.get_quote(symbol)
                 
                 # If VIX fails, try with caret prefix (^VIX)
@@ -89,15 +98,15 @@ class OptionsDataCollector:
                         'timestamp': collection_time
                     }]
                     self.db.store_underlying_data(underlying_data)
-                    logger.info(f"Collected underlying data for {symbol}")
+                    logger.info(f"Collected real underlying data for {symbol}")
                 else:
-                    logger.warning(f"No quote data received for {symbol}")
+                    logger.warning(f"No real quote data received for {symbol}")
                     
             except Exception as e:
-                logger.error(f"Error collecting data for {symbol}: {e}")
+                logger.error(f"Error collecting real data for {symbol}: {e}")
                 
     def _process_options_chain(self, options_chain, timestamp):
-        """Process options chain data into a flat structure"""
+        """Process options chain data into a flat structure for storage"""
         options_data = []
         
         # Process calls
@@ -151,3 +160,43 @@ class OptionsDataCollector:
                     options_data.append(option_data)
                     
         return options_data
+    
+    def get_options_data(self, symbol=None, start_date=None, end_date=None):
+        """
+        Get options data from the real database.
+        
+        Args:
+            symbol: Symbol to filter by
+            start_date: Start date for filtering
+            end_date: End date for filtering
+            
+        Returns:
+            List of options data records
+        """
+        return self.db.get_options_data(symbol, start_date, end_date)
+    
+    def get_underlying_data(self, symbol=None, start_date=None, end_date=None):
+        """
+        Get underlying data from the real database.
+        
+        Args:
+            symbol: Symbol to filter by
+            start_date: Start date for filtering
+            end_date: End date for filtering
+            
+        Returns:
+            List of underlying data records
+        """
+        return self.db.get_underlying_data(symbol, start_date, end_date)
+    
+    def get_latest_options_chain(self, symbol):
+        """
+        Get the latest options chain for a symbol from the real database.
+        
+        Args:
+            symbol: Symbol to get options chain for
+            
+        Returns:
+            Dictionary with calls and puts data
+        """
+        return self.db.get_latest_options_chain(symbol)
