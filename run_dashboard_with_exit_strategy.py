@@ -6,6 +6,15 @@ from dash.dependencies import Input, Output, State
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger('dashboard_exit_strategy')
 
 # Add app directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,10 +27,18 @@ from app.analysis.exit_strategy_recommendation_engine import ExitStrategyEnhance
 
 # Import data collector
 from app.data.options_collector import OptionsDataCollector
+from app.data.options_db import OptionsDatabase
+from app.mock_client import MockSchwabClient
 
 def main():
-    # Initialize data collector
-    data_collector = OptionsDataCollector()
+    logger.info("Starting Options Dashboard with Exit Strategy Prediction using real data")
+    
+    # Initialize API client and database
+    api_client = MockSchwabClient()
+    db = OptionsDatabase()
+    
+    # Initialize data collector with required parameters
+    data_collector = OptionsDataCollector(api_client=api_client, db=db)
     
     # Initialize recommendation engine with exit strategy prediction
     recommendation_engine = ExitStrategyEnhancedRecommendationEngine(
