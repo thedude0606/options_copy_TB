@@ -76,6 +76,11 @@
   - Status: Completed
   - Description: Fixed UnboundLocalError by initializing conn variable before try block and ensuring data directories exist
 
+- [x] Fix 'price_history' attribute error in data_collector.py
+  - Dependency: None
+  - Status: Completed
+  - Description: Replaced non-existent Schwab API 'price_history' method with Yahoo Finance API integration for historical data retrieval
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
@@ -90,6 +95,11 @@
   - Dependency: None
   - Status: In progress
   - Description: Ensure adaptive lookback periods based on market volatility are working as expected
+
+- [ ] Validate Yahoo Finance API integration for historical data
+  - Dependency: Fix for 'price_history' attribute error
+  - Status: In progress
+  - Description: Ensure the Yahoo Finance API integration works reliably for all symbols and timeframes
 
 ## Medium Priority Tasks
 - [ ] Enhance visualization of advanced indicators
@@ -121,6 +131,11 @@
   - Dependency: None
   - Status: Not started
   - Description: Add more robust error handling for database operations and file system interactions
+
+- [ ] Explore additional data sources for historical price data
+  - Dependency: None
+  - Status: Not started
+  - Description: Research and implement additional data sources as alternatives to Schwab API for historical data retrieval
 
 ## Low Priority Tasks
 - [ ] Create comprehensive test suite for all implemented features

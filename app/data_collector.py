@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import traceback
 import json
+import sys
 from datetime import datetime, timedelta
 from app.auth import get_client
 from app.data.options_symbol_parser import OptionsSymbolParser
@@ -228,49 +229,36 @@ class DataCollector:
             symbol (str): The stock symbol to get price data for
             period_type (str): The type of period to show (day, month, year, ytd)
             period (int): The number of periods to show
-            frequency_type (str): The type of frequency with which a new candle is formed (minute, daily, weekly, monthly)
-            frequency (int): The number of the frequency type to use (e.g., 1, 5, 10, 15, 30 for minute)
-            lookback_days (int, optional): Number of days to look back (alternative to period, takes precedence if provided)
+            frequency_type (str): The type of frequency (minute, daily, weekly, monthly)
+            frequency (int): The frequency value
+            lookback_days (int): Number of days to look back (alternative to period)
             
         Returns:
             pd.DataFrame: Historical price data
         """
         try:
+            if DEBUG_MODE:
+                print(f"Getting price data for {symbol}")
+                print(f"Parameters: period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
+            
             # Get the underlying symbol if this is an option
             underlying_symbol = self.get_underlying_symbol(symbol)
             
-            if DEBUG_MODE:
-                print(f"Getting price data for {underlying_symbol}")
-                print(f"Parameters: period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
-            
-            # If lookback_days is provided, calculate the start and end dates
-            if lookback_days is not None:
-                end_date = datetime.now()
-                start_date = end_date - timedelta(days=lookback_days)
-                
-                if DEBUG_MODE:
-                    print(f"Using lookback_days={lookback_days}, start_date={start_date}, end_date={end_date}")
-                
-                # Generate mock data for testing
-                # In a real implementation, this would call the API with start_date and end_date
-                return self._generate_mock_price_data(underlying_symbol, start_date, end_date, frequency_type, frequency)
-            
-            # For now, generate mock data for testing
-            # In a real implementation, this would call the API with period_type, period, etc.
-            end_date = datetime.now()
-            if period_type == 'day':
-                start_date = end_date - timedelta(days=period)
-            elif period_type == 'month':
-                start_date = end_date - timedelta(days=period * 30)
-            elif period_type == 'year':
-                start_date = end_date - timedelta(days=period * 365)
-            else:  # ytd
-                start_date = datetime(end_date.year, 1, 1)
+            # Use get_historical_data to fetch the data
+            df = self.get_historical_data(
+                symbol=underlying_symbol,
+                period_type=period_type,
+                period=period,
+                frequency_type=frequency_type,
+                frequency=frequency
+            )
             
             if DEBUG_MODE:
-                print(f"Generating {period} {period_type}s of data from {start_date} to {end_date}")
+                print(f"Price data received for {underlying_symbol}: {len(df)} rows")
+                if not df.empty:
+                    print(f"Price data columns: {df.columns.tolist()}")
             
-            return self._generate_mock_price_data(underlying_symbol, start_date, end_date, frequency_type, frequency)
+            return df
             
         except Exception as e:
             print(f"Error retrieving price data for {symbol}: {str(e)}")
@@ -279,130 +267,9 @@ class DataCollector:
                 print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
-    def _generate_mock_price_data(self, symbol, start_date, end_date, frequency_type, frequency):
-        """
-        Generate mock price data for testing
-        
-        Args:
-            symbol (str): The stock symbol
-            start_date (datetime): Start date for the data
-            end_date (datetime): End date for the data
-            frequency_type (str): The type of frequency (minute, daily, weekly, monthly)
-            frequency (int): The frequency value
-            
-        Returns:
-            pd.DataFrame: Mock price data
-        """
-        if DEBUG_MODE:
-            print(f"Generating mock price data for {symbol}")
-            print(f"Parameters: start_date={start_date}, end_date={end_date}, frequency_type={frequency_type}, frequency={frequency}")
-        
-        # Determine the number of data points based on frequency
-        if frequency_type == 'minute':
-            # Calculate business minutes between start and end
-            # Assuming 6.5 hours of trading per day (390 minutes) and 5 trading days per week
-            business_days = np.busday_count(
-                np.datetime64(start_date.date()),
-                np.datetime64(end_date.date())
-            )
-            minutes_per_day = 390  # 6.5 hours * 60 minutes
-            total_minutes = business_days * minutes_per_day
-            num_points = total_minutes // frequency
-            
-            # Limit to a reasonable number for testing
-            num_points = min(num_points, 1000)
-        elif frequency_type == 'daily':
-            business_days = np.busday_count(
-                np.datetime64(start_date.date()),
-                np.datetime64(end_date.date())
-            )
-            num_points = business_days // frequency
-        elif frequency_type == 'weekly':
-            weeks = (end_date - start_date).days // 7
-            num_points = weeks // frequency
-        else:  # monthly
-            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-            num_points = months // frequency
-        
-        # Ensure we have at least one data point
-        num_points = max(num_points, 1)
-        
-        if DEBUG_MODE:
-            print(f"Generating {num_points} data points")
-        
-        # Generate timestamps
-        if frequency_type == 'minute':
-            # Generate business day timestamps during trading hours
-            timestamps = []
-            current_date = start_date.date()
-            while current_date <= end_date.date() and len(timestamps) < num_points:
-                # Skip weekends
-                if current_date.weekday() < 5:  # Monday to Friday
-                    # Trading hours: 9:30 AM to 4:00 PM
-                    for hour in range(9, 16):
-                        for minute in range(0, 60, frequency):
-                            if hour == 9 and minute < 30:
-                                continue  # Skip before 9:30 AM
-                            if hour == 16 and minute > 0:
-                                continue  # Skip after 4:00 PM
-                            
-                            current_time = datetime.combine(current_date, datetime.min.time()) + timedelta(hours=hour, minutes=minute)
-                            if current_time <= end_date and len(timestamps) < num_points:
-                                timestamps.append(current_time)
-                
-                current_date += timedelta(days=1)
-        else:
-            # For daily, weekly, monthly, generate evenly spaced timestamps
-            timestamps = [start_date + (end_date - start_date) * i / num_points for i in range(num_points)]
-        
-        # Generate price data
-        base_price = 100.0  # Starting price
-        volatility = 0.02  # Daily volatility
-        
-        # Adjust volatility based on frequency
-        if frequency_type == 'minute':
-            volatility = volatility / np.sqrt(390)  # Scale by sqrt of minutes in a trading day
-        elif frequency_type == 'weekly':
-            volatility = volatility * np.sqrt(5)  # Scale by sqrt of days in a week
-        elif frequency_type == 'monthly':
-            volatility = volatility * np.sqrt(21)  # Scale by sqrt of trading days in a month
-        
-        # Generate random walk
-        np.random.seed(hash(symbol) % 2**32)  # Seed based on symbol for consistency
-        returns = np.random.normal(0.0005, volatility, num_points)  # Small positive drift
-        prices = base_price * np.cumprod(1 + returns)
-        
-        # Generate OHLCV data
-        data = []
-        for i, timestamp in enumerate(timestamps):
-            price = prices[i]
-            high_low_range = price * volatility * 2
-            
-            # Create a row with timestamp and OHLCV data
-            row = {
-                'timestamp': timestamp,
-                'open': price * (1 - volatility / 2),
-                'high': price + high_low_range / 2,
-                'low': price - high_low_range / 2,
-                'close': price,
-                'volume': np.random.randint(1000, 1000000)
-            }
-            data.append(row)
-        
-        # Create DataFrame
-        df = pd.DataFrame(data)
-        
-        if DEBUG_MODE:
-            print(f"Generated price data for {symbol}: {len(df)} rows")
-            if not df.empty:
-                print(f"Price data columns: {df.columns.tolist()}")
-                print(f"Price data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-        
-        return df
-
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', frequency=1):
         """
-        Get historical data for a symbol using Schwab API
+        Get historical data for a symbol using Yahoo Finance API as a replacement for Schwab API
         
         Args:
             symbol (str): The stock symbol to get historical data for
@@ -416,78 +283,204 @@ class DataCollector:
         """
         try:
             if DEBUG_MODE:
-                print(f"Getting historical data for {symbol} using Schwab API")
+                print(f"Getting historical data for {symbol} using Yahoo Finance API")
                 print(f"Parameters: period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
             
             # Get the underlying symbol if this is an option
             underlying_symbol = self.get_underlying_symbol(symbol)
             
-            # Call Schwab API's price_history method
-            history_response = self.client.price_history(
-                symbol=underlying_symbol,
-                period_type=period_type,
-                period=period,
-                frequency_type=frequency_type,
-                frequency=frequency
-            )
+            # Map Schwab API parameters to Yahoo Finance API parameters
+            # Convert period_type and period to range
+            range_param = '1mo'  # Default
+            if period_type == 'day':
+                if period <= 5:
+                    range_param = '5d'
+                else:
+                    range_param = '1mo'
+            elif period_type == 'month':
+                if period <= 1:
+                    range_param = '1mo'
+                elif period <= 3:
+                    range_param = '3mo'
+                elif period <= 6:
+                    range_param = '6mo'
+                else:
+                    range_param = '1y'
+            elif period_type == 'year':
+                if period <= 1:
+                    range_param = '1y'
+                elif period <= 2:
+                    range_param = '2y'
+                elif period <= 5:
+                    range_param = '5y'
+                else:
+                    range_param = '10y'
+            elif period_type == 'ytd':
+                range_param = 'ytd'
+                
+            # Convert frequency_type and frequency to interval
+            interval_param = '1d'  # Default
+            if frequency_type == 'minute':
+                if frequency == 1:
+                    interval_param = '1m'
+                elif frequency == 2:
+                    interval_param = '2m'
+                elif frequency == 5:
+                    interval_param = '5m'
+                elif frequency == 15:
+                    interval_param = '15m'
+                elif frequency == 30:
+                    interval_param = '30m'
+                elif frequency == 60:
+                    interval_param = '60m'
+                else:
+                    interval_param = '1h'
+            elif frequency_type == 'daily':
+                interval_param = '1d'
+            elif frequency_type == 'weekly':
+                interval_param = '1wk'
+            elif frequency_type == 'monthly':
+                interval_param = '1mo'
+                
+            # Use Yahoo Finance API to get historical data
+            # Create a temporary Python file to use the YahooFinance API
+            temp_script_path = '/tmp/yahoo_finance_data.py'
+            with open(temp_script_path, 'w') as f:
+                f.write("""
+import sys
+sys.path.append('/opt/.manus/.sandbox-runtime')
+from data_api import ApiClient
+import pandas as pd
+import json
+
+client = ApiClient()
+symbol = sys.argv[1]
+interval = sys.argv[2]
+range_param = sys.argv[3]
+
+# Call Yahoo Finance API
+result = client.call_api('YahooFinance/get_stock_chart', query={
+    'symbol': symbol,
+    'interval': interval,
+    'range': range_param,
+    'includeAdjustedClose': True
+})
+
+# Process the result
+if result and 'chart' in result and 'result' in result['chart'] and len(result['chart']['result']) > 0:
+    data = result['chart']['result'][0]
+    
+    # Extract timestamp and indicators
+    timestamps = data.get('timestamp', [])
+    quote_data = data.get('indicators', {}).get('quote', [{}])[0]
+    adjclose_data = data.get('indicators', {}).get('adjclose', [{}])[0].get('adjclose', [])
+    
+    # Create lists for each data point
+    dates = []
+    opens = []
+    highs = []
+    lows = []
+    closes = []
+    volumes = []
+    adjcloses = []
+    
+    # Process each data point
+    for i in range(len(timestamps)):
+        if i < len(timestamps):
+            dates.append(timestamps[i])
+        else:
+            dates.append(None)
             
+        if 'open' in quote_data and i < len(quote_data['open']):
+            opens.append(quote_data['open'][i])
+        else:
+            opens.append(None)
+            
+        if 'high' in quote_data and i < len(quote_data['high']):
+            highs.append(quote_data['high'][i])
+        else:
+            highs.append(None)
+            
+        if 'low' in quote_data and i < len(quote_data['low']):
+            lows.append(quote_data['low'][i])
+        else:
+            lows.append(None)
+            
+        if 'close' in quote_data and i < len(quote_data['close']):
+            closes.append(quote_data['close'][i])
+        else:
+            closes.append(None)
+            
+        if 'volume' in quote_data and i < len(quote_data['volume']):
+            volumes.append(quote_data['volume'][i])
+        else:
+            volumes.append(None)
+            
+        if i < len(adjclose_data):
+            adjcloses.append(adjclose_data[i])
+        else:
+            adjcloses.append(None)
+    
+    # Create a dictionary with the data
+    output_data = {
+        'timestamp': dates,
+        'open': opens,
+        'high': highs,
+        'low': lows,
+        'close': closes,
+        'volume': volumes,
+        'adjclose': adjcloses
+    }
+    
+    # Output as JSON
+    print(json.dumps(output_data))
+else:
+    print(json.dumps({}))
+""")
+            
+            # Execute the script to get data from Yahoo Finance
+            import subprocess
+            cmd = f"python3 {temp_script_path} {underlying_symbol} {interval_param} {range_param}"
             if DEBUG_MODE:
-                print(f"Price history response type: {type(history_response)}")
-                if hasattr(history_response, 'status_code'):
-                    print(f"Status code: {history_response.status_code}")
+                print(f"Executing command: {cmd}")
+                
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
             
-            # Process the response
-            history_data = None
-            if hasattr(history_response, 'json'):
+            if stderr and DEBUG_MODE:
+                print(f"Error from Yahoo Finance API script: {stderr.decode('utf-8')}")
+                
+            if stdout:
                 try:
-                    history_data = history_response.json()
-                    if DEBUG_MODE:
-                        print(f"Price history received for {underlying_symbol}")
+                    # Parse the JSON output
+                    history_data = json.loads(stdout.decode('utf-8'))
+                    
+                    if history_data and 'timestamp' in history_data:
+                        # Create DataFrame
+                        df = pd.DataFrame(history_data)
+                        
+                        # Convert timestamp to datetime
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+                        
+                        if DEBUG_MODE:
+                            print(f"Processed historical data: {len(df)} rows")
+                            if not df.empty:
+                                print(f"Historical data columns: {df.columns.tolist()}")
+                                print(f"Historical data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+                        
+                        return df
+                    else:
+                        if DEBUG_MODE:
+                            print(f"No data found in Yahoo Finance API response for {underlying_symbol}")
+                        return pd.DataFrame()
                 except Exception as e:
                     if DEBUG_MODE:
-                        print(f"Error parsing price history JSON: {str(e)}")
-                        if hasattr(history_response, 'text'):
-                            print(f"Response text: {history_response.text[:500]}...")
-            elif isinstance(history_response, dict):
-                history_data = history_response
-                if DEBUG_MODE:
-                    print(f"Price history received for {underlying_symbol}")
+                        print(f"Error parsing Yahoo Finance API response: {str(e)}")
+                        print(f"Response: {stdout.decode('utf-8')[:500]}...")
+                    return pd.DataFrame()
             else:
                 if DEBUG_MODE:
-                    print(f"No price history data received for {underlying_symbol}")
-                    
-            # Convert to DataFrame
-            if history_data and 'candles' in history_data:
-                candles = history_data['candles']
-                df = pd.DataFrame(candles)
-                
-                # Rename columns to match expected format
-                column_mapping = {
-                    'datetime': 'timestamp',
-                    'open': 'open',
-                    'high': 'high',
-                    'low': 'low',
-                    'close': 'close',
-                    'volume': 'volume'
-                }
-                
-                # Apply column mapping if needed
-                df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
-                
-                # Convert timestamp to datetime if it's in milliseconds
-                if 'timestamp' in df.columns and df['timestamp'].dtype == 'int64':
-                    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-                
-                if DEBUG_MODE:
-                    print(f"Processed historical data: {len(df)} rows")
-                    if not df.empty:
-                        print(f"Historical data columns: {df.columns.tolist()}")
-                        print(f"Historical data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-                
-                return df
-            else:
-                if DEBUG_MODE:
-                    print(f"No candles found in price history data for {underlying_symbol}")
+                    print(f"No response from Yahoo Finance API for {underlying_symbol}")
                 return pd.DataFrame()
             
         except Exception as e:
@@ -495,7 +488,113 @@ class DataCollector:
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
-                print("Falling back to get_price_data")
+            return pd.DataFrame()
+    
+    def get_quote(self, symbol):
+        """
+        Get a quote for a symbol
+        
+        Args:
+            symbol (str): The stock symbol to get a quote for
             
-            # Fall back to get_price_data if there's an error
-            return self.get_price_data(symbol, period_type, period, frequency_type, frequency)
+        Returns:
+            dict: Quote data
+        """
+        try:
+            if DEBUG_MODE:
+                print(f"Getting quote for {symbol}")
+            
+            # Get the underlying symbol if this is an option
+            underlying_symbol = self.get_underlying_symbol(symbol)
+            
+            # Get quote data
+            quote_response = self.client.quotes(
+                symbols=[underlying_symbol]
+            )
+            
+            if DEBUG_MODE:
+                print(f"Quote response type: {type(quote_response)}")
+                if hasattr(quote_response, 'status_code'):
+                    print(f"Status code: {quote_response.status_code}")
+            
+            # Process the response
+            quote_data = None
+            if hasattr(quote_response, 'json'):
+                try:
+                    quote_data = quote_response.json()
+                    if DEBUG_MODE:
+                        print(f"Quote received for {underlying_symbol}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error parsing quote JSON: {str(e)}")
+                        if hasattr(quote_response, 'text'):
+                            print(f"Response text: {quote_response.text[:500]}...")
+            elif isinstance(quote_response, dict):
+                quote_data = quote_response
+                if DEBUG_MODE:
+                    print(f"Quote received for {underlying_symbol}")
+            else:
+                if DEBUG_MODE:
+                    print(f"No quote data received for {underlying_symbol}")
+            
+            return quote_data
+            
+        except Exception as e:
+            print(f"Error retrieving quote for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return None
+    
+    def get_market_hours(self, market='EQUITY'):
+        """
+        Get market hours
+        
+        Args:
+            market (str): The market to get hours for (EQUITY, OPTION, BOND, FOREX, FUTURES)
+            
+        Returns:
+            dict: Market hours data
+        """
+        try:
+            if DEBUG_MODE:
+                print(f"Getting market hours for {market}")
+            
+            # Get market hours data
+            hours_response = self.client.get_market_hours(
+                markets=[market]
+            )
+            
+            if DEBUG_MODE:
+                print(f"Market hours response type: {type(hours_response)}")
+                if hasattr(hours_response, 'status_code'):
+                    print(f"Status code: {hours_response.status_code}")
+            
+            # Process the response
+            hours_data = None
+            if hasattr(hours_response, 'json'):
+                try:
+                    hours_data = hours_response.json()
+                    if DEBUG_MODE:
+                        print(f"Market hours received for {market}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error parsing market hours JSON: {str(e)}")
+                        if hasattr(hours_response, 'text'):
+                            print(f"Response text: {hours_response.text[:500]}...")
+            elif isinstance(hours_response, dict):
+                hours_data = hours_response
+                if DEBUG_MODE:
+                    print(f"Market hours received for {market}")
+            else:
+                if DEBUG_MODE:
+                    print(f"No market hours data received for {market}")
+            
+            return hours_data
+            
+        except Exception as e:
+            print(f"Error retrieving market hours for {market}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return None

@@ -46,6 +46,10 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Use SQLite for local data storage.
 **Rationale**: SQLite provides a lightweight, file-based database solution that is easy to set up and maintain, while still offering robust SQL capabilities for data storage and retrieval.
 
+### 5. Yahoo Finance API for Historical Data
+**Decision**: Use Yahoo Finance API as an alternative to Schwab API for historical price data retrieval.
+**Rationale**: The Schwab API client lacks the 'price_history' method needed for historical data retrieval. Yahoo Finance API provides a reliable and comprehensive alternative source for historical price data, ensuring the application can continue to function without disruption.
+
 ## Design Patterns Used
 
 ### 1. Factory Pattern
@@ -67,6 +71,10 @@ This document records key architectural choices, technology selections, design p
 ### 5. Adapter Pattern
 **Decision**: Use adapter pattern for the options symbol parser.
 **Rationale**: The adapter pattern allows the system to work with different option symbol formats by converting them to a standardized format, improving flexibility and compatibility.
+
+### 6. Adapter Pattern for Data Sources
+**Decision**: Implement adapter pattern for different data sources (Schwab API, Yahoo Finance API).
+**Rationale**: The adapter pattern allows the system to seamlessly switch between different data sources while maintaining a consistent interface, improving flexibility and resilience to API changes or limitations.
 
 ## Important Implementation Decisions
 
@@ -137,3 +145,7 @@ This document records key architectural choices, technology selections, design p
 ### 17. Database Connection Initialization
 **Decision**: Initialize database connection variables before try blocks and ensure data directories exist.
 **Rationale**: Properly initializing connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection establishment. Additionally, ensuring data directories exist before attempting to create database files prevents file system errors, making the application more robust in various environments.
+
+### 18. Yahoo Finance API Integration for Historical Data
+**Decision**: Replace Schwab API's non-existent 'price_history' method with Yahoo Finance API integration.
+**Rationale**: The Schwab API client lacks the 'price_history' method needed for historical data retrieval. By implementing Yahoo Finance API integration as a replacement, we maintain the application's functionality without requiring changes to the Schwab API client. This approach provides a reliable alternative data source while preserving the existing interface, ensuring minimal disruption to the rest of the codebase.
