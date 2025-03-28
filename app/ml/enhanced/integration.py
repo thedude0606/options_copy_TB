@@ -145,6 +145,203 @@ class EnhancedMLIntegration:
             logger.error(f"Error generating predictions: {str(e)}")
             raise
     
+    def predict(self, features):
+        """
+        Generate ML predictions for the given features.
+        This method is called by the EnhancedRecommendationEngine.
+        
+        Parameters:
+        -----------
+        features : dict
+            Dictionary containing feature data including:
+            - options_data: DataFrame with options data
+            - technical_indicators: Dict of technical indicators
+            - market_data: Dict of market context data
+            
+        Returns:
+        --------
+        dict
+            Prediction results including:
+            - prediction: Predicted return value
+            - confidence: Confidence score (0-1)
+            - risk_score: Risk assessment score (0-1)
+            - probability_of_profit: Estimated probability of profit
+        """
+        try:
+            logger.info("Generating ML predictions")
+            
+            # Extract features from input
+            options_data = features.get('options_data')
+            technical_indicators = features.get('technical_indicators', {})
+            market_data = features.get('market_data', {})
+            
+            if options_data is None or options_data.empty:
+                logger.warning("No options data provided for prediction")
+                return None
+            
+            # Create feature vector
+            feature_dict = {
+                'price_to_strike_ratio': options_data['underlyingPrice'] / options_data['strikePrice'] if 'strikePrice' in options_data.columns else 1.0,
+                'days_to_expiration': options_data['daysToExpiration'] if 'daysToExpiration' in options_data.columns else 30,
+                'implied_volatility': options_data['impliedVolatility'] if 'impliedVolatility' in options_data.columns else 0.3,
+                'delta': options_data['delta'] if 'delta' in options_data.columns else 0.5,
+                'gamma': options_data['gamma'] if 'gamma' in options_data.columns else 0.05,
+                'theta': options_data['theta'] if 'theta' in options_data.columns else -0.05,
+                'vega': options_data['vega'] if 'vega' in options_data.columns else 0.1,
+                'rho': options_data['rho'] if 'rho' in options_data.columns else 0.01,
+                'market_trend': market_data.get('market_trend', 0),
+                'volatility': market_data.get('volatility', 0),
+                'rsi': technical_indicators.get('rsi', 50),
+                'macd': technical_indicators.get('macd_histogram', 0)
+            }
+            
+            # Generate prediction
+            # In a real implementation, this would use the trading system's ML models
+            # For now, we'll use a simplified approach based on the features
+            
+            # Calculate a simple prediction based on delta and market trend
+            delta_value = feature_dict['delta']
+            market_trend = feature_dict['market_trend']
+            iv = feature_dict['implied_volatility']
+            rsi = feature_dict['rsi']
+            
+            # Predicted return calculation (simplified)
+            predicted_return = delta_value * 0.1 + market_trend * 0.05
+            
+            # Adjust based on RSI (overbought/oversold)
+            if rsi > 70:  # Overbought
+                predicted_return -= 0.02
+            elif rsi < 30:  # Oversold
+                predicted_return += 0.02
+                
+            # Confidence calculation
+            confidence = 0.5 + abs(delta_value) * 0.2 + (1 - iv) * 0.2
+            confidence = min(max(confidence, 0.3), 0.9)  # Bound between 0.3 and 0.9
+            
+            # Risk score calculation
+            risk_score = iv * 0.5 + abs(delta_value) * 0.3 + abs(feature_dict['gamma']) * 0.2
+            risk_score = min(max(risk_score, 0.1), 0.9)  # Bound between 0.1 and 0.9
+            
+            # Probability of profit (simplified)
+            probability_of_profit = 0.5 + delta_value * (0.5 if delta_value > 0 else -0.5)
+            probability_of_profit = min(max(probability_of_profit, 0.05), 0.95)
+            
+            result = {
+                'prediction': predicted_return,
+                'confidence': confidence,
+                'risk_score': risk_score,
+                'probability_of_profit': probability_of_profit
+            }
+            
+            logger.info(f"Generated prediction with confidence {confidence:.2f}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error generating prediction: {str(e)}")
+            return None
+    
+    def process_recommendation(self, recommendation):
+        """
+        Process a recommendation through risk management system.
+        This method is called by the EnhancedRecommendationEngine.
+        
+        Parameters:
+        -----------
+        recommendation : dict
+            Recommendation data
+            
+        Returns:
+        --------
+        dict
+            Enhanced recommendation with risk management details
+        """
+        try:
+            logger.info("Processing recommendation through risk management")
+            
+            if not recommendation:
+                logger.warning("Empty recommendation provided")
+                return None
+                
+            # Extract key data from recommendation
+            symbol = recommendation.get('symbol')
+            option_type = recommendation.get('optionType')
+            strike_price = recommendation.get('strikePrice')
+            underlying_price = recommendation.get('underlyingPrice')
+            delta = recommendation.get('delta', 0.5)
+            
+            # Calculate position sizing based on risk profile
+            account_size = 100000  # Default account size
+            max_risk_percent = 0.02  # Default 2% max risk per trade
+            
+            # Calculate max position size based on risk
+            max_loss_estimate = abs(delta * 0.1 * underlying_price * 100)  # Simplified max loss estimate
+            if max_loss_estimate <= 0:
+                max_loss_estimate = underlying_price * 0.05 * 100  # Fallback estimate
+                
+            max_position_size = (account_size * max_risk_percent) / max_loss_estimate
+            max_position_size = max(1, min(round(max_position_size), 10))  # Between 1 and 10 contracts
+            
+            # Calculate stop loss and take profit levels
+            entry_price = recommendation.get('entryPrice', 0)
+            if entry_price <= 0:
+                entry_price = recommendation.get('mark', recommendation.get('last', recommendation.get('ask', 1.0)))
+                
+            # Stop loss (risk 50% of premium for long options)
+            stop_loss = entry_price * 0.5
+            
+            # Take profit (target 100% return for long options)
+            take_profit = entry_price * 2.0
+            
+            # Risk-reward ratio
+            risk_reward_ratio = 2.0  # 1:2 risk-reward
+            
+            # Expected value calculation
+            win_probability = recommendation.get('probabilityOfProfit', 0.5)
+            expected_value = (win_probability * take_profit) - ((1 - win_probability) * stop_loss)
+            expected_value_ratio = expected_value / entry_price
+            
+            # Create risk management details
+            risk_management = {
+                'position_size': {
+                    'recommended': max_position_size,
+                    'max_contracts': max_position_size,
+                    'account_size': account_size,
+                    'max_risk_percent': max_risk_percent * 100
+                },
+                'exit_strategy': {
+                    'stop_loss': stop_loss,
+                    'take_profit': take_profit,
+                    'risk_reward_ratio': risk_reward_ratio
+                },
+                'expected_value': {
+                    'win_probability': win_probability,
+                    'expected_value': expected_value,
+                    'expected_value_ratio': expected_value_ratio
+                },
+                'risk_assessment': {
+                    'risk_level': 'medium',  # Default
+                    'max_loss': max_loss_estimate * max_position_size,
+                    'max_gain': (take_profit - entry_price) * max_position_size * 100
+                }
+            }
+            
+            # Adjust risk level based on delta and volatility
+            if abs(delta) > 0.7:
+                risk_management['risk_assessment']['risk_level'] = 'high'
+            elif abs(delta) < 0.3:
+                risk_management['risk_assessment']['risk_level'] = 'low'
+                
+            # Add risk management to recommendation
+            enhanced_recommendation = recommendation.copy()
+            enhanced_recommendation['risk_management'] = risk_management
+            
+            logger.info(f"Added risk management details to recommendation for {symbol}")
+            return enhanced_recommendation
+            
+        except Exception as e:
+            logger.error(f"Error processing recommendation: {str(e)}")
+            return recommendation  # Return original recommendation if processing fails
+    
     def update_models_with_feedback(self, options_data, actual_values):
         """
         Update models with feedback data.
