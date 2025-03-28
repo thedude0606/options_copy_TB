@@ -1,137 +1,54 @@
-# Options Recommendation Platform - TODO
+# TODO List
 
 ## High Priority Tasks
+- [x] Integrate EnhancedRecommendationEngine into the main application flow
+  - Dependency: None
+  - Status: Completed
+  - Description: Modified recommendations_tab.py to use EnhancedRecommendationEngine instead of basic RecommendationEngine
 
-- [x] Analyze GitHub repository structure and code
-- [x] Review Schwab API documentation
-- [x] Set up development environment
-- [x] Implement data collection components
-- [x] Develop technical indicators module
-- [x] Create options analysis module with Greeks calculations
-- [x] Build recommendation engine
-- [x] Implement trade cards UI component
-- [x] Create recommendations tab
-- [x] Develop technical indicators tab
-- [x] Build Greeks analysis tab
-- [x] Update main application layout
-- [x] Fix datetime handling error in options analysis
-- [x] Fix missing 'underlyingPrice' issue in options data retrieval
-- [x] Implement proper callback registrations for all dashboard tabs
-- [x] Create missing Historical Data tab functionality
-- [x] Fix "name 'frequency_value' is not defined" error in historical_tab.py
-- [x] Fix "TechnicalIndicators() takes no arguments" error in indicators_tab.py
-- [x] Add enhanced debugging capabilities with multiple debug levels
-- [x] Fix timeframe mapping issues in indicators_tab.py
-- [x] Implement parameter validation for historical data retrieval
-- [x] Add robust error handling for option chain processing
-- [x] Implement fallback mechanisms for retrieving underlying price data
-- [x] Fix issues with recommendation data not being populated correctly
-- [x] Fix Bollinger Bands parameter name mismatch ('num_std' to 'std_dev')
-- [x] Enhance recommendation engine to show top recommendations when confidence threshold isn't met
-- [x] Fix logic flow in recommendation engine to properly implement the fallback mechanism
-- [x] Fix UI display issue by updating trade card component to handle the current recommendation data format
-- [x] Implement symbol validation and correction for historical data to handle common ticker symbol mistakes
-- [x] Add missing calculate_sma method to technical indicators module to fix indicators chart display
-- [x] Add missing calculate_ema method to technical indicators module to fix indicators chart display
-- [x] Enhance historical data processing with robust error handling and type checking
-- [x] Create new v2 branch for UI redesign
-- [x] Simplify UI with a single global symbol input
-- [x] Implement tile-based recommendation display
-- [x] Create comprehensive CSS styling for new UI components
-- [x] Implement candlestick pattern recognition module with support for multiple patterns
-- [x] Create multi-timeframe analyzer to integrate patterns with technical indicators
-- [x] Implement options profit prediction model with time decay projections
-- [x] Develop confidence probability calculation system
-- [x] Integrate multi-timeframe data collection with Schwab API
-- [x] Update UI to display enhanced recommendations with pattern recognition
-- [x] Fix StreamDataHandler constructor to accept streaming_manager parameter
-- [x] Create comprehensive test suite for recommendation system
-- [x] Fix DataFrame boolean evaluation error ("The truth value of a DataFrame is ambiguous")
-- [x] Implement proper DataFrame handling across all recommendation components
-- [x] Create and test DataFrameEvaluationFix to systematically address DataFrame evaluation issues
-- [x] Add comprehensive debugging for DataFrame operations in run_dashboard.py
-- [x] Fix symbol update issue with cache refresh mechanism
-- [x] Implement potential return percentage calculation
-- [x] Fix potential return calculation to prevent unrealistic values
-- [x] Set up development environment with ML and risk management libraries
-- [ ] Implement feature engineering pipeline for options data
-- [ ] Create feature selection and dimensionality reduction components
-- [ ] Develop ensemble models for improved prediction accuracy
-- [ ] Implement online learning components for adaptive model updates
-- [ ] Integrate ML predictions with existing recommendation engine
-- [ ] Implement position sizing recommendations based on risk tolerance
-- [ ] Add stop-loss and take-profit recommendation system
-- [ ] Create portfolio risk management tools
-- [ ] Integrate risk management with trading recommendations
-- [ ] Test new UI implementation with various symbols and timeframes
-- [ ] Ensure responsive design for different screen sizes
-- [ ] Optimize performance for large options chains
-- [ ] Add comprehensive logging throughout the application
+- [ ] Test integrated advanced indicators in the dashboard
+  - Dependency: EnhancedRecommendationEngine integration
+  - Status: In progress
+  - Description: Verify that all advanced indicators are being properly utilized in recommendations
+
+- [ ] Verify Dynamic Timeframe Weighting functionality
+  - Dependency: None
+  - Status: In progress
+  - Description: Ensure dynamic weighting based on market conditions and historical performance is working as expected
+
+- [ ] Verify Adaptive Lookback Periods functionality
+  - Dependency: None
+  - Status: In progress
+  - Description: Ensure adaptive lookback periods based on market volatility are working as expected
 
 ## Medium Priority Tasks
+- [ ] Enhance visualization of advanced indicators
+  - Dependency: None
+  - Status: Not started
+  - Description: Add visualizations for CMO, Stochastic RSI, OBV, and A/D Line in the indicators tab
 
-- [x] Test candlestick pattern recognition with mock market data
-- [x] Implement data integration for connecting recommendation components with data sources
-- [x] Create enhanced recommendation display with confidence metrics and detailed rationales
-- [x] Develop profit projection charts for options
-- [x] Implement robust error handling for DataFrame operations in all components
-- [ ] Develop feature importance analysis for model interpretability
-- [ ] Create model performance monitoring dashboard
-- [ ] Implement model versioning and rollback capabilities
-- [ ] Build risk-adjusted return metrics
-- [ ] Develop correlation analysis for portfolio positions
-- [ ] Create risk profile customization options
-- [ ] Fine-tune pattern detection parameters for different market conditions
-- [ ] Enhance error handling for edge cases in API responses
-- [ ] Create automated tests for critical components
-- [ ] Improve user interface feedback during data loading
-- [ ] Integrate real-time data streaming with new components
-- [ ] Enhance visualization of liquidity zones and fair value gaps
-- [ ] Implement additional filtering options for recommendations
-- [ ] Add export functionality for recommendations and analysis
-- [ ] Create user preferences and settings storage
-- [ ] Implement watchlist functionality
-- [ ] Add market overview data with real-time updates
-- [ ] Enhance recommendation validation display
+- [ ] Improve market regime detection display
+  - Dependency: None
+  - Status: Not started
+  - Description: Add visual indicators for current market regime (volatility, trend strength)
+
+- [ ] Add configuration options for advanced indicators
+  - Dependency: None
+  - Status: Not started
+  - Description: Allow users to adjust parameters for advanced indicators
 
 ## Low Priority Tasks
+- [ ] Create comprehensive test suite for all implemented features
+  - Dependency: None
+  - Status: Not started
+  - Description: Develop tests to verify functionality of all implemented features
 
-- [ ] Implement backtesting functionality for ML models
-- [ ] Add portfolio management features
-- [ ] Create alerts system for trade opportunities
-- [ ] Develop mobile-responsive design
-- [ ] Add dark/light theme toggle
-- [ ] Document the debugging process and solutions for future reference
-- [ ] Add user onboarding tutorial
-- [ ] Implement advanced settings panel for recommendation engine configuration
-- [ ] Add visualization for candlestick patterns in technical analysis charts
-- [ ] Create educational content about identified patterns in recommendations
-- [ ] Develop model explainability visualizations
-- [ ] Create risk heatmap for portfolio visualization
-- [ ] Implement scenario analysis for risk assessment
+- [ ] Perform backtesting of trading strategies
+  - Dependency: All high priority tasks
+  - Status: Not started
+  - Description: Backtest trading strategies to verify performance improvements
 
-## Dependencies
-
-- Data collection components → Technical indicators module
-- Technical indicators module → Recommendation engine
-- Options analysis module → Recommendation engine
-- Recommendation engine → Trade cards UI component
-- All UI components → Main application layout
-- Parameter validation → Robust API interactions
-- Error handling → Reliable data processing
-- Debugging capabilities → All components
-- Global symbol input → All data components
-- CSS styling → All UI components
-- Candlestick patterns → Multi-timeframe analyzer
-- Multi-timeframe analyzer → Enhanced recommendation engine
-- Options profit prediction → Confidence probability calculation
-- Confidence probability calculation → Enhanced recommendation display
-- Data integration → All recommendation components
-- Testing suite → Quality assurance of all components
-- Proper DataFrame evaluation → Reliable recommendation generation
-- Feature engineering pipeline → Ensemble models
-- Ensemble models → Online learning components
-- ML predictions → Recommendation engine integration
-- Position sizing → Portfolio risk management
-- Stop-loss/take-profit → Risk management integration
-- Risk management → Trading recommendations
+- [ ] Add documentation for advanced features
+  - Dependency: None
+  - Status: Not started
+  - Description: Create user documentation explaining advanced indicators and how to use them

@@ -8,7 +8,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import json
 from app.components.trade_card import create_trade_cards_container
-from app.analysis.recommendation_engine import RecommendationEngine
+from app.analysis.enhanced_recommendation_engine import EnhancedRecommendationEngine
 from app.data_collector import DataCollector
 
 def create_recommendations_tab():
@@ -274,9 +274,9 @@ def generate_recommendations(generate_clicks, search_clicks,
         return html.Div(), html.Div("Please enter a symbol", className="text-danger")
     
     try:
-        # Initialize data collector and recommendation engine
+        # Initialize data collector and enhanced recommendation engine
         data_collector = DataCollector(interactive_auth=False)
-        recommendation_engine = RecommendationEngine(data_collector)
+        recommendation_engine = EnhancedRecommendationEngine(data_collector, debug=True)
         
         # Generate recommendations
         recommendations = recommendation_engine.generate_recommendations(
