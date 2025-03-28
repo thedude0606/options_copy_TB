@@ -93,6 +93,113 @@ class DataCollector:
                 print(f"Traceback: {traceback.format_exc()}")
             return None
     
+    def get_option_data(self, symbol):
+        """
+        Get detailed options data for a symbol (compatibility method for RecommendationEngine)
+        
+        Args:
+            symbol (str): The stock symbol to get options for
+            
+        Returns:
+            pd.DataFrame: Options data with Greeks and other details
+        """
+        try:
+            if DEBUG_MODE:
+                print(f"Getting option data for {symbol} (compatibility method)")
+            
+            # Get option chain
+            option_chain = self.get_option_chain(symbol)
+            if not option_chain:
+                if DEBUG_MODE:
+                    print(f"No option chain available for {symbol}")
+                return pd.DataFrame()
+            
+            # Process option chain into a DataFrame
+            options_data = []
+            
+            # Check if we have putExpDateMap and callExpDateMap
+            put_map = option_chain.get('putExpDateMap', {})
+            call_map = option_chain.get('callExpDateMap', {})
+            
+            # Get underlying price
+            underlying_price = None
+            underlying = option_chain.get('underlying', {})
+            if underlying:
+                underlying_price = underlying.get('mark', underlying.get('last', underlying.get('close')))
+            
+            # Process calls
+            for exp_date, strikes in call_map.items():
+                for strike, options in strikes.items():
+                    for option in options:
+                        option_data = {
+                            'symbol': option.get('symbol', ''),
+                            'underlyingSymbol': symbol,
+                            'underlyingPrice': underlying_price,
+                            'optionType': 'CALL',
+                            'strikePrice': float(strike),
+                            'expirationDate': exp_date.split(':')[0],
+                            'daysToExpiration': option.get('daysToExpiration', 0),
+                            'bid': option.get('bid', 0),
+                            'ask': option.get('ask', 0),
+                            'last': option.get('last', 0),
+                            'mark': option.get('mark', 0),
+                            'volume': option.get('totalVolume', 0),
+                            'openInterest': option.get('openInterest', 0),
+                            'impliedVolatility': option.get('volatility', 0) / 100,  # Convert to decimal
+                            'delta': option.get('delta', 0),
+                            'gamma': option.get('gamma', 0),
+                            'theta': option.get('theta', 0),
+                            'vega': option.get('vega', 0),
+                            'rho': option.get('rho', 0),
+                            'inTheMoney': option.get('inTheMoney', False)
+                        }
+                        options_data.append(option_data)
+            
+            # Process puts
+            for exp_date, strikes in put_map.items():
+                for strike, options in strikes.items():
+                    for option in options:
+                        option_data = {
+                            'symbol': option.get('symbol', ''),
+                            'underlyingSymbol': symbol,
+                            'underlyingPrice': underlying_price,
+                            'optionType': 'PUT',
+                            'strikePrice': float(strike),
+                            'expirationDate': exp_date.split(':')[0],
+                            'daysToExpiration': option.get('daysToExpiration', 0),
+                            'bid': option.get('bid', 0),
+                            'ask': option.get('ask', 0),
+                            'last': option.get('last', 0),
+                            'mark': option.get('mark', 0),
+                            'volume': option.get('totalVolume', 0),
+                            'openInterest': option.get('openInterest', 0),
+                            'impliedVolatility': option.get('volatility', 0) / 100,  # Convert to decimal
+                            'delta': option.get('delta', 0),
+                            'gamma': option.get('gamma', 0),
+                            'theta': option.get('theta', 0),
+                            'vega': option.get('vega', 0),
+                            'rho': option.get('rho', 0),
+                            'inTheMoney': option.get('inTheMoney', False)
+                        }
+                        options_data.append(option_data)
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(options_data)
+            
+            if DEBUG_MODE:
+                print(f"Processed {len(df)} options for {symbol}")
+                if not df.empty:
+                    print(f"Options data columns: {df.columns.tolist()}")
+            
+            return df
+            
+        except Exception as e:
+            print(f"Error retrieving options data for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return pd.DataFrame()
+    
     def get_underlying_symbol(self, symbol):
         """
         Extract the underlying symbol from an option symbol or return the symbol if it's already an equity
