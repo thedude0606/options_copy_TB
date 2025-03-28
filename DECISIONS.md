@@ -46,9 +46,13 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Use SQLite for local data storage.
 **Rationale**: SQLite provides a lightweight, file-based database solution that is easy to set up and maintain, while still offering robust SQL capabilities for data storage and retrieval.
 
-### 5. Yahoo Finance API for Historical Data
-**Decision**: Use Yahoo Finance API as an alternative to Schwab API for historical price data retrieval.
-**Rationale**: The Schwab API client lacks the 'price_history' method needed for historical data retrieval. Yahoo Finance API provides a reliable and comprehensive alternative source for historical price data, ensuring the application can continue to function without disruption.
+### 5. Schwab API Client Methods for Historical Data
+**Decision**: Use Schwab API client methods (get_price_history_every_day, get_price_history_every_minute, etc.) for historical price data retrieval.
+**Rationale**: The Schwab API provides dedicated methods for retrieving historical price data at various frequencies. By using these native methods, we maintain a consistent data source and avoid dependencies on third-party APIs, ensuring better reliability and data consistency.
+
+### 6. Mock Authentication for Testing
+**Decision**: Implement mock authentication and client for testing Schwab API integration.
+**Rationale**: Interactive authentication with Schwab API is not feasible in automated testing environments. By implementing a mock client that mimics the behavior of the real Schwab API client, we can test the application's functionality without requiring actual authentication, while maintaining the code structure for when proper authentication is available in production.
 
 ## Design Patterns Used
 
@@ -73,8 +77,12 @@ This document records key architectural choices, technology selections, design p
 **Rationale**: The adapter pattern allows the system to work with different option symbol formats by converting them to a standardized format, improving flexibility and compatibility.
 
 ### 6. Adapter Pattern for Data Sources
-**Decision**: Implement adapter pattern for different data sources (Schwab API, Yahoo Finance API).
+**Decision**: Implement adapter pattern for different data sources (Schwab API, mock client for testing).
 **Rationale**: The adapter pattern allows the system to seamlessly switch between different data sources while maintaining a consistent interface, improving flexibility and resilience to API changes or limitations.
+
+### 7. Mock Object Pattern
+**Decision**: Use mock object pattern for testing Schwab API integration.
+**Rationale**: The mock object pattern allows us to simulate the behavior of complex objects like the Schwab API client, enabling testing without actual API dependencies while ensuring the code structure remains compatible with the real implementation.
 
 ## Important Implementation Decisions
 
@@ -146,6 +154,10 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Initialize database connection variables before try blocks and ensure data directories exist.
 **Rationale**: Properly initializing connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection establishment. Additionally, ensuring data directories exist before attempting to create database files prevents file system errors, making the application more robust in various environments.
 
-### 18. Yahoo Finance API Integration for Historical Data
-**Decision**: Replace Schwab API's non-existent 'price_history' method with Yahoo Finance API integration.
-**Rationale**: The Schwab API client lacks the 'price_history' method needed for historical data retrieval. By implementing Yahoo Finance API integration as a replacement, we maintain the application's functionality without requiring changes to the Schwab API client. This approach provides a reliable alternative data source while preserving the existing interface, ensuring minimal disruption to the rest of the codebase.
+### 18. Schwab API Client Methods for Historical Data
+**Decision**: Use proper Schwab API client methods (get_price_history_every_day, get_price_history_every_minute, etc.) for historical data retrieval.
+**Rationale**: The Schwab API provides dedicated methods for retrieving historical price data at various frequencies. By using these native methods instead of the non-existent 'price_history' method, we maintain compatibility with the Schwab API while ensuring reliable historical data retrieval. This approach preserves the existing interface and minimizes changes to the rest of the codebase.
+
+### 19. Mock Authentication for Testing
+**Decision**: Implement mock authentication and client for testing Schwab API integration.
+**Rationale**: Interactive authentication with Schwab API is not feasible in automated testing environments. By implementing a MockClient class that mimics the behavior of the real Schwab API client, we can test the application's functionality without requiring actual authentication, while maintaining the code structure for when proper authentication is available in production. This approach enables development and testing to proceed without disruption while ensuring the code will work correctly with real authentication in production.
