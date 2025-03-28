@@ -84,7 +84,15 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             self.logger.info(f"Generating enhanced recommendations for {len(symbols) if symbols else 'all'} symbols")
             
             # Get base recommendations from parent class
-            recommendations = super().generate_recommendations(symbols, strategy_type, max_recommendations)
+            # Ensure lookback_days is not None
+            lookback_days_value = 30 if lookback_days is None else lookback_days
+            recommendations = super().generate_recommendations(
+                symbols, 
+                strategy_type, 
+                max_recommendations,
+                lookback_days=lookback_days_value,
+                confidence_threshold=confidence_threshold
+            )
             
             # If no recommendations or ML integration is not available, return base recommendations
             if recommendations.empty or not hasattr(self, 'ml_integration'):
@@ -105,7 +113,14 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             self.logger.error(f"Error generating enhanced recommendations: {str(e)}")
             # Fall back to original recommendation engine
             self.logger.info("Falling back to original recommendation engine")
-            return super().generate_recommendations(symbols, strategy_type, max_recommendations)
+            lookback_days_value = 30 if lookback_days is None else lookback_days
+            return super().generate_recommendations(
+                symbols, 
+                strategy_type, 
+                max_recommendations,
+                lookback_days=lookback_days_value,
+                confidence_threshold=confidence_threshold
+            )
     
     def _apply_ml_enhancements(self, recommendations):
         """
