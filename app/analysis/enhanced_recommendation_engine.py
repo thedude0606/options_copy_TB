@@ -19,6 +19,23 @@ from app.ml.enhanced.integration import EnhancedMLIntegration
 # Import enhanced logging
 from app.utils.enhanced_logging import EnhancedLogger, ErrorHandler
 
+def safe_get_last(series_or_df):
+    """
+    Safely get the last element of a Series or DataFrame, returning None if empty.
+    
+    Args:
+        series_or_df: pandas Series or DataFrame to get last element from
+        
+    Returns:
+        Last element or None if empty/None
+    """
+    if series_or_df is None or (hasattr(series_or_df, 'empty') and series_or_df.empty):
+        return None
+    try:
+        return series_or_df.iloc[-1]
+    except (IndexError, KeyError):
+        return None
+
 class EnhancedRecommendationEngine(OriginalRecommendationEngine):
     """
     Enhanced recommendation engine that integrates machine learning components.
@@ -347,30 +364,30 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             
             # RSI
             if 'close' in historical_data.columns:
-                result['rsi'] = indicators.rsi(historical_data['close']).iloc[-1]
+                result['rsi'] = safe_get_last(indicators.rsi(historical_data['close']))
             
             # MACD
             if 'close' in historical_data.columns:
                 macd_result = indicators.macd(historical_data['close'])
-                result['macd'] = macd_result['macd'].iloc[-1]
-                result['macd_signal'] = macd_result['signal'].iloc[-1]
-                result['macd_histogram'] = macd_result['histogram'].iloc[-1]
+                result['macd'] = safe_get_last(macd_result['macd'])
+                result['macd_signal'] = safe_get_last(macd_result['signal'])
+                result['macd_histogram'] = safe_get_last(macd_result['histogram'])
             
             # Bollinger Bands
             if 'close' in historical_data.columns:
                 bb_result = indicators.bollinger_bands(historical_data['close'])
-                result['bb_upper'] = bb_result['upper'].iloc[-1]
-                result['bb_middle'] = bb_result['middle'].iloc[-1]
-                result['bb_lower'] = bb_result['lower'].iloc[-1]
-                result['bb_width'] = bb_result['width'].iloc[-1]
+                result['bb_upper'] = safe_get_last(bb_result['upper'])
+                result['bb_middle'] = safe_get_last(bb_result['middle'])
+                result['bb_lower'] = safe_get_last(bb_result['lower'])
+                result['bb_width'] = safe_get_last(bb_result['width'])
             
             # ATR
             if all(col in historical_data.columns for col in ['high', 'low', 'close']):
-                result['atr'] = indicators.atr(
+                result['atr'] = safe_get_last(indicators.atr(
                     historical_data['high'],
                     historical_data['low'],
                     historical_data['close']
-                ).iloc[-1]
+                ))
             
             # ADX
             if all(col in historical_data.columns for col in ['high', 'low', 'close']):
@@ -379,9 +396,9 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
                     historical_data['low'],
                     historical_data['close']
                 )
-                result['adx'] = adx_result['adx'].iloc[-1]
-                result['di_plus'] = adx_result['di_plus'].iloc[-1]
-                result['di_minus'] = adx_result['di_minus'].iloc[-1]
+                result['adx'] = safe_get_last(adx_result['adx'])
+                result['di_plus'] = safe_get_last(adx_result['di_plus'])
+                result['di_minus'] = safe_get_last(adx_result['di_minus'])
             
             return result
             
