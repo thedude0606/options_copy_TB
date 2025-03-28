@@ -38,7 +38,11 @@ class OptionsDatabase:
     
     def _create_tables(self):
         """Create the necessary tables if they don't exist."""
+        conn = None
         try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             

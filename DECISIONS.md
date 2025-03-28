@@ -42,6 +42,10 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Integrate with Schwab API for market data and trading.
 **Rationale**: Schwab API provides reliable market data and trading capabilities, essential for the application's functionality.
 
+### 4. SQLite Database
+**Decision**: Use SQLite for local data storage.
+**Rationale**: SQLite provides a lightweight, file-based database solution that is easy to set up and maintain, while still offering robust SQL capabilities for data storage and retrieval.
+
 ## Design Patterns Used
 
 ### 1. Factory Pattern
@@ -129,3 +133,7 @@ This document records key architectural choices, technology selections, design p
 ### 16. DataFrame-Based Technical Indicators
 **Decision**: Modify recommendation_engine.py to properly handle DataFrame return values from technical indicator calculations.
 **Rationale**: Using DataFrames for technical indicators provides a more structured and consistent approach to data handling. By properly accessing the DataFrame columns instead of trying to unpack return values directly, we ensure compatibility with the technical_indicators implementation and prevent "too many values to unpack" errors, while also gaining access to additional metrics like Bollinger bandwidth that can provide valuable insights for trading decisions.
+
+### 17. Database Connection Initialization
+**Decision**: Initialize database connection variables before try blocks and ensure data directories exist.
+**Rationale**: Properly initializing connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection establishment. Additionally, ensuring data directories exist before attempting to create database files prevents file system errors, making the application more robust in various environments.
