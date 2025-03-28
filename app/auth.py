@@ -8,7 +8,7 @@ from schwabdev.client import Client
 load_dotenv()
 
 # Flag to enable mock mode for testing without actual authentication
-MOCK_MODE = True
+MOCK_MODE = False
 
 class MockClient:
     """
