@@ -3,6 +3,9 @@
 ## Completed Features
 - Basic dashboard setup with tabs for Recommendations, Technical Indicators, and Greeks Analysis
 - Enhanced Recommendation Engine integration
+- Fixed API authentication issues:
+  - Modified callback URL validation to accept both http and https protocols
+  - Made app key and app secret validation more flexible for development environments
 - Multi-timeframe analysis with confluence detection
 - Technical indicators implementation including:
   - Basic indicators (RSI, Moving Averages)

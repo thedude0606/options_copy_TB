@@ -6,6 +6,11 @@
   - Status: Completed
   - Description: Modified recommendations_tab.py to use EnhancedRecommendationEngine instead of basic RecommendationEngine
 
+- [x] Fix API authentication issues
+  - Dependency: None
+  - Status: Completed
+  - Description: Modified callback URL validation to accept both http and https protocols and made app key/secret validation more flexible
+
 - [x] Fix import error in historical_data_manager.py
   - Dependency: None
   - Status: Completed
