@@ -369,9 +369,20 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             # MACD
             if 'close' in historical_data.columns:
                 macd_result = indicators.macd(historical_data['close'])
-                result['macd'] = safe_get_last(macd_result['macd'])
-                result['macd_signal'] = safe_get_last(macd_result['signal'])
-                result['macd_histogram'] = safe_get_last(macd_result['histogram'])
+                # Check if macd_result is a tuple (from calculate_macd) or a DataFrame (from macd method)
+                if isinstance(macd_result, tuple) and len(macd_result) == 3:
+                    # Handle tuple return (macd_line, signal_line, histogram)
+                    result['macd'] = safe_get_last(macd_result[0])
+                    result['macd_signal'] = safe_get_last(macd_result[1])
+                    result['macd_histogram'] = safe_get_last(macd_result[2])
+                elif isinstance(macd_result, pd.DataFrame) and all(k in macd_result for k in ['macd', 'signal', 'histogram']):
+                    # Handle DataFrame return with expected columns
+                    result['macd'] = safe_get_last(macd_result['macd'])
+                    result['macd_signal'] = safe_get_last(macd_result['signal'])
+                    result['macd_histogram'] = safe_get_last(macd_result['histogram'])
+                else:
+                    # Log the issue but continue processing
+                    self.logger.warning(f"Unexpected MACD result format: {type(macd_result)}")
             
             # Bollinger Bands
             if 'close' in historical_data.columns:
