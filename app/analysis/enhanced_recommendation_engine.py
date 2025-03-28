@@ -387,10 +387,22 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             # Bollinger Bands
             if 'close' in historical_data.columns:
                 bb_result = indicators.bollinger_bands(historical_data['close'])
-                result['bb_upper'] = safe_get_last(bb_result['upper'])
-                result['bb_middle'] = safe_get_last(bb_result['middle'])
-                result['bb_lower'] = safe_get_last(bb_result['lower'])
-                result['bb_width'] = safe_get_last(bb_result['width'])
+                # Check if bb_result is a tuple or a DataFrame
+                if isinstance(bb_result, tuple) and len(bb_result) >= 4:
+                    # Handle tuple return (middle_band, upper_band, lower_band, bandwidth)
+                    result['bb_middle'] = safe_get_last(bb_result[0])
+                    result['bb_upper'] = safe_get_last(bb_result[1])
+                    result['bb_lower'] = safe_get_last(bb_result[2])
+                    result['bb_width'] = safe_get_last(bb_result[3])
+                elif isinstance(bb_result, pd.DataFrame) and all(k in bb_result for k in ['middle', 'upper', 'lower', 'width']):
+                    # Handle DataFrame return with expected columns
+                    result['bb_middle'] = safe_get_last(bb_result['middle'])
+                    result['bb_upper'] = safe_get_last(bb_result['upper'])
+                    result['bb_lower'] = safe_get_last(bb_result['lower'])
+                    result['bb_width'] = safe_get_last(bb_result['width'])
+                else:
+                    # Log the issue but continue processing
+                    self.logger.warning(f"Unexpected Bollinger Bands result format: {type(bb_result)}")
             
             # ATR
             if all(col in historical_data.columns for col in ['high', 'low', 'close']):
