@@ -125,3 +125,7 @@ This document records key architectural choices, technology selections, design p
 ### 15. Enhanced Logging with Error Tracking
 **Decision**: Implement a comprehensive logging system with error tracking and reporting capabilities.
 **Rationale**: Financial applications require high reliability and auditability. The enhanced logging system provides detailed information about system operations, errors, and performance, facilitating debugging, monitoring, and compliance requirements.
+
+### 16. DataFrame-Based Technical Indicators
+**Decision**: Modify recommendation_engine.py to properly handle DataFrame return values from technical indicator calculations.
+**Rationale**: Using DataFrames for technical indicators provides a more structured and consistent approach to data handling. By properly accessing the DataFrame columns instead of trying to unpack return values directly, we ensure compatibility with the technical_indicators implementation and prevent "too many values to unpack" errors, while also gaining access to additional metrics like Bollinger bandwidth that can provide valuable insights for trading decisions.

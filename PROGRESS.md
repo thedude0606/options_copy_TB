@@ -26,6 +26,7 @@
 - Added fallback mechanisms for ML predictions when options data is missing
 - Implemented comprehensive error handling and logging system
 - Added caching for frequently accessed data to improve performance
+- Fixed Bollinger Bands calculation error in recommendation_engine.py by properly handling DataFrame return values
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach

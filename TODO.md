@@ -61,6 +61,11 @@
   - Status: Completed
   - Description: Created comprehensive logging and error handling system with retry logic and fallbacks
 
+- [x] Fix Bollinger Bands calculation error in recommendation_engine.py
+  - Dependency: None
+  - Status: Completed
+  - Description: Fixed "too many values to unpack" error by properly handling DataFrame return value from calculate_bollinger_bands function
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress

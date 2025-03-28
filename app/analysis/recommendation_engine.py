@@ -392,10 +392,12 @@ class RecommendationEngine:
         indicators['macd_histogram'] = histogram
         
         # Calculate Bollinger Bands
-        middle_band, upper_band, lower_band = self.technical_indicators.calculate_bollinger_bands(historical_data)
-        indicators['bollinger_middle'] = middle_band
-        indicators['bollinger_upper'] = upper_band
-        indicators['bollinger_lower'] = lower_band
+        bollinger_bands = self.technical_indicators.calculate_bollinger_bands(historical_data)
+        indicators['bollinger_middle'] = bollinger_bands['middle_band']
+        indicators['bollinger_upper'] = bollinger_bands['upper_band']
+        indicators['bollinger_lower'] = bollinger_bands['lower_band']
+        # Also store bandwidth which can be useful for volatility analysis
+        indicators['bollinger_width'] = bollinger_bands['width']
         
         # Calculate IMI
         indicators['imi'] = self.technical_indicators.calculate_imi(historical_data)
