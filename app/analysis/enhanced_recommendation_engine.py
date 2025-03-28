@@ -86,12 +86,17 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             # Get base recommendations from parent class
             # Ensure lookback_days is not None
             lookback_days_value = 30 if lookback_days is None else lookback_days
+            
+            # Convert parameters to match parent class expectations
+            # Original expects: symbol, lookback_days, confidence_threshold, strategy_types
+            symbol_value = symbols[0] if symbols and len(symbols) > 0 else None
+            strategy_types_value = [strategy_type] if strategy_type and strategy_type != 'all' else None
+            
             recommendations = super().generate_recommendations(
-                symbols, 
-                strategy_type, 
-                max_recommendations,
-                lookback_days=lookback_days_value,
-                confidence_threshold=confidence_threshold
+                symbol_value,
+                lookback_days_value,
+                confidence_threshold,
+                strategy_types_value
             )
             
             # If no recommendations or ML integration is not available, return base recommendations
@@ -114,12 +119,17 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             # Fall back to original recommendation engine
             self.logger.info("Falling back to original recommendation engine")
             lookback_days_value = 30 if lookback_days is None else lookback_days
+            
+            # Convert parameters to match parent class expectations
+            # Original expects: symbol, lookback_days, confidence_threshold, strategy_types
+            symbol_value = symbols[0] if symbols and len(symbols) > 0 else None
+            strategy_types_value = [strategy_type] if strategy_type and strategy_type != 'all' else None
+            
             return super().generate_recommendations(
-                symbols, 
-                strategy_type, 
-                max_recommendations,
-                lookback_days=lookback_days_value,
-                confidence_threshold=confidence_threshold
+                symbol_value,
+                lookback_days_value,
+                confidence_threshold,
+                strategy_types_value
             )
     
     def _apply_ml_enhancements(self, recommendations):
