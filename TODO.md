@@ -16,6 +16,11 @@
   - Status: Completed
   - Description: Removed synthetic data generator initialization and usage from the codebase
 
+- [x] Implement theoretical options data generation
+  - Dependency: Disabling synthetic data
+  - Status: Completed
+  - Description: Created a Black-Scholes model based approach to generate theoretical options data from underlying asset prices
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress

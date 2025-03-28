@@ -77,3 +77,11 @@ This document records key architectural choices, technology selections, design p
 ### 6. Disable Synthetic Data Generation
 **Decision**: Completely disable synthetic data generation functionality.
 **Rationale**: Using real market data provides more accurate and reliable results for trading decisions, eliminating potential biases or unrealistic patterns that might be present in synthetic data.
+
+### 7. Theoretical Options Data from Underlying Assets
+**Decision**: Implement theoretical options data generation based on underlying asset prices using the Black-Scholes model.
+**Rationale**: When historical options data is unavailable (especially for future-dated contracts), using the underlying asset's price history with option pricing models provides more realistic data than synthetic generation, while still enabling ML models to make predictions for options without historical data.
+
+### 8. Black-Scholes Model Implementation
+**Decision**: Use the Black-Scholes model for theoretical option pricing and Greeks calculation.
+**Rationale**: Black-Scholes is a well-established and widely accepted model for option pricing that provides a good balance between accuracy and computational efficiency, making it suitable for generating theoretical data points based on underlying asset movements.

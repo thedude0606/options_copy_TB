@@ -2,12 +2,13 @@
 Enhanced ML Integration Module
 
 This module provides ML integration for options trading recommendations.
-It uses historical data, enhanced features, and synthetic data when needed.
+It uses historical data, enhanced features, and theoretical data based on underlying assets when needed.
 """
 
 import logging
 import numpy as np
 import pandas as pd
+import re
 from datetime import datetime, timedelta
 
 logger = logging.getLogger('enhanced_ml_integration')
@@ -21,7 +22,7 @@ class EnhancedMLIntegration:
         # Import our modules (import here to avoid circular imports)
         from app.data.options_db import OptionsDatabase
         from app.data.feature_extraction import EnhancedFeatureExtractor
-        # Synthetic data has been disabled as requested
+        from app.data.theoretical_options import TheoreticalOptionsGenerator
         
         # Initialize database
         self.db = OptionsDatabase()
@@ -29,7 +30,8 @@ class EnhancedMLIntegration:
         # Initialize feature extractor
         self.feature_extractor = EnhancedFeatureExtractor(self.db)
         
-        # Synthetic data generator has been disabled as requested
+        # Initialize theoretical options generator
+        self.theoretical_generator = TheoreticalOptionsGenerator(self.db)
         
         # Initialize trading system components
         self._initialize_trading_system()
@@ -52,6 +54,56 @@ class EnhancedMLIntegration:
         }
         
         self.risk_params = risk_params.get(self.risk_tolerance, risk_params['moderate'])
+        
+    def _extract_option_details(self, symbol):
+        """Extract option details from the option symbol.
+        
+        Args:
+            symbol (str): Option symbol (e.g., 'SPY_250502P00570000' or 'SPY   250502P00570000')
+            
+        Returns:
+            dict: Option details including underlying, strike_price, option_type, and expiration_date
+        """
+        try:
+            # Clean up the symbol (remove extra spaces)
+            clean_symbol = symbol.replace(' ', '')
+            
+            # Try to match standard format: UNDERLYING_YYMMDDP/CSTRIKE
+            pattern = r'([A-Z]+)_?(\d{6})([CP])(\d+)'
+            match = re.search(pattern, clean_symbol)
+            
+            if match:
+                underlying = match.group(1)
+                date_str = match.group(2)
+                option_type = 'CALL' if match.group(3) == 'C' else 'PUT'
+                strike_str = match.group(4)
+                
+                # Parse date (YYMMDD)
+                year = int('20' + date_str[0:2])
+                month = int(date_str[2:4])
+                day = int(date_str[4:6])
+                expiration_date = datetime(year, month, day).isoformat()
+                
+                # Parse strike (may need to add decimal point)
+                if len(strike_str) > 2:
+                    strike_price = float(strike_str) / 1000
+                else:
+                    strike_price = float(strike_str)
+                
+                return {
+                    'symbol': symbol,
+                    'underlying': underlying,
+                    'strike_price': strike_price,
+                    'option_type': option_type,
+                    'expiration_date': expiration_date
+                }
+            else:
+                logger.warning(f"Could not parse option symbol: {symbol}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error extracting option details from {symbol}: {e}")
+            return None
         
     def predict(self, data):
         """Generate ML predictions based on enhanced features.
@@ -79,11 +131,39 @@ class EnhancedMLIntegration:
             # Get historical options data if available
             historical_options = self.db.get_historical_options(symbol)
             
-            # Synthetic data generation has been completely disabled as requested
+            # Use theoretical options data based on underlying asset when historical data is not available
             if historical_options.empty:
-                logger.info(f"No historical options data for {symbol}, synthetic data generation is disabled")
-                # Return empty DataFrame instead of generating synthetic data
-                historical_options = pd.DataFrame()
+                logger.info(f"No historical options data for {symbol}, generating theoretical data from underlying asset")
+                
+                # Extract option details from symbol
+                option_details = self._extract_option_details(symbol)
+                
+                if option_details:
+                    # Get last 60 days of underlying data
+                    end_date = datetime.now().isoformat()
+                    start_date = (datetime.now() - timedelta(days=60)).isoformat()
+                    
+                    # Get current implied volatility if available
+                    current_iv = None
+                    if 'options_data' in data and isinstance(data['options_data'], pd.DataFrame) and not data['options_data'].empty:
+                        # Try to find the specific option in the provided data
+                        option_row = data['options_data'][data['options_data']['symbol'] == symbol]
+                        if not option_row.empty and 'implied_volatility' in option_row.columns:
+                            current_iv = option_row['implied_volatility'].iloc[0]
+                    
+                    # Generate theoretical history based on underlying asset
+                    historical_options = self.theoretical_generator.generate_theoretical_history(
+                        option_details['underlying'], 
+                        option_details,
+                        start_date=start_date, 
+                        end_date=end_date,
+                        current_iv=current_iv
+                    )
+                    
+                    logger.info(f"Generated {len(historical_options)} theoretical data points based on underlying asset")
+                else:
+                    logger.warning(f"Could not extract option details from symbol {symbol}")
+                    historical_options = pd.DataFrame()
             
             # Extract enhanced features
             features = self.feature_extractor.extract_features(symbol, lookback_days=30)
@@ -244,70 +324,69 @@ class EnhancedMLIntegration:
             # Extract key values
             symbol = recommendation.get('symbol', '')
             option_type = recommendation.get('optionType', '')
-            strike = recommendation.get('strikePrice', 0)
+            strike_price = recommendation.get('strikePrice', 0)
             entry_price = recommendation.get('entryPrice', 0)
             underlying_price = recommendation.get('underlyingPrice', 0)
+            days_to_expiration = recommendation.get('daysToExpiration', 0)
             
-            if not all([symbol, option_type, strike, entry_price, underlying_price]):
-                logger.warning("Missing key values in recommendation")
-                return recommendation
+            # Calculate risk management parameters
+            max_position_size = self.risk_params['max_position_size']
+            stop_loss_pct = self.risk_params['stop_loss_pct']
+            take_profit_ratio = self.risk_params['take_profit_ratio']
             
-            # Calculate position sizing
-            account_size = self.config.get('account_size', 100000)
-            max_position_value = account_size * self.risk_params['max_position_size']
-            
-            # For options, we calculate contracts based on entry price
-            if entry_price > 0:
-                max_contracts = int(max_position_value / (entry_price * 100))  # Each contract is for 100 shares
+            # Calculate position size based on risk tolerance
+            if self.position_sizing_method == 'fixed_risk':
+                # Calculate position size based on fixed risk percentage
+                account_size = 100000  # Example account size
+                risk_per_trade = account_size * max_position_size
+                max_contracts = int(risk_per_trade / (entry_price * 100))
+                
+                # Ensure at least 1 contract
+                position_size = max(1, max_contracts)
             else:
-                max_contracts = 0
+                # Default to 1 contract
+                position_size = 1
                 
             # Calculate stop loss and take profit levels
-            if option_type.upper() == 'CALL':
-                # For calls, stop loss is based on underlying price
-                stop_loss_pct = self.risk_params['stop_loss_pct']
-                stop_loss_price = max(0.01, entry_price * (1 - stop_loss_pct))
-                
-                # Take profit based on risk-reward ratio
-                take_profit_ratio = self.risk_params['take_profit_ratio']
-                take_profit_price = entry_price * (1 + (stop_loss_pct * take_profit_ratio))
-                
-                # Calculate underlying price levels
-                stop_underlying = underlying_price * (1 - (stop_loss_pct / 2))
-                target_underlying = underlying_price * (1 + (stop_loss_pct * take_profit_ratio / 2))
-                
+            if option_type == 'CALL':
+                stop_loss = entry_price * (1 - stop_loss_pct)
+                take_profit = entry_price + (entry_price * take_profit_ratio)
             else:  # PUT
-                # For puts, stop loss is based on underlying price
-                stop_loss_pct = self.risk_params['stop_loss_pct']
-                stop_loss_price = max(0.01, entry_price * (1 - stop_loss_pct))
+                stop_loss = entry_price * (1 - stop_loss_pct)
+                take_profit = entry_price + (entry_price * take_profit_ratio)
                 
-                # Take profit based on risk-reward ratio
-                take_profit_ratio = self.risk_params['take_profit_ratio']
-                take_profit_price = entry_price * (1 + (stop_loss_pct * take_profit_ratio))
+            # Calculate underlying price targets
+            if option_type == 'CALL':
+                underlying_target = underlying_price * 1.02  # Example: 2% move up
+            else:  # PUT
+                underlying_target = underlying_price * 0.98  # Example: 2% move down
                 
-                # Calculate underlying price levels
-                stop_underlying = underlying_price * (1 + (stop_loss_pct / 2))
-                target_underlying = underlying_price * (1 - (stop_loss_pct * take_profit_ratio / 2))
-            
-            # Calculate expected value
-            win_probability = recommendation.get('probabilityOfProfit', 0.5)
-            potential_gain = (take_profit_price - entry_price) * max_contracts * 100
-            potential_loss = (entry_price - stop_loss_price) * max_contracts * 100
-            expected_value = (win_probability * potential_gain) - ((1 - win_probability) * potential_loss)
-            
             # Add risk management details to recommendation
             recommendation['riskManagement'] = {
-                'positionSize': max_contracts,
-                'maxPositionValue': max_position_value,
-                'stopLossPrice': stop_loss_price,
-                'takeProfitPrice': take_profit_price,
-                'stopUnderlyingPrice': stop_underlying,
-                'targetUnderlyingPrice': target_underlying,
-                'expectedValue': expected_value,
-                'riskRewardRatio': take_profit_ratio
+                'positionSize': position_size,
+                'stopLoss': round(stop_loss, 2),
+                'takeProfit': round(take_profit, 2),
+                'underlyingTarget': round(underlying_target, 2),
+                'maxRisk': round(position_size * (entry_price - stop_loss) * 100, 2),
+                'maxReward': round(position_size * (take_profit - entry_price) * 100, 2),
+                'riskRewardRatio': round((take_profit - entry_price) / (entry_price - stop_loss), 2) if (entry_price - stop_loss) > 0 else 0
             }
             
-            logger.info(f"Added risk management details to recommendation for {symbol}")
+            # Add time-based exit strategy
+            if days_to_expiration > 30:
+                recommendation['exitStrategy'] = {
+                    'timeBasedExit': f"Consider closing position if no significant move within {min(7, days_to_expiration // 4)} days",
+                    'profitTarget': f"Take partial profits at 50% of max profit",
+                    'adjustmentStrategy': f"Consider rolling to different strike if underlying moves significantly"
+                }
+            else:
+                recommendation['exitStrategy'] = {
+                    'timeBasedExit': f"Close position {max(5, days_to_expiration // 3)} days before expiration to avoid theta decay",
+                    'profitTarget': f"Take profits at 30-50% of max profit",
+                    'adjustmentStrategy': f"Avoid adjustments close to expiration"
+                }
+                
+            logger.info(f"Processed recommendation with risk management details for {symbol}")
             return recommendation
             
         except Exception as e:
