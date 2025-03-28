@@ -1,77 +1,54 @@
 """
 Trade card component for options recommendation platform.
-Implements the UI for displaying option recommendations in a card format.
+Implements the UI for displaying option trade recommendations.
 """
 import dash
-from dash import html, dcc, callback, Input, Output, State
+from dash import html, dcc
 import dash_bootstrap_components as dbc
-import json
-import ast
 from datetime import datetime
 
 def create_trade_card(recommendation):
     """
-    Create a trade card component for an option recommendation
+    Create a trade card for an option recommendation
     
     Args:
         recommendation (dict): Option recommendation data
         
     Returns:
-        dbc.Card: Trade card component
+        html.Div: Trade card component
     """
     try:
-        # Extract data directly from recommendation dictionary
-        # First check if we have the old format with recommendation_details
-        if 'recommendation_details' in recommendation:
-            # Parse recommendation details if it's a string
-            if isinstance(recommendation.get('recommendation_details', ''), str):
-                try:
-                    details = ast.literal_eval(recommendation['recommendation_details'])
-                except:
-                    details = {}
-            else:
-                details = recommendation.get('recommendation_details', {})
-            
-            # Extract data from details
-            option_type = details.get('type', 'UNKNOWN').upper()
-            strike = details.get('strike', 0)
-            expiration = details.get('expiration', 'UNKNOWN')
-            current_price = details.get('current_price', 0)
-            underlying_price = details.get('underlying_price', 0)
-            probability = details.get('probability_of_profit', 0)
-            risk_reward = details.get('risk_reward_ratio', 0)
-            potential_return = details.get('potential_return_pct', 0)
-            confidence = details.get('confidence_score', 0)
-            signal_details = details.get('signal_details', {})
-            delta = details.get('delta', 0)
-            gamma = details.get('gamma', 0)
-            theta = details.get('theta', 0)
-            vega = details.get('vega', 0)
+        # Extract recommendation data
+        symbol = recommendation.get('symbol', 'UNKNOWN')
+        option_type = recommendation.get('optionType', 'UNKNOWN')
+        strike = recommendation.get('strikePrice', 0)
+        expiration = recommendation.get('expirationDate', 'Unknown')
+        confidence = recommendation.get('confidence', 0)
+        potential_return = recommendation.get('potentialReturn', 0)
+        risk_reward = recommendation.get('riskRewardRatio', 0)
+        current_price = recommendation.get('currentPrice', 0)
+        
+        # Extract ML-enhanced data if available
+        ml_confidence = recommendation.get('mlConfidence', None)
+        ml_predicted_return = recommendation.get('mlPredictedReturn', None)
+        ml_risk_score = recommendation.get('mlRiskScore', None)
+        
+        # Extract risk management data if available
+        recommended_contracts = recommendation.get('recommendedContracts', 1)
+        max_risk_amount = recommendation.get('maxRiskAmount', 0)
+        risk_percentage = recommendation.get('riskPercentage', 0)
+        stop_loss = recommendation.get('stopLoss', 0)
+        take_profit = recommendation.get('takeProfit', 0)
+        
+        # Extract signal details if available
+        signal_details_raw = recommendation.get('signalDetails', {})
+        if isinstance(signal_details_raw, str):
+            try:
+                signal_details = json.loads(signal_details_raw)
+            except:
+                signal_details = {}
         else:
-            # New format with direct fields
-            option_type = recommendation.get('optionType', 'UNKNOWN').upper()
-            strike = recommendation.get('strikePrice', 0)
-            expiration = recommendation.get('expirationDate', 'UNKNOWN')
-            current_price = recommendation.get('entryPrice', 0)
-            underlying_price = recommendation.get('underlyingPrice', 0)
-            probability = recommendation.get('probabilityOfProfit', 0)
-            risk_reward = recommendation.get('riskRewardRatio', 0)
-            potential_return = recommendation.get('potentialReturn', 0)
-            confidence = recommendation.get('confidence', 0)
-            
-            # Handle signal details - could be a string, list, or dict
-            signal_details_raw = recommendation.get('signalDetails', {})
-            if isinstance(signal_details_raw, str):
-                try:
-                    signal_details = ast.literal_eval(signal_details_raw)
-                except:
-                    # If it's a string but not a valid Python literal, treat as a single message
-                    signal_details = {"Signal": signal_details_raw}
-            elif isinstance(signal_details_raw, list):
-                # Convert list to dictionary with numbered keys
-                signal_details = {f"Signal {i+1}": item for i, item in enumerate(signal_details_raw)}
-            else:
-                signal_details = signal_details_raw
+            signal_details = signal_details_raw
             
             # Extract Greeks
             delta = recommendation.get('delta', 0)
@@ -108,7 +85,7 @@ def create_trade_card(recommendation):
         
         # Create card header with symbol and option type
         header = html.Div([
-            html.Div("AAPL", className="card-symbol"),  # Symbol is hardcoded for now, should be dynamic
+            html.Div(symbol, className="card-symbol"),  # Use actual symbol from recommendation data
             html.Div(option_type_label, className="card-option-type")
         ], className=f"card-header {option_type.lower()}-header")
         
