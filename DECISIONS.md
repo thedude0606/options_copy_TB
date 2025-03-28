@@ -93,3 +93,7 @@ This document records key architectural choices, technology selections, design p
 ### 10. Cache Theoretical Data for Performance
 **Decision**: Implement caching of generated theoretical data in the database for future use.
 **Rationale**: Generating theoretical options data is computationally intensive. Caching this data improves performance by avoiding redundant calculations for the same options contracts, while still maintaining the accuracy benefits of the theoretical approach.
+
+### 11. VIX Symbol Format Fallback
+**Decision**: Implement fallback to "^VIX" format when regular "VIX" symbol fails to retrieve data.
+**Rationale**: Many financial data providers, including Schwab API, use the caret (^) prefix for index symbols like VIX. By implementing a fallback mechanism that tries "^VIX" when "VIX" fails, we ensure reliable data retrieval for the VIX volatility index, which is crucial for market analysis and risk assessment.

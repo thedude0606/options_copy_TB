@@ -26,6 +26,11 @@
   - Status: Completed
   - Description: Modified implementation to directly use Schwab API data for underlying assets instead of first trying to get historical options data
 
+- [x] Fix VIX symbol data retrieval
+  - Dependency: None
+  - Status: Completed
+  - Description: Implemented fallback to "^VIX" format when regular "VIX" symbol fails to retrieve data
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress

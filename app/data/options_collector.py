@@ -69,7 +69,15 @@ class OptionsDataCollector:
                     logger.info(f"Collected options data for {symbol}")
                     
                 # Get underlying data
+                # Try regular symbol first
+                logger.info(f"Requesting quote for symbol: {symbol}")
                 quote = self.client.get_quote(symbol)
+                
+                # If VIX fails, try with caret prefix (^VIX)
+                if not quote and symbol == "VIX":
+                    logger.info(f"No quote data received for {symbol}, trying ^{symbol}")
+                    quote = self.client.get_quote(f"^{symbol}")
+                
                 if quote:
                     underlying_data = [{
                         'symbol': symbol,
@@ -82,6 +90,8 @@ class OptionsDataCollector:
                     }]
                     self.db.store_underlying_data(underlying_data)
                     logger.info(f"Collected underlying data for {symbol}")
+                else:
+                    logger.warning(f"No quote data received for {symbol}")
                     
             except Exception as e:
                 logger.error(f"Error collecting data for {symbol}: {e}")

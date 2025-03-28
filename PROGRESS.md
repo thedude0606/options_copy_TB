@@ -18,6 +18,7 @@
 - Added Black-Scholes model for calculating theoretical option prices and Greeks
 - Refined implementation to prioritize theoretical approach using Schwab API data
 - Added caching mechanism for theoretical data to improve performance
+- Fixed VIX symbol data retrieval by implementing fallback to "^VIX" format
 
 ## Current Work in Progress
 - Integration of advanced indicators into the main application flow
