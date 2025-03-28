@@ -128,42 +128,48 @@ class EnhancedMLIntegration:
                 logger.warning("No symbol provided for prediction")
                 return {'confidence': 0, 'prediction': 'neutral', 'details': {}}
                 
-            # Get historical options data if available
-            historical_options = self.db.get_historical_options(symbol)
+            # Extract option details from symbol
+            option_details = self._extract_option_details(symbol)
             
-            # Use theoretical options data based on underlying asset when historical data is not available
-            if historical_options.empty:
-                logger.info(f"No historical options data for {symbol}, generating theoretical data from underlying asset")
+            if not option_details:
+                logger.warning(f"Could not extract option details from symbol {symbol}")
+                historical_options = pd.DataFrame()
+            else:
+                # Prioritize theoretical approach using Schwab API data for underlying asset
+                logger.info(f"Generating theoretical data from underlying asset for {symbol}")
                 
-                # Extract option details from symbol
-                option_details = self._extract_option_details(symbol)
+                # Get last 60 days of underlying data
+                end_date = datetime.now().isoformat()
+                start_date = (datetime.now() - timedelta(days=60)).isoformat()
                 
-                if option_details:
-                    # Get last 60 days of underlying data
-                    end_date = datetime.now().isoformat()
-                    start_date = (datetime.now() - timedelta(days=60)).isoformat()
-                    
-                    # Get current implied volatility if available
-                    current_iv = None
-                    if 'options_data' in data and isinstance(data['options_data'], pd.DataFrame) and not data['options_data'].empty:
-                        # Try to find the specific option in the provided data
-                        option_row = data['options_data'][data['options_data']['symbol'] == symbol]
-                        if not option_row.empty and 'implied_volatility' in option_row.columns:
-                            current_iv = option_row['implied_volatility'].iloc[0]
-                    
-                    # Generate theoretical history based on underlying asset
-                    historical_options = self.theoretical_generator.generate_theoretical_history(
-                        option_details['underlying'], 
-                        option_details,
-                        start_date=start_date, 
-                        end_date=end_date,
-                        current_iv=current_iv
-                    )
-                    
+                # Get current implied volatility if available
+                current_iv = None
+                if 'options_data' in data and isinstance(data['options_data'], pd.DataFrame) and not data['options_data'].empty:
+                    # Try to find the specific option in the provided data
+                    option_row = data['options_data'][data['options_data']['symbol'] == symbol]
+                    if not option_row.empty and 'implied_volatility' in option_row.columns:
+                        current_iv = option_row['implied_volatility'].iloc[0]
+                
+                # Generate theoretical history based on underlying asset
+                historical_options = self.theoretical_generator.generate_theoretical_history(
+                    option_details['underlying'], 
+                    option_details,
+                    start_date=start_date, 
+                    end_date=end_date,
+                    current_iv=current_iv
+                )
+                
+                # Cache the generated data for future use
+                if not historical_options.empty:
                     logger.info(f"Generated {len(historical_options)} theoretical data points based on underlying asset")
+                    try:
+                        # Store in database for future reference
+                        self.db.store_options_data(historical_options)
+                        logger.info(f"Cached theoretical data for {symbol} in database")
+                    except Exception as e:
+                        logger.warning(f"Could not cache theoretical data: {e}")
                 else:
-                    logger.warning(f"Could not extract option details from symbol {symbol}")
-                    historical_options = pd.DataFrame()
+                    logger.warning(f"Failed to generate theoretical data for {symbol}")
             
             # Extract enhanced features
             features = self.feature_extractor.extract_features(symbol, lookback_days=30)

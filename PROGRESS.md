@@ -16,6 +16,8 @@
 - Completely disabled synthetic data generation functionality
 - Implemented theoretical options data generation based on underlying asset prices
 - Added Black-Scholes model for calculating theoretical option prices and Greeks
+- Refined implementation to prioritize theoretical approach using Schwab API data
+- Added caching mechanism for theoretical data to improve performance
 
 ## Current Work in Progress
 - Integration of advanced indicators into the main application flow

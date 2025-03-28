@@ -3,6 +3,7 @@ Theoretical Options Data Module
 
 This module provides functionality to generate theoretical options data based on underlying asset prices.
 It uses the Black-Scholes model to calculate theoretical option prices and Greeks.
+It prioritizes using Schwab API data for underlying assets.
 """
 
 import numpy as np
@@ -34,16 +35,16 @@ class TheoreticalOptionsGenerator:
         Returns:
             pd.DataFrame: Theoretical options data
         """
-        logger.info(f"Generating theoretical history for {symbol} option")
+        logger.info(f"Generating theoretical history for {symbol} option using Schwab API data")
         
-        # Get underlying price history
+        # Get underlying price history from Schwab API via database
         underlying_history = self.db.get_historical_underlying(symbol, start_date=start_date, end_date=end_date)
         
         if underlying_history.empty:
-            logger.warning(f"No historical data available for underlying {symbol}")
+            logger.warning(f"No historical data available for underlying {symbol} from Schwab API")
             return pd.DataFrame()
             
-        logger.info(f"Found {len(underlying_history)} historical price points for {symbol}")
+        logger.info(f"Found {len(underlying_history)} historical price points for {symbol} from Schwab API")
         
         # Extract option details
         strike = option_details.get('strike_price')
@@ -121,7 +122,7 @@ class TheoreticalOptionsGenerator:
                 logger.error(f"Error calculating option price: {e}")
                 continue
         
-        logger.info(f"Generated {len(theoretical_data)} theoretical options records")
+        logger.info(f"Generated {len(theoretical_data)} theoretical options records using Schwab API data")
         return pd.DataFrame(theoretical_data)
     
     def _black_scholes(self, S, K, T, r, sigma, option_type='call'):

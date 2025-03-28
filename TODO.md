@@ -21,6 +21,11 @@
   - Status: Completed
   - Description: Created a Black-Scholes model based approach to generate theoretical options data from underlying asset prices
 
+- [x] Refine implementation to prioritize theoretical approach
+  - Dependency: Theoretical options data generation
+  - Status: Completed
+  - Description: Modified implementation to directly use Schwab API data for underlying assets instead of first trying to get historical options data
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress

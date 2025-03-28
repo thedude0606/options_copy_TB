@@ -85,3 +85,11 @@ This document records key architectural choices, technology selections, design p
 ### 8. Black-Scholes Model Implementation
 **Decision**: Use the Black-Scholes model for theoretical option pricing and Greeks calculation.
 **Rationale**: Black-Scholes is a well-established and widely accepted model for option pricing that provides a good balance between accuracy and computational efficiency, making it suitable for generating theoretical data points based on underlying asset movements.
+
+### 9. Prioritize Theoretical Approach Using Schwab API Data
+**Decision**: Directly use Schwab API data for underlying assets to generate theoretical options data instead of first trying to get historical options data.
+**Rationale**: Since options are inherently future-dated instruments, it's more efficient and logical to prioritize the theoretical approach using underlying asset data from the Schwab API rather than searching for historical options data that is unlikely to exist for future contracts.
+
+### 10. Cache Theoretical Data for Performance
+**Decision**: Implement caching of generated theoretical data in the database for future use.
+**Rationale**: Generating theoretical options data is computationally intensive. Caching this data improves performance by avoiding redundant calculations for the same options contracts, while still maintaining the accuracy benefits of the theoretical approach.
