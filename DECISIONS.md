@@ -97,3 +97,7 @@ This document records key architectural choices, technology selections, design p
 ### 11. VIX Symbol Format Fallback
 **Decision**: Implement fallback to "^VIX" format when regular "VIX" symbol fails to retrieve data.
 **Rationale**: Many financial data providers, including Schwab API, use the caret (^) prefix for index symbols like VIX. By implementing a fallback mechanism that tries "^VIX" when "VIX" fails, we ensure reliable data retrieval for the VIX volatility index, which is crucial for market analysis and risk assessment.
+
+### 12. Robust Handling of None Values in Risk Management
+**Decision**: Implement explicit checks for None values and non-numeric types in risk management calculations.
+**Rationale**: Financial data can sometimes contain missing or invalid values. By adding explicit validation for None values and non-numeric types with appropriate default values and warning messages, we prevent runtime errors in mathematical operations and ensure the risk management system continues to function even with incomplete data.

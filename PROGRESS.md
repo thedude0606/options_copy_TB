@@ -19,6 +19,7 @@
 - Refined implementation to prioritize theoretical approach using Schwab API data
 - Added caching mechanism for theoretical data to improve performance
 - Fixed VIX symbol data retrieval by implementing fallback to "^VIX" format
+- Fixed None value multiplication error in ML integration risk management
 
 ## Current Work in Progress
 - Integration of advanced indicators into the main application flow

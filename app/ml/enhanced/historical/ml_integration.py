@@ -327,13 +327,26 @@ class EnhancedMLIntegration:
                 logger.warning("Invalid recommendation provided")
                 return recommendation
                 
-            # Extract key values
+            # Extract key values with safe defaults
             symbol = recommendation.get('symbol', '')
             option_type = recommendation.get('optionType', '')
             strike_price = recommendation.get('strikePrice', 0)
-            entry_price = recommendation.get('entryPrice', 0)
-            underlying_price = recommendation.get('underlyingPrice', 0)
-            days_to_expiration = recommendation.get('daysToExpiration', 0)
+            
+            # Ensure numeric values are not None to prevent multiplication errors
+            entry_price = recommendation.get('entryPrice')
+            if entry_price is None or not isinstance(entry_price, (int, float)):
+                entry_price = 0
+                logger.warning(f"Entry price for {symbol} is None or not numeric, using default value 0")
+                
+            underlying_price = recommendation.get('underlyingPrice')
+            if underlying_price is None or not isinstance(underlying_price, (int, float)):
+                underlying_price = 0
+                logger.warning(f"Underlying price for {symbol} is None or not numeric, using default value 0")
+                
+            days_to_expiration = recommendation.get('daysToExpiration')
+            if days_to_expiration is None or not isinstance(days_to_expiration, (int, float)):
+                days_to_expiration = 0
+                logger.warning(f"Days to expiration for {symbol} is None or not numeric, using default value 0")
             
             # Calculate risk management parameters
             max_position_size = self.risk_params['max_position_size']

@@ -31,6 +31,11 @@
   - Status: Completed
   - Description: Implemented fallback to "^VIX" format when regular "VIX" symbol fails to retrieve data
 
+- [x] Fix None value multiplication error in ML integration
+  - Dependency: None
+  - Status: Completed
+  - Description: Added explicit checks for None values and non-numeric types in risk management calculations
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
