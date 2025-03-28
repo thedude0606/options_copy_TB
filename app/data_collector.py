@@ -220,7 +220,7 @@ class DataCollector:
             # Already an equity symbol
             return symbol
     
-    def get_price_data(self, symbol, period_type='day', period=10, frequency_type='minute', frequency=1):
+    def get_price_data(self, symbol, period_type='day', period=10, frequency_type='minute', frequency=1, lookback_days=None):
         """
         Get historical price data for a symbol
         
@@ -230,11 +230,19 @@ class DataCollector:
             period (int): The number of periods to show
             frequency_type (str): The type of frequency with which a new candle is formed (minute, daily, weekly, monthly)
             frequency (int): The number of the frequency type to use (e.g., 1, 5, 10, 15, 30 for minute)
+            lookback_days (int, optional): Number of days to look back (alternative to period, takes precedence if provided)
             
         Returns:
             pd.DataFrame: Historical price data
         """
         try:
+            # If lookback_days is provided, use it to set the period
+            if lookback_days is not None:
+                period = lookback_days
+                period_type = 'day'
+                if DEBUG_MODE:
+                    print(f"Using lookback_days={lookback_days} to set period")
+            
             if DEBUG_MODE:
                 print(f"Getting price data for {symbol} with period={period} {period_type}, frequency={frequency} {frequency_type}")
             
