@@ -22,6 +22,10 @@ from schwabdev.client import Client as SchwabClient
 # Import analysis modules
 from app.analysis.enhanced_recommendation_engine import EnhancedRecommendationEngine
 
+# Import historical data modules
+from app.data.historical_data_manager import HistoricalDataManager
+from app.ml.enhanced.historical.ml_integration import EnhancedMLIntegration
+
 # Import debugging utilities
 from app.utils.debug_utils import add_debug_div_to_layout, add_debug_callback_to_app
 
@@ -56,6 +60,16 @@ options_data_retriever = OptionsDataRetriever(client)
 
 # Initialize the data collector for technical indicators
 data_collector = DataCollector()
+
+# Initialize historical data manager with the Schwab client
+historical_manager = HistoricalDataManager(api_client=client, symbols=["SPY", "QQQ", "AAPL"])
+# Start historical data collection in the background
+historical_manager.start_collection()
+logger.info("Historical data collection started in the background")
+
+# Initialize enhanced ML integration
+ml_integration = EnhancedMLIntegration()
+logger.info("Enhanced ML integration initialized")
 
 # Initialize the enhanced recommendation engine with ML capabilities
 recommendation_engine = EnhancedRecommendationEngine(data_collector, debug=True)
