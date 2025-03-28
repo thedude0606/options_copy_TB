@@ -31,6 +31,8 @@
 - Added caching for frequently accessed data to improve performance
 - Fixed Bollinger Bands calculation error in recommendation_engine.py by properly handling DataFrame return values
 - Fixed database connection error in options_db.py by properly initializing the connection variable and ensuring data directories exist
+- Fixed 'DataCollector' object has no attribute 'get_historical_data' error by implementing the missing method
+- Implemented Yahoo Finance API integration for historical data retrieval with fallback to synthetic data generation
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach

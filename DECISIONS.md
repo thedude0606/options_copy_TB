@@ -46,6 +46,10 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Use SQLite for local data storage.
 **Rationale**: SQLite provides a lightweight, file-based database solution that is easy to set up and maintain, while still offering robust SQL capabilities for data storage and retrieval.
 
+### 5. Yahoo Finance API Integration
+**Decision**: Integrate with Yahoo Finance API for historical market data retrieval.
+**Rationale**: Yahoo Finance API provides comprehensive historical market data that can be used as a reliable source when Schwab API data is unavailable or insufficient, enhancing the application's data retrieval capabilities.
+
 ## Design Patterns Used
 
 ### 1. Factory Pattern
@@ -67,6 +71,10 @@ This document records key architectural choices, technology selections, design p
 ### 5. Adapter Pattern
 **Decision**: Use adapter pattern for the options symbol parser.
 **Rationale**: The adapter pattern allows the system to work with different option symbol formats by converting them to a standardized format, improving flexibility and compatibility.
+
+### 6. Facade Pattern
+**Decision**: Implement facade pattern for the DataCollector class.
+**Rationale**: The facade pattern provides a simplified interface to a complex subsystem of data retrieval methods, making it easier for client code to interact with the data collection functionality without needing to understand the underlying implementation details.
 
 ## Important Implementation Decisions
 
@@ -137,3 +145,11 @@ This document records key architectural choices, technology selections, design p
 ### 17. Database Connection Initialization
 **Decision**: Initialize database connection variables before try blocks and ensure data directories exist.
 **Rationale**: Properly initializing connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection establishment. Additionally, ensuring data directories exist before attempting to create database files prevents file system errors, making the application more robust in various environments.
+
+### 18. Historical Data Retrieval Strategy
+**Decision**: Implement a get_historical_data method in DataCollector with Yahoo Finance API integration and fallback to get_price_data.
+**Rationale**: By implementing a dedicated method for historical data retrieval that first attempts to use the Yahoo Finance API and falls back to the existing get_price_data method, we ensure reliable data access even when one source is unavailable. This approach provides more comprehensive historical data coverage and improves the robustness of the recommendation engine.
+
+### 19. API Data Source Prioritization
+**Decision**: Prioritize external APIs (Yahoo Finance) for historical data before falling back to synthetic data generation.
+**Rationale**: External APIs provide real market data that is more accurate and reliable than synthetically generated data. By prioritizing these sources, we improve the quality of the data used for analysis and recommendations, while still maintaining the ability to generate data when external sources are unavailable.

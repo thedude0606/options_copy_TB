@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import traceback
 import json
+import sys
 from datetime import datetime, timedelta
 from app.auth import get_client
 from app.data.options_symbol_parser import OptionsSymbolParser
@@ -236,21 +237,30 @@ class DataCollector:
             pd.DataFrame: Historical price data
         """
         try:
-            # If lookback_days is provided, use it to set the period
-            if lookback_days is not None:
-                period = lookback_days
-                period_type = 'day'
-                if DEBUG_MODE:
-                    print(f"Using lookback_days={lookback_days} to set period")
-            
-            if DEBUG_MODE:
-                print(f"Getting price data for {symbol} with period={period} {period_type}, frequency={frequency} {frequency_type}")
-            
-            # Extract underlying symbol if this is an option
+            # Get the underlying symbol if this is an option
             underlying_symbol = self.get_underlying_symbol(symbol)
             
-            # Check cache first
-            cache_key = f"{underlying_symbol}_{period_type}_{period}_{frequency_type}_{frequency}"
+            if DEBUG_MODE:
+                print(f"Getting price data for {underlying_symbol}")
+                print(f"Parameters: period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
+            
+            # If lookback_days is provided, convert to appropriate period
+            if lookback_days:
+                if lookback_days <= 10:
+                    period_type = 'day'
+                    period = lookback_days
+                elif lookback_days <= 60:
+                    period_type = 'month'
+                    period = lookback_days // 30 + 1
+                else:
+                    period_type = 'year'
+                    period = lookback_days // 365 + 1
+                
+                if DEBUG_MODE:
+                    print(f"Converted lookback_days={lookback_days} to period_type={period_type}, period={period}")
+            
+            # Check cache
+            cache_key = f"{underlying_symbol}_price_{period_type}_{period}_{frequency_type}_{frequency}"
             if cache_key in self.cache:
                 if DEBUG_MODE:
                     print(f"Using cached price data for {underlying_symbol}")
@@ -272,87 +282,117 @@ class DataCollector:
             
             # Calculate number of data points
             if frequency_type == 'minute':
-                # Assuming market hours are 6.5 hours per day (390 minutes)
-                # and we're only including weekdays
-                business_days = np.busday_count(
-                    start_date.strftime('%Y-%m-%d'),
-                    end_date.strftime('%Y-%m-%d')
-                )
-                total_minutes = business_days * 390
-                num_points = total_minutes // frequency
+                # For minute data, we need to account for trading hours (6.5 hours per day)
+                trading_minutes_per_day = 6.5 * 60
+                business_days = np.busday_count(start_date.date(), end_date.date())
+                num_points = int(business_days * trading_minutes_per_day / frequency)
+                # Limit to a reasonable number
+                num_points = min(num_points, 1000)
             elif frequency_type == 'daily':
-                num_points = np.busday_count(
-                    start_date.strftime('%Y-%m-%d'),
-                    end_date.strftime('%Y-%m-%d')
-                )
+                num_points = np.busday_count(start_date.date(), end_date.date())
             elif frequency_type == 'weekly':
-                num_points = (end_date - start_date).days // 7
+                num_points = int((end_date - start_date).days / 7)
             else:  # monthly
                 num_points = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month
             
-            # Generate mock data
-            mock_data = []
-            current_price = 150.0  # Starting price
-            volatility = 0.02  # Daily volatility
+            # Ensure we have at least some data points
+            num_points = max(num_points, 20)
             
-            current_date = start_date
-            for i in range(max(1, num_points)):
-                # Generate random price movement
-                price_change = np.random.normal(0, volatility * current_price)
-                current_price = max(0.01, current_price + price_change)
+            if DEBUG_MODE:
+                print(f"Generating {num_points} data points from {start_date} to {end_date}")
+            
+            # Generate date range
+            if frequency_type == 'minute':
+                # For minute data, we need to generate timestamps during trading hours
+                timestamps = []
+                current_date = start_date
+                while current_date <= end_date:
+                    # Skip weekends
+                    if current_date.weekday() < 5:  # Monday to Friday
+                        # Trading hours: 9:30 AM to 4:00 PM
+                        trading_start = datetime.combine(current_date.date(), datetime.min.time().replace(hour=9, minute=30))
+                        trading_end = datetime.combine(current_date.date(), datetime.min.time().replace(hour=16, minute=0))
+                        
+                        # Generate timestamps during trading hours
+                        current_time = trading_start
+                        while current_time <= trading_end:
+                            timestamps.append(current_time)
+                            current_time += timedelta(minutes=frequency)
+                    
+                    current_date += timedelta(days=1)
                 
-                # Calculate OHLC
-                open_price = current_price
-                high_price = current_price * (1 + np.random.uniform(0, volatility))
-                low_price = current_price * (1 - np.random.uniform(0, volatility))
-                close_price = current_price * (1 + np.random.normal(0, volatility/2))
-                
-                # Generate volume
-                volume = int(np.random.uniform(100000, 1000000))
-                
-                # Add data point
-                if frequency_type == 'minute':
-                    # Increment by minutes
-                    current_date = current_date + timedelta(minutes=frequency)
-                elif frequency_type == 'daily':
-                    # Increment by days, skipping weekends
-                    current_date = current_date + timedelta(days=1)
-                    while current_date.weekday() > 4:  # Skip Saturday (5) and Sunday (6)
-                        current_date = current_date + timedelta(days=1)
+                # Limit to the required number of points
+                timestamps = timestamps[-num_points:]
+            else:
+                # For daily, weekly, monthly data
+                if frequency_type == 'daily':
+                    freq = f"{frequency}D"
                 elif frequency_type == 'weekly':
-                    # Increment by weeks
-                    current_date = current_date + timedelta(weeks=1)
+                    freq = f"{frequency}W"
                 else:  # monthly
-                    # Increment by months
-                    if current_date.month == 12:
-                        current_date = current_date.replace(year=current_date.year + 1, month=1)
-                    else:
-                        current_date = current_date.replace(month=current_date.month + 1)
+                    freq = f"{frequency}M"
                 
-                mock_data.append({
-                    'datetime': current_date,
+                # Generate timestamps
+                timestamps = pd.date_range(start=start_date, end=end_date, freq=freq)[-num_points:]
+            
+            # Generate price data
+            # Start with a base price (use symbol hash for consistency)
+            symbol_hash = sum(ord(c) for c in underlying_symbol)
+            base_price = 50 + (symbol_hash % 200)  # Base price between 50 and 250
+            
+            # Generate random walk
+            np.random.seed(symbol_hash)  # Use symbol hash as seed for reproducibility
+            
+            # Generate returns with some autocorrelation
+            returns = np.random.normal(0.0005, 0.015, num_points)  # Mean slightly positive, realistic volatility
+            
+            # Add some autocorrelation and volatility clustering
+            for i in range(1, len(returns)):
+                returns[i] = 0.1 * returns[i-1] + 0.9 * returns[i]
+            
+            # Convert returns to prices
+            prices = base_price * np.cumprod(1 + returns)
+            
+            # Generate OHLC data
+            data = []
+            for i, timestamp in enumerate(timestamps):
+                # Calculate open, high, low, close
+                close = prices[i]
+                
+                # For the first point, open is close of previous day with small random change
+                if i == 0:
+                    open_price = close * (1 + np.random.normal(0, 0.005))
+                else:
+                    open_price = prices[i-1] * (1 + np.random.normal(0, 0.005))
+                
+                # High and low are random variations from open and close
+                high = max(open_price, close) * (1 + abs(np.random.normal(0, 0.008)))
+                low = min(open_price, close) * (1 - abs(np.random.normal(0, 0.008)))
+                
+                # Volume is random but correlated with price change
+                volume = int(abs(close - open_price) * 1000000 * (1 + np.random.normal(0, 0.5)))
+                volume = max(volume, 1000)  # Ensure some minimum volume
+                
+                data.append({
+                    'timestamp': timestamp,
                     'open': open_price,
-                    'high': high_price,
-                    'low': low_price,
-                    'close': close_price,
+                    'high': high,
+                    'low': low,
+                    'close': close,
                     'volume': volume
                 })
             
             # Convert to DataFrame
-            df = pd.DataFrame(mock_data)
-            
-            # Set datetime as index
-            if not df.empty:
-                df.set_index('datetime', inplace=True)
+            df = pd.DataFrame(data)
             
             # Cache the result
             self.cache[cache_key] = df
             
             if DEBUG_MODE:
-                print(f"Generated {len(df)} price data points for {underlying_symbol}")
+                print(f"Generated price data for {underlying_symbol}: {len(df)} rows")
                 if not df.empty:
                     print(f"Price data columns: {df.columns.tolist()}")
-                    print(f"Price data range: {df.index.min()} to {df.index.max()}")
+                    print(f"Price data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
             
             return df
             
@@ -363,21 +403,142 @@ class DataCollector:
                 print(f"Traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
-    def get_technical_indicators(self, symbol, indicators=None, period=14):
+    def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', frequency=1):
+        """
+        Get historical data for a symbol (wrapper around get_price_data for compatibility with RecommendationEngine)
+        
+        Args:
+            symbol (str): The stock symbol to get historical data for
+            period_type (str): The type of period to show (day, month, year, ytd)
+            period (int): The number of periods to show
+            frequency_type (str): The type of frequency with which a new candle is formed (minute, daily, weekly, monthly)
+            frequency (int): The number of the frequency type to use (e.g., 1, 5, 10, 15, 30 for minute)
+            
+        Returns:
+            pd.DataFrame: Historical price data
+        """
+        try:
+            if DEBUG_MODE:
+                print(f"Getting historical data for {symbol} (compatibility method)")
+                print(f"Parameters: period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
+            
+            # Use the Yahoo Finance API if available
+            try:
+                # Try to import the data API module
+                sys.path.append('/opt/.manus/.sandbox-runtime')
+                from data_api import ApiClient
+                client = ApiClient()
+                
+                if DEBUG_MODE:
+                    print(f"Using Yahoo Finance API for historical data")
+                
+                # Convert period_type and frequency_type to Yahoo Finance parameters
+                interval_map = {
+                    ('minute', 1): '1m',
+                    ('minute', 2): '2m',
+                    ('minute', 5): '5m',
+                    ('minute', 15): '15m',
+                    ('minute', 30): '30m',
+                    ('minute', 60): '60m',
+                    ('daily', 1): '1d',
+                    ('weekly', 1): '1wk',
+                    ('monthly', 1): '1mo'
+                }
+                
+                range_map = {
+                    ('day', 1): '1d',
+                    ('day', 5): '5d',
+                    ('month', 1): '1mo',
+                    ('month', 3): '3mo',
+                    ('month', 6): '6mo',
+                    ('year', 1): '1y',
+                    ('year', 2): '2y',
+                    ('year', 5): '5y',
+                    ('year', 10): '10y'
+                }
+                
+                # Get the appropriate interval and range
+                interval = interval_map.get((frequency_type, frequency), '1d')
+                data_range = range_map.get((period_type, period), '1mo')
+                
+                # Call the Yahoo Finance API
+                chart_data = client.call_api('YahooFinance/get_stock_chart', query={
+                    'symbol': symbol,
+                    'interval': interval,
+                    'range': data_range,
+                    'includeAdjustedClose': True
+                })
+                
+                if chart_data and 'chart' in chart_data and 'result' in chart_data['chart'] and chart_data['chart']['result']:
+                    result = chart_data['chart']['result'][0]
+                    
+                    # Extract timestamp and indicators
+                    timestamps = result.get('timestamp', [])
+                    indicators = result.get('indicators', {})
+                    quote = indicators.get('quote', [{}])[0]
+                    
+                    # Create DataFrame
+                    data = []
+                    for i in range(len(timestamps)):
+                        if i < len(quote.get('open', [])) and i < len(quote.get('high', [])) and i < len(quote.get('low', [])) and i < len(quote.get('close', [])) and i < len(quote.get('volume', [])):
+                            timestamp = datetime.fromtimestamp(timestamps[i])
+                            data.append({
+                                'timestamp': timestamp,
+                                'open': quote['open'][i],
+                                'high': quote['high'][i],
+                                'low': quote['low'][i],
+                                'close': quote['close'][i],
+                                'volume': quote['volume'][i]
+                            })
+                    
+                    df = pd.DataFrame(data)
+                    
+                    if DEBUG_MODE:
+                        print(f"Retrieved historical data from Yahoo Finance API: {len(df)} rows")
+                    
+                    return df
+                
+                if DEBUG_MODE:
+                    print(f"Failed to retrieve data from Yahoo Finance API, falling back to get_price_data")
+            
+            except Exception as api_error:
+                if DEBUG_MODE:
+                    print(f"Error using Yahoo Finance API: {str(api_error)}")
+                    print(f"Falling back to get_price_data")
+            
+            # Fall back to get_price_data if Yahoo Finance API fails
+            return self.get_price_data(
+                symbol=symbol,
+                period_type=period_type,
+                period=period,
+                frequency_type=frequency_type,
+                frequency=frequency
+            )
+            
+        except Exception as e:
+            print(f"Error retrieving historical data for {symbol}: {str(e)}")
+            if DEBUG_MODE:
+                print(f"Exception type: {type(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
+            return pd.DataFrame()
+    
+    def get_technical_indicators(self, symbol, period=14, indicators=None):
         """
         Calculate technical indicators for a symbol
         
         Args:
             symbol (str): The stock symbol to calculate indicators for
-            indicators (list): List of indicators to calculate
-            period (int): Period to use for indicators
+            period (int): The period to use for indicators
+            indicators (list, optional): List of indicators to calculate
             
         Returns:
-            pd.DataFrame: DataFrame with price data and indicators
+            pd.DataFrame: Technical indicators
         """
         try:
             if DEBUG_MODE:
                 print(f"Calculating technical indicators for {symbol}")
+                print(f"Period: {period}")
+                print(f"Indicators: {indicators if indicators else 'All'}")
             
             # Get price data
             price_data = self.get_price_data(symbol, period_type='day', period=period*2)

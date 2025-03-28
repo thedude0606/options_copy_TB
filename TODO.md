@@ -76,6 +76,11 @@
   - Status: Completed
   - Description: Fixed UnboundLocalError by initializing conn variable before try block and ensuring data directories exist
 
+- [x] Fix 'DataCollector' object has no attribute 'get_historical_data' error
+  - Dependency: None
+  - Status: Completed
+  - Description: Implemented missing get_historical_data method in DataCollector class with Yahoo Finance API integration and fallback to get_price_data
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
