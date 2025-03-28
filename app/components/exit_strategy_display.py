@@ -167,7 +167,7 @@ class ExitStrategyDisplay:
         
         # Create time points (days from now)
         days_to_hold = exit_strategy.get('daysToHold', 7)
-        time_points = list(range(days_to_hold + 1))
+        time_points = list(range(int(days_to_hold) + 1))
         
         # Create price scenarios
         # Optimistic: Entry to take profit
