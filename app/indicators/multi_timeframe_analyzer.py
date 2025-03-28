@@ -73,7 +73,7 @@ class MultiTimeframeAnalyzer:
         timeframe_indicators = {}
         
         for timeframe, data in timeframe_data.items():
-            if data.empty:
+            if data is None or data.empty:
                 logger.warning(f"Empty data for timeframe {timeframe}, skipping")
                 continue
                 
@@ -111,6 +111,11 @@ class MultiTimeframeAnalyzer:
         """
         result = {}
         
+        # Verify data is not None
+        if data is None:
+            logger.error("Data is None, cannot calculate indicators")
+            return result
+            
         # Ensure we have the required columns
         required_columns = ['open', 'high', 'low', 'close', 'volume']
         missing_columns = [col for col in required_columns if col not in data.columns]
@@ -129,41 +134,60 @@ class MultiTimeframeAnalyzer:
                 if orig in data.columns and new not in data.columns:
                     data[new] = data[orig]
         
+        # Set data for indicators calculator
+        self.indicators = TechnicalIndicators(data)
+        
         # Calculate each requested indicator
         for indicator in indicator_list:
             try:
                 if indicator == 'rsi':
-                    result['rsi'] = self.indicators.rsi(data['close'])
+                    rsi_values = self.indicators.rsi()
+                    if not rsi_values.empty and len(rsi_values) > 0:
+                        result['rsi'] = rsi_values.iloc[-1]
                 elif indicator == 'macd':
-                    macd_result = self.indicators.macd(data['close'])
-                    result['macd'] = macd_result['macd']
-                    result['macd_signal'] = macd_result['signal']
-                    result['macd_histogram'] = macd_result['histogram']
+                    macd_result = self.indicators.macd()
+                    if not macd_result.empty and 'macd' in macd_result.columns:
+                        result['macd'] = macd_result['macd'].iloc[-1]
+                        result['macd_signal'] = macd_result['signal'].iloc[-1]
+                        result['macd_histogram'] = macd_result['histogram'].iloc[-1]
                 elif indicator == 'bollinger_bands':
-                    bb_result = self.indicators.bollinger_bands(data['close'])
-                    result['bb_upper'] = bb_result['upper']
-                    result['bb_middle'] = bb_result['middle']
-                    result['bb_lower'] = bb_result['lower']
-                    result['bb_width'] = bb_result['width']
+                    bb_result = self.indicators.bollinger_bands()
+                    if not bb_result.empty and 'upper_band' in bb_result.columns:
+                        result['bb_upper'] = bb_result['upper_band'].iloc[-1]
+                        result['bb_middle'] = bb_result['middle_band'].iloc[-1]
+                        result['bb_lower'] = bb_result['lower_band'].iloc[-1]
+                        result['bb_width'] = bb_result['width'].iloc[-1]
                 elif indicator == 'atr':
-                    result['atr'] = self.indicators.atr(data['high'], data['low'], data['close'])
+                    atr_values = self.indicators.atr()
+                    if not atr_values.empty and len(atr_values) > 0:
+                        result['atr'] = atr_values.iloc[-1]
                 elif indicator == 'adx':
-                    adx_result = self.indicators.adx(data['high'], data['low'], data['close'])
-                    result['adx'] = adx_result['adx']
-                    result['di_plus'] = adx_result['di_plus']
-                    result['di_minus'] = adx_result['di_minus']
+                    adx_result = self.indicators.adx()
+                    if not adx_result.empty and 'adx' in adx_result.columns:
+                        result['adx'] = adx_result['adx'].iloc[-1]
+                        result['di_plus'] = adx_result['di_plus'].iloc[-1]
+                        result['di_minus'] = adx_result['di_minus'].iloc[-1]
                 elif indicator == 'stochastic':
-                    stoch_result = self.indicators.stochastic(data['high'], data['low'], data['close'])
-                    result['stoch_k'] = stoch_result['k']
-                    result['stoch_d'] = stoch_result['d']
+                    stoch_result = self.indicators.stochastic()
+                    if not stoch_result.empty and 'k' in stoch_result.columns:
+                        result['stoch_k'] = stoch_result['k'].iloc[-1]
+                        result['stoch_d'] = stoch_result['d'].iloc[-1]
                 elif indicator == 'obv':
-                    result['obv'] = self.indicators.obv(data['close'], data['volume'])
+                    obv_values = self.indicators.obv()
+                    if not obv_values.empty and len(obv_values) > 0:
+                        result['obv'] = obv_values.iloc[-1]
                 elif indicator == 'cmf':
-                    result['cmf'] = self.indicators.cmf(data['high'], data['low'], data['close'], data['volume'])
+                    cmf_values = self.indicators.cmf()
+                    if not cmf_values.empty and len(cmf_values) > 0:
+                        result['cmf'] = cmf_values.iloc[-1]
                 elif indicator == 'mfi':
-                    result['mfi'] = self.indicators.mfi(data['high'], data['low'], data['close'], data['volume'])
+                    mfi_values = self.indicators.mfi()
+                    if not mfi_values.empty and len(mfi_values) > 0:
+                        result['mfi'] = mfi_values.iloc[-1]
                 elif indicator == 'cci':
-                    result['cci'] = self.indicators.cci(data['high'], data['low'], data['close'])
+                    cci_values = self.indicators.cci()
+                    if not cci_values.empty and len(cci_values) > 0:
+                        result['cci'] = cci_values.iloc[-1]
             except Exception as e:
                 logger.error(f"Error calculating {indicator}: {str(e)}")
                 
@@ -181,6 +205,10 @@ class MultiTimeframeAnalyzer:
         """
         consolidated = {}
         
+        if not timeframe_indicators:
+            logger.warning("No timeframe indicators to consolidate")
+            return consolidated
+            
         # Get all indicator keys from all timeframes
         all_indicators = set()
         for tf_indicators in timeframe_indicators.values():
@@ -192,8 +220,8 @@ class MultiTimeframeAnalyzer:
             weights = []
             
             for timeframe, indicators in timeframe_indicators.items():
-                if indicator in indicators and not pd.isna(indicators[indicator].iloc[-1]):
-                    values.append(indicators[indicator].iloc[-1])
+                if indicator in indicators and indicators[indicator] is not None and not pd.isna(indicators[indicator]):
+                    values.append(indicators[indicator])
                     weights.append(self.timeframe_weights.get(timeframe, 0.1))
                     
             if values and weights:
@@ -224,6 +252,10 @@ class MultiTimeframeAnalyzer:
             'overall_signal': 'neutral'  # bearish, neutral, bullish
         }
         
+        if not consolidated:
+            logger.warning("No consolidated indicators to generate signals from")
+            return signals
+            
         # Trend signal based on MACD and ADX
         if 'macd' in consolidated and 'macd_histogram' in consolidated:
             if consolidated['macd'] > 0 and consolidated['macd_histogram'] > 0:
@@ -265,54 +297,45 @@ class MultiTimeframeAnalyzer:
         # Adjust momentum with MFI if available
         if 'mfi' in consolidated:
             mfi = consolidated['mfi']
-            mfi_signal = (mfi - 50) / 20  # Scale to -1 to 1
-            signals['momentum'] = (signals['momentum'] + mfi_signal) / 2
-            
-        # Overall signal calculation
-        signal_value = signals['trend'] * 0.4 + signals['momentum'] * 0.3
+            mfi_signal = 0
+            if mfi > 80:
+                mfi_signal = 1
+            elif mfi < 20:
+                mfi_signal = -1
+            else:
+                mfi_signal = (mfi - 50) / 30  # Scale to -1 to 1
+                
+            # Average RSI and MFI signals
+            if 'rsi' in consolidated:
+                signals['momentum'] = (signals['momentum'] + mfi_signal) / 2
+            else:
+                signals['momentum'] = mfi_signal
+                
+        # Determine overall signal
+        trend_weight = 0.5
+        momentum_weight = 0.3
+        volatility_weight = 0.2
         
-        if signal_value > 0.3:
+        # Adjust weights based on volatility
+        if signals['volatility'] > 0.7:
+            # In high volatility, momentum is more important
+            trend_weight = 0.4
+            momentum_weight = 0.5
+            volatility_weight = 0.1
+            
+        # Calculate weighted signal
+        weighted_signal = (
+            signals['trend'] * trend_weight +
+            signals['momentum'] * momentum_weight +
+            (signals['volatility'] - 0.5) * volatility_weight  # Volatility above 0.5 is bullish, below is bearish
+        )
+        
+        # Determine overall signal
+        if weighted_signal > 0.3:
             signals['overall_signal'] = 'bullish'
-        elif signal_value < -0.3:
+        elif weighted_signal < -0.3:
             signals['overall_signal'] = 'bearish'
         else:
             signals['overall_signal'] = 'neutral'
             
         return signals
-        
-    def get_adaptive_lookback(self, data, base_lookback=14, volatility_factor=0.5):
-        """
-        Calculate an adaptive lookback period based on market volatility.
-        
-        Args:
-            data (pd.DataFrame): Price data
-            base_lookback (int): Base lookback period
-            volatility_factor (float): How much to adjust for volatility (0-1)
-            
-        Returns:
-            int: Adaptive lookback period
-        """
-        try:
-            # Calculate recent volatility using ATR
-            atr = self.indicators.atr(data['high'], data['low'], data['close'], period=14)
-            recent_atr = atr.iloc[-1]
-            
-            # Calculate average price for normalization
-            avg_price = data['close'].iloc[-1]
-            
-            # Normalized volatility (0-1 range)
-            norm_volatility = min(recent_atr / (avg_price * 0.1), 1.0)
-            
-            # Adjust lookback period based on volatility
-            # Higher volatility = shorter lookback
-            adjustment = int(base_lookback * volatility_factor * (1 - norm_volatility))
-            
-            # Ensure lookback is within reasonable bounds
-            adaptive_lookback = max(5, min(base_lookback - adjustment, 30))
-            
-            logger.info(f"Adaptive lookback: {adaptive_lookback} (base: {base_lookback}, volatility: {norm_volatility:.2f})")
-            return adaptive_lookback
-            
-        except Exception as e:
-            logger.error(f"Error calculating adaptive lookback: {str(e)}")
-            return base_lookback
