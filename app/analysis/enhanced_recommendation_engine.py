@@ -170,7 +170,7 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
                     'symbol': symbol,
                     'option_data': rec,
                     'technical_indicators': indicators,
-                    'market_data': self._get_market_context(),
+                    'market_data': self._get_market_context(symbol),
                     'multi_timeframe_data': multi_timeframe_data
                 }
                 
@@ -389,10 +389,13 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             self.logger.error(f"Error calculating technical indicators for {symbol}: {str(e)}", exc_info=e)
             return {}
     
-    def _get_market_context(self):
+    def _get_market_context(self, symbol):
         """
         Get market context data.
         
+        Args:
+            symbol (str): The symbol to get market context for (may be unused)
+            
         Returns:
             dict: Market context data
         """
