@@ -6,7 +6,11 @@ This module ensures proper authentication and configuration for the Schwab API c
 import os
 import logging
 import json
+from dotenv import load_dotenv
 from schwabdev.client import Client as SchwabClient
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger('schwab_api_config')
 
@@ -50,9 +54,16 @@ class SchwabAPIConfig:
         
         # If not loaded from file, try environment variables
         if not self.app_key or not self.app_secret:
-            self.app_key = os.getenv('app_key')
-            self.app_secret = os.getenv('app_secret')
-            self.callback_url = os.getenv('callback_url', 'https://127.0.0.1')
+            # Try with SCHWAB_ prefix (from .env file)
+            self.app_key = os.getenv('SCHWAB_APP_KEY')
+            self.app_secret = os.getenv('SCHWAB_APP_SECRET')
+            self.callback_url = os.getenv('SCHWAB_CALLBACK_URL', 'https://127.0.0.1')
+            
+            # If not found, try legacy variable names
+            if not self.app_key or not self.app_secret:
+                self.app_key = os.getenv('app_key')
+                self.app_secret = os.getenv('app_secret')
+                self.callback_url = os.getenv('callback_url', self.callback_url)
             
             if self.app_key and self.app_secret:
                 self.logger.info("Loaded API credentials from environment variables")
