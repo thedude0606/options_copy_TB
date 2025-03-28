@@ -419,9 +419,20 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
                     historical_data['low'],
                     historical_data['close']
                 )
-                result['adx'] = safe_get_last(adx_result['adx'])
-                result['di_plus'] = safe_get_last(adx_result['di_plus'])
-                result['di_minus'] = safe_get_last(adx_result['di_minus'])
+                # Check if adx_result is a tuple or a DataFrame
+                if isinstance(adx_result, tuple) and len(adx_result) >= 3:
+                    # Handle tuple return (adx, di_plus, di_minus)
+                    result['adx'] = safe_get_last(adx_result[0])
+                    result['di_plus'] = safe_get_last(adx_result[1])
+                    result['di_minus'] = safe_get_last(adx_result[2])
+                elif isinstance(adx_result, pd.DataFrame) and all(k in adx_result for k in ['adx', 'di_plus', 'di_minus']):
+                    # Handle DataFrame return with expected columns
+                    result['adx'] = safe_get_last(adx_result['adx'])
+                    result['di_plus'] = safe_get_last(adx_result['di_plus'])
+                    result['di_minus'] = safe_get_last(adx_result['di_minus'])
+                else:
+                    # Log the issue but continue processing
+                    self.logger.warning(f"Unexpected ADX result format: {type(adx_result)}")
             
             return result
             
