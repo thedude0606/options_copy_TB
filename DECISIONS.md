@@ -69,3 +69,11 @@ This document records key architectural choices, technology selections, design p
 ### 4. Phased Implementation Approach
 **Decision**: Implement features in phases according to the roadmap.
 **Rationale**: A phased approach allows for incremental testing and validation, reducing risk and ensuring that each component works correctly before moving on to the next phase.
+
+### 5. Relative Imports for Module Organization
+**Decision**: Use relative imports (with dot notation) instead of absolute imports for internal modules.
+**Rationale**: Relative imports make the code more maintainable and less prone to errors when the package structure changes, ensuring proper module resolution within the package hierarchy.
+
+### 6. Disable Synthetic Data Generation
+**Decision**: Completely disable synthetic data generation functionality.
+**Rationale**: Using real market data provides more accurate and reliable results for trading decisions, eliminating potential biases or unrealistic patterns that might be present in synthetic data.

@@ -19,9 +19,9 @@ class EnhancedMLIntegration:
         logger.info("Using default configuration" if not config else "Using custom configuration")
         
         # Import our modules (import here to avoid circular imports)
-        from options_db import OptionsDatabase
-        from feature_extraction import EnhancedFeatureExtractor
-        from synthetic_data import SyntheticOptionsGenerator
+        from app.data.options_db import OptionsDatabase
+        from app.data.feature_extraction import EnhancedFeatureExtractor
+        # Synthetic data has been disabled as requested
         
         # Initialize database
         self.db = OptionsDatabase()
@@ -29,8 +29,7 @@ class EnhancedMLIntegration:
         # Initialize feature extractor
         self.feature_extractor = EnhancedFeatureExtractor(self.db)
         
-        # Initialize synthetic data generator
-        self.synthetic_generator = SyntheticOptionsGenerator(self.db)
+        # Synthetic data generator has been disabled as requested
         
         # Initialize trading system components
         self._initialize_trading_system()
@@ -80,15 +79,11 @@ class EnhancedMLIntegration:
             # Get historical options data if available
             historical_options = self.db.get_historical_options(symbol)
             
-            # If no real historical data, use synthetic data
+            # Synthetic data generation has been completely disabled as requested
             if historical_options.empty:
-                logger.info(f"No historical options data for {symbol}, generating synthetic data")
-                # Get last 60 days of underlying data
-                end_date = datetime.now().isoformat()
-                start_date = (datetime.now() - timedelta(days=60)).isoformat()
-                historical_options = self.synthetic_generator.generate_synthetic_history(
-                    symbol, start_date=start_date, end_date=end_date
-                )
+                logger.info(f"No historical options data for {symbol}, synthetic data generation is disabled")
+                # Return empty DataFrame instead of generating synthetic data
+                historical_options = pd.DataFrame()
             
             # Extract enhanced features
             features = self.feature_extractor.extract_features(symbol, lookback_days=30)

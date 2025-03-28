@@ -12,6 +12,8 @@
 - Adaptive lookback periods based on volatility
 - Risk management features including position sizing and exit points
 - Feature engineering pipeline for ML components
+- Fixed import error in historical_data_manager.py by changing absolute imports to relative imports
+- Completely disabled synthetic data generation functionality
 
 ## Current Work in Progress
 - Integration of advanced indicators into the main application flow

@@ -7,8 +7,8 @@ It initializes the database and data collector, and provides access to them.
 
 import logging
 import threading
-from options_db import OptionsDatabase
-from options_collector import OptionsDataCollector
+from .options_db import OptionsDatabase
+from .options_collector import OptionsDataCollector
 
 logger = logging.getLogger('historical_data_manager')
 

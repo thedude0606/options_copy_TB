@@ -6,6 +6,16 @@
   - Status: Completed
   - Description: Modified recommendations_tab.py to use EnhancedRecommendationEngine instead of basic RecommendationEngine
 
+- [x] Fix import error in historical_data_manager.py
+  - Dependency: None
+  - Status: Completed
+  - Description: Changed absolute imports to relative imports using dot notation
+
+- [x] Disable synthetic data generation
+  - Dependency: None
+  - Status: Completed
+  - Description: Removed synthetic data generator initialization and usage from the codebase
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
