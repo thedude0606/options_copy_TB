@@ -314,10 +314,13 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             self.logger.error(f"Error calculating technical indicators: {str(e)}")
             return {}
     
-    def _get_market_context(self):
+    def _get_market_context(self, symbol=None):
         """
         Get current market context data.
         
+        Args:
+            symbol (str, optional): The stock symbol, ignored in enhanced version but kept for compatibility
+            
         Returns:
             dict: Market context data
         """
