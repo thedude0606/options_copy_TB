@@ -181,7 +181,9 @@ class ExitStrategyPredictor:
             'exit_probability': exit_probability,
             'position_type': position_type,
             'exit_reasons': exit_timing['exit_reasons'],
-            'confidence_score': exit_timing['confidence_score']
+            'confidence_score': exit_timing['confidence_score'],
+            # Add detailed profit projections
+            'profit_projections': self._calculate_profit_projections(entry_price, price_targets, option_data, position_type)
         }
         
         self.logger.info(f"Exit strategy prediction completed for {option_data.get('symbol', 'unknown')}")
@@ -216,36 +218,22 @@ class ExitStrategyPredictor:
                 indicators = self.technical_indicators.calculate_all_indicators(price_data)
                 
                 # Get multi-timeframe analysis
-                multi_timeframe_data = self.multi_timeframe_analyzer.analyze(underlying_symbol)
+                multi_timeframe = self.multi_timeframe_analyzer.analyze(underlying_symbol, timeframes=['1d', '1w', '1m'])
                 
-                # Get market context
-                market_context = self._get_market_context()
-                
+                # Store market data
                 market_data = {
                     'price_data': price_data,
                     'indicators': indicators,
-                    'multi_timeframe_data': multi_timeframe_data,
-                    'market_context': market_context
+                    'multi_timeframe': multi_timeframe
                 }
             except Exception as e:
                 self.logger.error(f"Error getting market data: {str(e)}")
         
-        # Calculate time to expiration
-        days_to_expiration = 30  # Default value
-        try:
-            if 'expiration_date' in option_data:
-                expiration_date = option_data['expiration_date']
-                if isinstance(expiration_date, str):
-                    expiration_date = datetime.strptime(expiration_date, '%Y-%m-%d')
-                days_to_expiration = (expiration_date - entry_date).days if isinstance(entry_date, datetime) else 30
-        except Exception as e:
-            self.logger.error(f"Error calculating days to expiration: {str(e)}")
-        
-        # Extract option-specific features
+        # Extract option features
         option_features = {
             'strike': option_data.get('strike', 0),
-            'option_type': 1 if option_data.get('option_type', '') == 'CALL' else 0,
-            'days_to_expiration': days_to_expiration,
+            'days_to_expiration': option_data.get('daysToExpiration', 30),
+            'option_type': option_data.get('option_type', 'CALL'),
             'implied_volatility': option_data.get('implied_volatility', 0.3),
             'delta': option_data.get('delta', 0.5),
             'gamma': option_data.get('gamma', 0.05),
@@ -257,16 +245,33 @@ class ExitStrategyPredictor:
             'last': option_data.get('last', 0),
             'volume': option_data.get('volume', 0),
             'open_interest': option_data.get('open_interest', 0),
+            'underlying_price': option_data.get('underlyingPrice', 0)
+        }
+        
+        # Calculate time-based features
+        time_features = {
+            'days_since_entry': (datetime.now() - entry_date).days if isinstance(entry_date, datetime) else 0,
+            'days_to_expiration': option_features['days_to_expiration'],
+            'time_to_expiration_ratio': option_features['days_to_expiration'] / 30 if option_features['days_to_expiration'] > 0 else 0,
+            'entry_day_of_week': entry_date.weekday() if isinstance(entry_date, datetime) else 0,
+            'entry_month': entry_date.month if isinstance(entry_date, datetime) else 0
+        }
+        
+        # Calculate position features
+        position_features = {
             'entry_price': entry_price,
-            'position_type': 1 if position_type == 'long' else 0
+            'position_type': 1 if position_type == 'long' else 0,
+            'current_price': option_features['last'] if option_features['last'] > 0 else entry_price,
+            'price_change': (option_features['last'] - entry_price) / entry_price if option_features['last'] > 0 and entry_price > 0 else 0,
+            'bid_ask_spread': (option_features['ask'] - option_features['bid']) / entry_price if option_features['ask'] > 0 and option_features['bid'] > 0 and entry_price > 0 else 0
         }
         
         # Combine all features
         features = {
             'option_features': option_features,
-            'market_data': market_data,
-            'underlying_symbol': underlying_symbol,
-            'entry_date': entry_date
+            'time_features': time_features,
+            'position_features': position_features,
+            'market_data': market_data
         }
         
         return features
@@ -317,7 +322,7 @@ class ExitStrategyPredictor:
         except Exception as e:
             self.logger.error(f"Error in ML prediction for exit timing: {str(e)}")
         
-        # If no ML prediction, use rule-based approach
+        # If no ML prediction, use enhanced rule-based approach
         if ml_prediction is None or 'exit_timing' not in ml_prediction:
             # Calculate based on time decay (theta)
             if theta < -config['time_decay_threshold']:
@@ -349,22 +354,32 @@ class ExitStrategyPredictor:
             # Ensure we don't exceed expiration
             days_to_hold = min(days_to_hold, days_to_expiration - 1) if days_to_expiration > 1 else 1
             
+            # Enhanced: Consider delta for exit timing
+            delta = option_features['delta']
+            if abs(delta) > 0.7:
+                # Deep in the money, can hold longer for intrinsic value
+                days_to_hold = min(days_to_hold * 1.2, max_holding_days)
+                exit_reasons.append(f"Deep in-the-money position (delta: {delta:.2f})")
+            elif abs(delta) < 0.3:
+                # Out of the money, exit sooner
+                days_to_hold = max(min_holding_days, days_to_hold * 0.8)
+                exit_reasons.append(f"Out-of-the-money position (delta: {delta:.2f})")
+            
+            # Enhanced: Consider gamma for exit timing
+            gamma = option_features['gamma']
+            if gamma > 0.1:
+                # High gamma, more sensitive to price changes, monitor closely
+                days_to_hold = max(min_holding_days, days_to_hold * 0.9)
+                exit_reasons.append(f"High gamma sensitivity ({gamma:.2f})")
+            
             # Calculate confidence score based on rule certainty
-            confidence_score = 0.6  # Base confidence for rule-based approach
+            confidence_score = 0.5 + (0.1 * len(exit_reasons))
+            confidence_score = min(confidence_score, 0.9)  # Cap at 0.9 for rule-based
         
         # Calculate optimal exit time
-        optimal_exit_time = entry_date + timedelta(days=days_to_hold) if isinstance(entry_date, datetime) else None
+        optimal_exit_time = entry_date + timedelta(days=days_to_hold) if isinstance(entry_date, datetime) else datetime.now() + timedelta(days=days_to_hold)
         
-        # Ensure we don't exceed expiration date
-        if isinstance(optimal_exit_time, datetime) and 'expiration_date' in option_data:
-            expiration_date = option_data['expiration_date']
-            if isinstance(expiration_date, str):
-                expiration_date = datetime.strptime(expiration_date, '%Y-%m-%d')
-            if optimal_exit_time >= expiration_date:
-                optimal_exit_time = expiration_date - timedelta(days=1)
-                days_to_hold = (optimal_exit_time - entry_date).days if isinstance(entry_date, datetime) else days_to_hold
-                exit_reasons.append("Adjusted to avoid expiration")
-        
+        # Return exit timing prediction
         return {
             'optimal_exit_time': optimal_exit_time,
             'days_to_hold': days_to_hold,
@@ -395,6 +410,8 @@ class ExitStrategyPredictor:
         # Get option features
         option_features = features['option_features']
         implied_volatility = option_features['implied_volatility']
+        delta = option_features['delta']
+        days_to_expiration = option_features['days_to_expiration']
         
         # Initialize price targets
         price_targets = []
@@ -409,31 +426,54 @@ class ExitStrategyPredictor:
         except Exception as e:
             self.logger.error(f"Error in ML prediction for price targets: {str(e)}")
         
-        # If no ML prediction, use rule-based approach
+        # If no ML prediction, use enhanced rule-based approach
         if ml_prediction is None or 'price_targets' not in ml_prediction:
-            # Adjust profit taking levels based on implied volatility if configured
+            # Enhanced: Adjust profit taking levels based on implied volatility and delta
             adjusted_levels = profit_taking_levels.copy()
-            if config['adjust_for_volatility']:
-                # Higher volatility = higher potential profit targets
-                volatility_factor = 1.0 + (implied_volatility - 0.3) * 2  # Normalize around 0.3 IV
-                volatility_factor = max(0.5, min(volatility_factor, 2.0))  # Limit adjustment range
-                
-                adjusted_levels = [level * volatility_factor for level in profit_taking_levels]
+            
+            # Higher volatility = higher potential profit targets
+            volatility_factor = 1.0 + (implied_volatility - 0.3) * 2  # Normalize around 0.3 IV
+            volatility_factor = max(0.5, min(volatility_factor, 2.0))  # Limit adjustment range
+            
+            # Adjust based on delta (option moneyness)
+            delta_factor = 1.0
+            if abs(delta) > 0.7:
+                # Deep in the money, more conservative targets
+                delta_factor = 0.8
+            elif abs(delta) < 0.3:
+                # Out of the money, more aggressive targets
+                delta_factor = 1.2
+            
+            # Adjust based on days to expiration
+            dte_factor = 1.0
+            if days_to_expiration < 7:
+                # Short-dated options, more conservative targets
+                dte_factor = 0.7
+            elif days_to_expiration > 45:
+                # Long-dated options, more aggressive targets
+                dte_factor = 1.3
+            
+            # Apply all adjustments
+            combined_factor = volatility_factor * delta_factor * dte_factor
+            adjusted_levels = [level * combined_factor for level in profit_taking_levels]
             
             # Calculate price targets based on entry price
             for i, level in enumerate(adjusted_levels):
                 if position_type == 'long':
                     # For long positions, price targets are above entry price
                     target_price = entry_price * (1 + level)
+                    profit_percentage = level * 100
                 else:
                     # For short positions, price targets are below entry price
                     target_price = entry_price * (1 - level)
+                    profit_percentage = level * 100
                 
                 # Add price target with position sizing
                 price_targets.append({
                     'price': target_price,
                     'percentage': position_sizing[i] if i < len(position_sizing) else 0.25,
-                    'profit_percentage': level * 100
+                    'profit_percentage': profit_percentage,
+                    'target_description': f"Target {i+1}: {profit_percentage:.1f}% profit"
                 })
         
         return price_targets
@@ -466,25 +506,46 @@ class ExitStrategyPredictor:
         # Calculate stop loss based on implied volatility and entry price
         if position_type == 'long':
             # For long positions, stop loss is below entry price
-            volatility_based_stop = entry_price * (1 - implied_volatility * stop_loss_multiplier)
-            stop_loss = max(volatility_based_stop, entry_price * 0.7)  # Limit to 30% loss
+            volatility_adjusted_stop = implied_volatility * entry_price * stop_loss_multiplier
+            stop_loss = max(0.01, entry_price - volatility_adjusted_stop)
         else:
             # For short positions, stop loss is above entry price
-            volatility_based_stop = entry_price * (1 + implied_volatility * stop_loss_multiplier)
-            stop_loss = min(volatility_based_stop, entry_price * 1.3)  # Limit to 30% loss
+            volatility_adjusted_stop = implied_volatility * entry_price * stop_loss_multiplier
+            stop_loss = entry_price + volatility_adjusted_stop
         
-        # Calculate take profit as the highest price target
+        # Take profit is the highest price target
         if price_targets:
             if position_type == 'long':
+                # For long positions, take highest price target
                 take_profit = max([target['price'] for target in price_targets])
             else:
+                # For short positions, take lowest price target
                 take_profit = min([target['price'] for target in price_targets])
         else:
-            # Fallback if no price targets
+            # If no price targets, use profit target multiplier
             if position_type == 'long':
-                take_profit = entry_price * (1 + implied_volatility * profit_target_multiplier)
+                take_profit = entry_price * (1 + profit_target_multiplier * implied_volatility)
             else:
-                take_profit = entry_price * (1 - implied_volatility * profit_target_multiplier)
+                take_profit = entry_price * (1 - profit_target_multiplier * implied_volatility)
+        
+        # Enhanced: Ensure reasonable risk-reward ratio
+        risk = abs(entry_price - stop_loss)
+        reward = abs(take_profit - entry_price)
+        risk_reward_ratio = reward / risk if risk > 0 else 1.0
+        
+        # Adjust if risk-reward ratio is too low
+        if risk_reward_ratio < 1.5 and position_type == 'long':
+            # Either adjust stop loss down or take profit up
+            if risk > entry_price * 0.15:  # If stop loss is already more than 15% away
+                take_profit = entry_price + (1.5 * risk)  # Adjust take profit up
+            else:
+                stop_loss = entry_price - (reward / 1.5)  # Adjust stop loss down
+        elif risk_reward_ratio < 1.5 and position_type == 'short':
+            # Either adjust stop loss up or take profit down
+            if risk > entry_price * 0.15:  # If stop loss is already more than 15% away
+                take_profit = entry_price - (1.5 * risk)  # Adjust take profit down
+            else:
+                stop_loss = entry_price + (reward / 1.5)  # Adjust stop loss up
         
         return stop_loss, take_profit
     
@@ -504,7 +565,9 @@ class ExitStrategyPredictor:
         
         # Get option features
         option_features = features['option_features']
-        delta = abs(option_features['delta'])
+        delta = option_features['delta']
+        days_to_expiration = option_features['days_to_expiration']
+        implied_volatility = option_features['implied_volatility']
         
         # Try to use ML prediction if available
         try:
@@ -515,124 +578,235 @@ class ExitStrategyPredictor:
         except Exception as e:
             self.logger.error(f"Error in ML prediction for exit probability: {str(e)}")
         
-        # If no ML prediction, use delta as a base probability
-        # Delta is often interpreted as approximate probability of option expiring ITM
-        base_probability = delta
+        # If no ML prediction, use enhanced rule-based approach
         
-        # Adjust based on market conditions if available
-        market_data = features.get('market_data', {})
-        market_context = market_data.get('market_context', {})
+        # Base probability on delta (approximation of ITM probability)
+        base_probability = abs(delta)
         
-        if market_context:
-            # Adjust based on market trend alignment
-            trend_alignment = market_context.get('trend_alignment', 0)
-            trend_adjustment = 0.1 * trend_alignment  # -0.1 to +0.1 adjustment
-            
-            # Adjust based on volatility regime
-            volatility_regime = market_context.get('volatility_regime', 0)
-            volatility_adjustment = 0.05 * volatility_regime  # -0.05 to +0.05 adjustment
-            
-            # Apply adjustments
-            adjusted_probability = base_probability + trend_adjustment + volatility_adjustment
-            
-            # Ensure probability is between 0 and 1
-            exit_probability = max(0.1, min(adjusted_probability, 0.9))
+        # Adjust based on days to expiration
+        if days_to_expiration < 7:
+            # Short-dated options have less time for movement
+            dte_factor = 0.8
+        elif days_to_expiration > 45:
+            # Long-dated options have more time for movement
+            dte_factor = 1.2
         else:
-            # Without market context, use base probability with slight discount
-            exit_probability = max(0.1, min(base_probability * 0.9, 0.9))
+            dte_factor = 1.0
+        
+        # Adjust based on implied volatility
+        if implied_volatility > 0.5:
+            # High volatility increases uncertainty
+            iv_factor = 0.9
+        elif implied_volatility < 0.2:
+            # Low volatility increases certainty
+            iv_factor = 1.1
+        else:
+            iv_factor = 1.0
+        
+        # Calculate adjusted probability
+        adjusted_probability = base_probability * dte_factor * iv_factor
+        
+        # Ensure probability is between 0 and 1
+        exit_probability = max(0.1, min(adjusted_probability, 0.95))
         
         return exit_probability
     
-    def _get_market_context(self):
+    def _calculate_profit_projections(self, entry_price, price_targets, option_data, position_type):
         """
-        Get current market context for decision making.
-        
-        Returns:
-            dict: Market context information
-        """
-        # This would typically involve getting VIX, market trend, sector performance, etc.
-        # For now, return a simplified context
-        return {
-            'volatility_regime': 0,  # -1 (low), 0 (normal), 1 (high)
-            'market_trend': 0,       # -1 (down), 0 (sideways), 1 (up)
-            'trend_alignment': 0,    # -1 (against), 0 (neutral), 1 (aligned)
-            'liquidity': 0           # -1 (low), 0 (normal), 1 (high)
-        }
-    
-    def generate_exit_strategies_for_recommendations(self, recommendations):
-        """
-        Generate exit strategies for a list of option recommendations.
+        Calculate detailed profit projections for different exit scenarios.
         
         Args:
-            recommendations (list): List of option recommendations
+            entry_price (float): Entry price of the position
+            price_targets (list): List of price targets
+            option_data (dict): Option contract data
+            position_type (str): Type of position ('long' or 'short')
             
         Returns:
-            list: Enhanced recommendations with exit strategies
+            dict: Profit projections for different scenarios
         """
-        self.logger.info(f"Generating exit strategies for {len(recommendations)} recommendations")
+        self.logger.info("Calculating profit projections")
         
-        enhanced_recommendations = []
+        # Get option features
+        days_to_expiration = option_data.get('daysToExpiration', 30)
         
-        for rec in recommendations:
-            try:
-                # Extract option data
-                option_data = {
-                    'symbol': rec.get('symbol', ''),
-                    'underlying': rec.get('underlying', ''),
-                    'option_type': rec.get('option_type', 'CALL'),
-                    'strike': rec.get('strike', 0),
-                    'expiration_date': rec.get('expiration_date', ''),
-                    'bid': rec.get('bid', 0),
-                    'ask': rec.get('ask', 0),
-                    'last': rec.get('last', 0),
-                    'volume': rec.get('volume', 0),
-                    'open_interest': rec.get('open_interest', 0),
-                    'delta': rec.get('delta', 0.5),
-                    'gamma': rec.get('gamma', 0.05),
-                    'theta': rec.get('theta', -0.05),
-                    'vega': rec.get('vega', 0.1),
-                    'rho': rec.get('rho', 0.01),
-                    'implied_volatility': rec.get('implied_volatility', 0.3)
-                }
-                
-                # Get entry price (mid price if available, otherwise use last)
-                entry_price = rec.get('price', 0)
-                if entry_price == 0:
-                    bid = rec.get('bid', 0)
-                    ask = rec.get('ask', 0)
-                    if bid > 0 and ask > 0:
-                        entry_price = (bid + ask) / 2
-                    else:
-                        entry_price = rec.get('last', 1)
-                
-                # Determine position type (long for both calls and puts in this case)
-                position_type = 'long'
-                
-                # Generate exit strategy
-                exit_strategy = self.predict_exit_strategy(
-                    option_data, entry_price, datetime.now(), position_type
-                )
-                
-                # Enhance recommendation with exit strategy
-                enhanced_rec = rec.copy()
-                enhanced_rec.update({
-                    'exitStrategy': {
-                        'optimalExitDate': exit_strategy['optimal_exit_time'],
-                        'daysToHold': exit_strategy['days_to_hold'],
-                        'priceTargets': exit_strategy['price_targets'],
-                        'stopLoss': exit_strategy['stop_loss'],
-                        'takeProfit': exit_strategy['take_profit'],
-                        'exitProbability': exit_strategy['exit_probability'],
-                        'exitReasons': exit_strategy['exit_reasons'],
-                        'confidenceScore': exit_strategy['confidence_score']
-                    }
-                })
-                
-                enhanced_recommendations.append(enhanced_rec)
-                
-            except Exception as e:
-                self.logger.error(f"Error generating exit strategy for recommendation: {str(e)}")
-                enhanced_recommendations.append(rec)
+        # Initialize projections
+        projections = {
+            'scenarios': [],
+            'max_profit_potential': 0,
+            'max_loss_potential': 0,
+            'expected_value': 0
+        }
         
-        self.logger.info(f"Generated exit strategies for {len(enhanced_recommendations)} recommendations")
-        return enhanced_recommendations
+        # Calculate profit for each price target
+        for i, target in enumerate(price_targets):
+            target_price = target['price']
+            percentage = target['percentage']
+            
+            # Calculate profit
+            if position_type == 'long':
+                profit = (target_price - entry_price) * percentage
+                profit_percentage = ((target_price / entry_price) - 1) * 100
+            else:
+                profit = (entry_price - target_price) * percentage
+                profit_percentage = ((entry_price / target_price) - 1) * 100
+            
+            # Calculate probability based on target level
+            probability = 0.8 / (i + 1)  # Higher targets have lower probability
+            
+            # Calculate days to target based on target level
+            days_to_target = min(days_to_expiration * (i + 1) / len(price_targets), days_to_expiration - 1)
+            
+            # Add scenario
+            projections['scenarios'].append({
+                'description': f"Target {i+1}",
+                'exit_price': target_price,
+                'profit': profit,
+                'profit_percentage': profit_percentage,
+                'probability': probability,
+                'days_to_target': days_to_target,
+                'annualized_return': self._calculate_annualized_return(profit_percentage, days_to_target)
+            })
+        
+        # Add worst-case scenario (stop loss hit)
+        stop_loss = option_data.get('stop_loss', entry_price * 0.8 if position_type == 'long' else entry_price * 1.2)
+        if position_type == 'long':
+            loss = (stop_loss - entry_price)
+            loss_percentage = ((stop_loss / entry_price) - 1) * 100
+        else:
+            loss = (entry_price - stop_loss)
+            loss_percentage = ((entry_price / stop_loss) - 1) * 100
+        
+        projections['scenarios'].append({
+            'description': "Stop Loss",
+            'exit_price': stop_loss,
+            'profit': loss,  # This will be negative
+            'profit_percentage': loss_percentage,  # This will be negative
+            'probability': 0.2,  # 20% chance of hitting stop loss
+            'days_to_target': days_to_expiration * 0.2,  # Assume early stop loss
+            'annualized_return': self._calculate_annualized_return(loss_percentage, days_to_expiration * 0.2)
+        })
+        
+        # Calculate max profit potential (best scenario)
+        best_scenario = max(projections['scenarios'], key=lambda x: x['profit'])
+        projections['max_profit_potential'] = best_scenario['profit']
+        
+        # Calculate max loss potential (worst scenario)
+        worst_scenario = min(projections['scenarios'], key=lambda x: x['profit'])
+        projections['max_loss_potential'] = worst_scenario['profit']
+        
+        # Calculate expected value (probability-weighted average)
+        expected_value = sum(scenario['profit'] * scenario['probability'] for scenario in projections['scenarios'])
+        projections['expected_value'] = expected_value
+        
+        # Calculate risk-reward ratio
+        if projections['max_loss_potential'] < 0:  # Ensure loss is negative
+            projections['risk_reward_ratio'] = abs(projections['max_profit_potential'] / projections['max_loss_potential'])
+        else:
+            projections['risk_reward_ratio'] = 1.0
+        
+        return projections
+    
+    def _calculate_annualized_return(self, percentage_return, days_held):
+        """
+        Calculate annualized return from percentage return and days held.
+        
+        Args:
+            percentage_return (float): Percentage return
+            days_held (float): Number of days position is held
+            
+        Returns:
+            float: Annualized return percentage
+        """
+        if days_held <= 0:
+            return 0
+        
+        # Convert percentage to decimal
+        decimal_return = percentage_return / 100
+        
+        # Calculate annualized return
+        annualized_return = ((1 + decimal_return) ** (365 / days_held)) - 1
+        
+        # Convert back to percentage
+        return annualized_return * 100
+    
+    def update_exit_strategy_with_new_data(self, exit_strategy, current_price, days_held):
+        """
+        Update exit strategy with new market data.
+        
+        Args:
+            exit_strategy (dict): Original exit strategy
+            current_price (float): Current price of the option
+            days_held (int): Number of days position has been held
+            
+        Returns:
+            dict: Updated exit strategy
+        """
+        self.logger.info(f"Updating exit strategy for {exit_strategy.get('symbol', 'unknown')}")
+        
+        # Get original values
+        entry_price = exit_strategy.get('entry_price', 0)
+        original_days_to_hold = exit_strategy.get('days_to_hold', 7)
+        position_type = exit_strategy.get('position_type', 'long')
+        
+        # Calculate current profit/loss
+        if position_type == 'long':
+            current_pnl_percentage = ((current_price / entry_price) - 1) * 100
+        else:
+            current_pnl_percentage = ((entry_price / current_price) - 1) * 100
+        
+        # Determine if exit recommendation should be updated
+        update_needed = False
+        update_reason = []
+        
+        # Check if we've reached a price target
+        price_targets = exit_strategy.get('price_targets', [])
+        for target in price_targets:
+            target_price = target.get('price', 0)
+            if (position_type == 'long' and current_price >= target_price) or \
+               (position_type == 'short' and current_price <= target_price):
+                update_needed = True
+                update_reason.append(f"Price target {target_price:.2f} reached")
+                break
+        
+        # Check if we've held longer than recommended
+        if days_held >= original_days_to_hold:
+            update_needed = True
+            update_reason.append(f"Recommended holding period ({original_days_to_hold} days) reached")
+        
+        # Check if we're approaching expiration
+        option_data = {
+            'symbol': exit_strategy.get('symbol', ''),
+            'underlying': exit_strategy.get('underlying', ''),
+            'option_type': exit_strategy.get('option_type', ''),
+            'strike': exit_strategy.get('strike', 0),
+            'expiration_date': exit_strategy.get('expiration_date', ''),
+            'daysToExpiration': exit_strategy.get('days_to_expiration', 30) - days_held,
+            'implied_volatility': exit_strategy.get('implied_volatility', 0.3),
+            'delta': exit_strategy.get('delta', 0.5),
+            'gamma': exit_strategy.get('gamma', 0.05),
+            'theta': exit_strategy.get('theta', -0.05),
+            'vega': exit_strategy.get('vega', 0.1),
+            'rho': exit_strategy.get('rho', 0.01)
+        }
+        
+        # If update needed, generate new exit strategy
+        if update_needed:
+            # Create updated exit strategy
+            updated_strategy = self.predict_exit_strategy(
+                option_data, entry_price, None, position_type
+            )
+            
+            # Add update information
+            updated_strategy['update_reason'] = update_reason
+            updated_strategy['previous_days_to_hold'] = original_days_to_hold
+            updated_strategy['days_held_so_far'] = days_held
+            updated_strategy['current_pnl_percentage'] = current_pnl_percentage
+            
+            return updated_strategy
+        else:
+            # No update needed, return original with current P&L
+            exit_strategy['current_pnl_percentage'] = current_pnl_percentage
+            exit_strategy['days_held_so_far'] = days_held
+            exit_strategy['days_remaining'] = max(0, original_days_to_hold - days_held)
+            
+            return exit_strategy
