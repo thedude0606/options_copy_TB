@@ -402,7 +402,7 @@ class DataCollector:
 
     def get_historical_data(self, symbol, period_type='day', period=10, frequency_type='minute', frequency=1):
         """
-        Get historical data for a symbol (compatibility method for RecommendationEngine)
+        Get historical data for a symbol using Schwab API
         
         Args:
             symbol (str): The stock symbol to get historical data for
@@ -416,77 +416,86 @@ class DataCollector:
         """
         try:
             if DEBUG_MODE:
-                print(f"Getting historical data for {symbol} (compatibility method)")
+                print(f"Getting historical data for {symbol} using Schwab API")
                 print(f"Parameters: period_type={period_type}, period={period}, frequency_type={frequency_type}, frequency={frequency}")
             
-            # Try to use Yahoo Finance API if available
-            try:
-                import sys
-                sys.path.append('/opt/.manus/.sandbox-runtime')
-                from data_api import ApiClient
-                
-                client = ApiClient()
-                
-                # Map Schwab API parameters to Yahoo Finance parameters
-                interval_map = {
-                    'minute': '1m' if frequency == 1 else f"{frequency}m",
-                    'daily': '1d',
-                    'weekly': '1wk',
-                    'monthly': '1mo'
-                }
-                
-                range_map = {
-                    'day': f"{period}d",
-                    'month': f"{period}mo",
-                    'year': f"{period}y",
-                    'ytd': 'ytd'
-                }
-                
-                interval = interval_map.get(frequency_type, '1d')
-                date_range = range_map.get(period_type, '1mo')
-                
-                # Call Yahoo Finance API
-                data = client.call_api('YahooFinance/get_stock_chart', query={
-                    'symbol': symbol,
-                    'interval': interval,
-                    'range': date_range
-                })
-                
-                # Process the response
-                if data and 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
-                    result = data['chart']['result'][0]
-                    
-                    # Extract timestamp and indicators
-                    timestamps = result.get('timestamp', [])
-                    indicators = result.get('indicators', {})
-                    quote = indicators.get('quote', [{}])[0]
-                    
-                    # Create DataFrame
-                    df = pd.DataFrame({
-                        'timestamp': [datetime.fromtimestamp(ts) for ts in timestamps],
-                        'open': quote.get('open', []),
-                        'high': quote.get('high', []),
-                        'low': quote.get('low', []),
-                        'close': quote.get('close', []),
-                        'volume': quote.get('volume', [])
-                    })
-                    
-                    if DEBUG_MODE:
-                        print(f"Retrieved historical data from Yahoo Finance API: {len(df)} rows")
-                    
-                    return df
-                
-            except Exception as e:
-                if DEBUG_MODE:
-                    print(f"Error using Yahoo Finance API: {str(e)}")
-                    print("Falling back to get_price_data")
+            # Get the underlying symbol if this is an option
+            underlying_symbol = self.get_underlying_symbol(symbol)
             
-            # Fall back to get_price_data
-            return self.get_price_data(symbol, period_type, period, frequency_type, frequency)
+            # Call Schwab API's price_history method
+            history_response = self.client.price_history(
+                symbol=underlying_symbol,
+                period_type=period_type,
+                period=period,
+                frequency_type=frequency_type,
+                frequency=frequency
+            )
+            
+            if DEBUG_MODE:
+                print(f"Price history response type: {type(history_response)}")
+                if hasattr(history_response, 'status_code'):
+                    print(f"Status code: {history_response.status_code}")
+            
+            # Process the response
+            history_data = None
+            if hasattr(history_response, 'json'):
+                try:
+                    history_data = history_response.json()
+                    if DEBUG_MODE:
+                        print(f"Price history received for {underlying_symbol}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"Error parsing price history JSON: {str(e)}")
+                        if hasattr(history_response, 'text'):
+                            print(f"Response text: {history_response.text[:500]}...")
+            elif isinstance(history_response, dict):
+                history_data = history_response
+                if DEBUG_MODE:
+                    print(f"Price history received for {underlying_symbol}")
+            else:
+                if DEBUG_MODE:
+                    print(f"No price history data received for {underlying_symbol}")
+                    
+            # Convert to DataFrame
+            if history_data and 'candles' in history_data:
+                candles = history_data['candles']
+                df = pd.DataFrame(candles)
+                
+                # Rename columns to match expected format
+                column_mapping = {
+                    'datetime': 'timestamp',
+                    'open': 'open',
+                    'high': 'high',
+                    'low': 'low',
+                    'close': 'close',
+                    'volume': 'volume'
+                }
+                
+                # Apply column mapping if needed
+                df = df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns})
+                
+                # Convert timestamp to datetime if it's in milliseconds
+                if 'timestamp' in df.columns and df['timestamp'].dtype == 'int64':
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                
+                if DEBUG_MODE:
+                    print(f"Processed historical data: {len(df)} rows")
+                    if not df.empty:
+                        print(f"Historical data columns: {df.columns.tolist()}")
+                        print(f"Historical data range: {df['timestamp'].min()} to {df['timestamp'].max()}")
+                
+                return df
+            else:
+                if DEBUG_MODE:
+                    print(f"No candles found in price history data for {underlying_symbol}")
+                return pd.DataFrame()
             
         except Exception as e:
             print(f"Error retrieving historical data for {symbol}: {str(e)}")
             if DEBUG_MODE:
                 print(f"Exception type: {type(e)}")
                 print(f"Traceback: {traceback.format_exc()}")
-            return pd.DataFrame()
+                print("Falling back to get_price_data")
+            
+            # Fall back to get_price_data if there's an error
+            return self.get_price_data(symbol, period_type, period, frequency_type, frequency)
