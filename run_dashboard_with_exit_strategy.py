@@ -21,6 +21,7 @@ from app.components.recommendations_tab import create_recommendations_tab, regis
 # Import data collectors and API clients
 from app.options_data import OptionsDataRetriever
 from app.data_collector import DataCollector
+from app.data.options_collector import OptionsDataCollector  # Added missing import
 from schwabdev.client import Client as SchwabClient
 
 # Import recommendation engine with exit strategy
