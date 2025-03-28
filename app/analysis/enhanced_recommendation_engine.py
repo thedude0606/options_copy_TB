@@ -53,12 +53,16 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
         self.ml_cache_dir = os.path.join(self.cache_dir, 'ml_models')
         os.makedirs(self.ml_cache_dir, exist_ok=True)
     
-    def generate_recommendations(self, symbols=None, strategy_type='all', max_recommendations=10):
+    def generate_recommendations(self, symbol=None, lookback_days=30, confidence_threshold=0.6, strategy_types=None, symbols=None, strategy_type='all', max_recommendations=10):
         """
         Generate enhanced options trading recommendations using ML models.
         
         Args:
-            symbols (list, optional): List of symbols to generate recommendations for
+            symbol (str, optional): Stock symbol to generate recommendations for (single symbol)
+            lookback_days (int, optional): Number of days to look back for historical data
+            confidence_threshold (float, optional): Minimum confidence threshold for recommendations
+            strategy_types (list, optional): List of strategy types to consider
+            symbols (list, optional): List of symbols to generate recommendations for (multiple symbols)
             strategy_type (str, optional): Type of strategy to recommend
             max_recommendations (int, optional): Maximum number of recommendations to return
             
@@ -66,6 +70,16 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             pandas.DataFrame: Enhanced recommendations
         """
         try:
+            # Handle single symbol case (from recommendations_tab.py)
+            if symbol and not symbols:
+                symbols = [symbol]
+                self.logger.info(f"Converting single symbol {symbol} to symbols list")
+            
+            # Convert strategy_types to strategy_type if needed
+            if strategy_types and not strategy_type or strategy_type == 'all':
+                strategy_type = strategy_types[0] if isinstance(strategy_types, list) and strategy_types else strategy_types
+                self.logger.info(f"Using strategy_type: {strategy_type}")
+            
             # Log recommendation generation start
             self.logger.info(f"Generating enhanced recommendations for {len(symbols) if symbols else 'all'} symbols")
             
