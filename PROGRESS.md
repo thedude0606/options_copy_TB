@@ -4,6 +4,7 @@
 
 - **Repository Analysis**: Analyzed the existing GitHub repository structure and code
 - **Schwab API Integration**: Reviewed Schwab API documentation and understood authentication flow
+- **API Authentication Fix**: Fixed callback URL validation in tokens.py to accept both http and https protocols for development purposes
 - **Development Environment**: Set up the development environment with required dependencies
 - **Data Collection**: Implemented a comprehensive DataCollector class for retrieving market data
 - **Technical Indicators**: Developed a module with the following indicators:

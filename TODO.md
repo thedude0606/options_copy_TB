@@ -4,6 +4,7 @@
 
 - [x] Analyze GitHub repository structure and code
 - [x] Review Schwab API documentation
+- [x] Fix callback URL validation in tokens.py to accept both http and https protocols
 - [x] Set up development environment
 - [x] Implement data collection components
 - [x] Develop technical indicators module

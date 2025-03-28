@@ -118,6 +118,12 @@
 
 ## Recent Technical Decisions (March 2025)
 
+### Callback URL Protocol Validation
+- **Decision**: Modified callback URL validation in tokens.py to accept both http and https protocols
+- **Rationale**: The original implementation strictly required https, which caused initialization errors in development environments
+- **Benefits**: Enables easier local development while maintaining security options, resolves client initialization errors
+- **Implementation**: Updated validation logic to check for either http:// or https:// protocol prefixes instead of only https
+
 ### Enhanced Debugging System
 - **Decision**: Implemented a multi-level debugging system with DEBUG_MODE, VERBOSE_DEBUG, and LOG_API_RESPONSES flags
 - **Rationale**: Different debugging needs require different levels of detail and verbosity

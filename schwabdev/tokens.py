@@ -39,8 +39,9 @@ class Tokens:
             raise Exception("[Schwabdev] tokens_file cannot be None.")
         if len(app_key) != 32 or len(app_secret) != 16:
             raise Exception("[Schwabdev] App key or app secret invalid length.")
-        if callback_url[0:5] != "https":
-            raise Exception("[Schwabdev] callback_url must be https.")
+        # Allow both http and https protocols for development purposes
+        if not (callback_url.startswith("http://") or callback_url.startswith("https://")):
+            raise Exception("[Schwabdev] callback_url must start with http:// or https://.")
         if callback_url[-1] == "/":
             raise Exception("[Schwabdev] callback_url cannot be path (ends with \"/\").")
         if tokens_file[-1] == '/':
