@@ -20,6 +20,14 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Implement ML as an enhancement layer on top of traditional technical analysis.
 **Rationale**: This approach combines the interpretability of traditional technical analysis with the predictive power of machine learning, providing more robust recommendations while maintaining explainability.
 
+### 5. Underlying Symbol Extraction
+**Decision**: Extract and use underlying symbols from option symbols for data retrieval.
+**Rationale**: Historical data for specific option contracts is often unavailable, but data for the underlying stock is readily accessible. By extracting the underlying symbol, we can retrieve reliable historical data and generate more accurate predictions.
+
+### 6. Comprehensive Error Handling and Logging
+**Decision**: Implement a robust error handling and logging system with fallback mechanisms.
+**Rationale**: Financial applications require high reliability. A comprehensive error handling system with fallbacks ensures the platform continues to function even when encountering data issues or API failures.
+
 ## Technology Selections
 
 ### 1. Python Ecosystem
@@ -51,6 +59,10 @@ This document records key architectural choices, technology selections, design p
 ### 4. Pipeline Pattern
 **Decision**: Implement pipeline pattern for feature engineering and data processing.
 **Rationale**: The pipeline pattern provides a clean way to chain multiple data processing steps together, improving code organization and reusability.
+
+### 5. Adapter Pattern
+**Decision**: Use adapter pattern for the options symbol parser.
+**Rationale**: The adapter pattern allows the system to work with different option symbol formats by converting them to a standardized format, improving flexibility and compatibility.
 
 ## Important Implementation Decisions
 
@@ -101,3 +113,15 @@ This document records key architectural choices, technology selections, design p
 ### 12. Robust Handling of None Values in Risk Management
 **Decision**: Implement explicit checks for None values and non-numeric types in risk management calculations.
 **Rationale**: Financial data can sometimes contain missing or invalid values. By adding explicit validation for None values and non-numeric types with appropriate default values and warning messages, we prevent runtime errors in mathematical operations and ensure the risk management system continues to function even with incomplete data.
+
+### 13. Multi-Timeframe Data Analysis
+**Decision**: Implement a dedicated MultiTimeframeAnalyzer class for analyzing data across multiple timeframes.
+**Rationale**: Different timeframes provide different perspectives on market behavior. By analyzing data across multiple timeframes and generating consolidated indicators, we can identify stronger signals and reduce false positives, leading to more reliable trading recommendations.
+
+### 14. Fallback Prediction Mechanisms
+**Decision**: Implement fallback prediction mechanisms when options data is unavailable.
+**Rationale**: When options-specific data is missing, the system can still generate useful predictions based on underlying asset data and technical indicators. This ensures the platform continues to provide value even with limited data availability.
+
+### 15. Enhanced Logging with Error Tracking
+**Decision**: Implement a comprehensive logging system with error tracking and reporting capabilities.
+**Rationale**: Financial applications require high reliability and auditability. The enhanced logging system provides detailed information about system operations, errors, and performance, facilitating debugging, monitoring, and compliance requirements.

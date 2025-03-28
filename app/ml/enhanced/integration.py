@@ -14,6 +14,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 from app.ml.enhanced.trading_system import EnhancedTradingSystem
+from app.data.options_symbol_parser import OptionsSymbolParser
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +44,7 @@ class EnhancedMLIntegration:
         """
         self.config_path = config_path
         self.trading_system = None
+        self.options_parser = OptionsSymbolParser()
         self.initialize_system()
         logger.info("Enhanced ML Integration initialized")
     
@@ -157,6 +159,7 @@ class EnhancedMLIntegration:
             - options_data: DataFrame with options data
             - technical_indicators: Dict of technical indicators
             - market_data: Dict of market context data
+            - multi_timeframe_data: Dict of data from multiple timeframes
             
         Returns:
         --------
@@ -174,11 +177,34 @@ class EnhancedMLIntegration:
             options_data = features.get('options_data')
             technical_indicators = features.get('technical_indicators', {})
             market_data = features.get('market_data', {})
+            multi_timeframe_data = features.get('multi_timeframe_data', {})
             
-            if options_data is None or options_data.empty:
+            # Check if we have options data
+            if options_data is None or (isinstance(options_data, pd.DataFrame) and options_data.empty):
                 logger.warning("No options data provided for prediction")
-                return None
+                
+                # Check if we have a symbol to work with
+                symbol = features.get('symbol')
+                if not symbol:
+                    logger.error("No symbol provided for prediction")
+                    return self._generate_fallback_prediction(technical_indicators, market_data)
+                
+                # Try to extract underlying symbol if this is an option
+                if self.options_parser.is_option_symbol(symbol):
+                    underlying_symbol = self.options_parser.get_underlying_symbol(symbol)
+                    logger.info(f"Extracted underlying symbol {underlying_symbol} from option symbol {symbol}")
+                else:
+                    underlying_symbol = symbol
+                
+                # Use technical indicators and market data for prediction
+                return self._generate_prediction_from_indicators(
+                    symbol=underlying_symbol,
+                    technical_indicators=technical_indicators,
+                    market_data=market_data,
+                    multi_timeframe_data=multi_timeframe_data
+                )
             
+            # If we have options data, proceed with normal prediction
             # Create feature vector
             feature_dict = {
                 'price_to_strike_ratio': options_data['underlyingPrice'] / options_data['strikePrice'] if 'strikePrice' in options_data.columns else 1.0,
@@ -194,6 +220,12 @@ class EnhancedMLIntegration:
                 'rsi': technical_indicators.get('rsi', 50),
                 'macd': technical_indicators.get('macd_histogram', 0)
             }
+            
+            # Add multi-timeframe indicators if available
+            if multi_timeframe_data and 'consolidated_indicators' in multi_timeframe_data:
+                consolidated = multi_timeframe_data['consolidated_indicators']
+                for key, value in consolidated.items():
+                    feature_dict[f'mt_{key}'] = value
             
             # Generate prediction
             # In a real implementation, this would use the trading system's ML models
@@ -238,7 +270,130 @@ class EnhancedMLIntegration:
             
         except Exception as e:
             logger.error(f"Error generating prediction: {str(e)}")
-            return None
+            return self._generate_fallback_prediction(technical_indicators, market_data)
+    
+    def _generate_prediction_from_indicators(self, symbol, technical_indicators, market_data, multi_timeframe_data):
+        """
+        Generate a prediction based on technical indicators and market data when options data is not available.
+        
+        Parameters:
+        -----------
+        symbol : str
+            Underlying symbol
+        technical_indicators : dict
+            Technical indicators
+        market_data : dict
+            Market context data
+        multi_timeframe_data : dict
+            Data from multiple timeframes
+            
+        Returns:
+        --------
+        dict
+            Prediction results
+        """
+        logger.info(f"Generating prediction from indicators for {symbol}")
+        
+        # Default values
+        trend = 0
+        volatility = 0.5
+        momentum = 0
+        
+        # Extract signals from multi-timeframe data if available
+        if multi_timeframe_data and 'signals' in multi_timeframe_data:
+            signals = multi_timeframe_data['signals']
+            trend = signals.get('trend', 0)
+            volatility = signals.get('volatility', 0.5)
+            momentum = signals.get('momentum', 0)
+        else:
+            # Extract from individual indicators
+            rsi = technical_indicators.get('rsi', 50)
+            macd = technical_indicators.get('macd', 0)
+            macd_histogram = technical_indicators.get('macd_histogram', 0)
+            
+            # Calculate trend
+            if macd > 0 and macd_histogram > 0:
+                trend = 0.5
+            elif macd < 0 and macd_histogram < 0:
+                trend = -0.5
+                
+            # Calculate momentum
+            if rsi > 70:
+                momentum = 0.8
+            elif rsi < 30:
+                momentum = -0.8
+            else:
+                momentum = (rsi - 50) / 25  # Scale to -1 to 1
+        
+        # Calculate prediction
+        predicted_return = trend * 0.05 + momentum * 0.03
+        
+        # Adjust for market data if available
+        if market_data:
+            market_trend = market_data.get('market_trend', 0)
+            predicted_return += market_trend * 0.02
+        
+        # Calculate confidence based on available data quality
+        confidence = 0.4  # Base confidence is lower without options data
+        if multi_timeframe_data and 'signals' in multi_timeframe_data:
+            confidence += 0.2  # Higher confidence with multi-timeframe data
+        
+        # Risk score based on volatility
+        risk_score = volatility
+        
+        # Probability of profit
+        probability_of_profit = 0.5 + (trend + momentum) / 4
+        probability_of_profit = min(max(probability_of_profit, 0.05), 0.95)
+        
+        result = {
+            'prediction': predicted_return,
+            'confidence': confidence,
+            'risk_score': risk_score,
+            'probability_of_profit': probability_of_profit,
+            'source': 'technical_indicators'  # Indicate this is based on indicators, not options data
+        }
+        
+        logger.info(f"Generated indicator-based prediction with confidence {confidence:.2f}")
+        return result
+    
+    def _generate_fallback_prediction(self, technical_indicators=None, market_data=None):
+        """
+        Generate a fallback prediction when no data is available.
+        
+        Parameters:
+        -----------
+        technical_indicators : dict, optional
+            Technical indicators if available
+        market_data : dict, optional
+            Market context data if available
+            
+        Returns:
+        --------
+        dict
+            Basic prediction results with low confidence
+        """
+        logger.warning("Generating fallback prediction due to missing data")
+        
+        # Use any available indicators
+        rsi = 50
+        if technical_indicators and 'rsi' in technical_indicators:
+            rsi = technical_indicators['rsi']
+        
+        # Very basic prediction
+        if rsi > 70:
+            prediction = -0.01  # Slightly bearish if overbought
+        elif rsi < 30:
+            prediction = 0.01   # Slightly bullish if oversold
+        else:
+            prediction = 0      # Neutral
+            
+        return {
+            'prediction': prediction,
+            'confidence': 0.2,  # Very low confidence
+            'risk_score': 0.5,  # Moderate risk
+            'probability_of_profit': 0.5,  # 50/50
+            'source': 'fallback'  # Indicate this is a fallback prediction
+        }
     
     def process_recommendation(self, recommendation):
         """
@@ -253,259 +408,125 @@ class EnhancedMLIntegration:
         Returns:
         --------
         dict
-            Enhanced recommendation with risk management details
+            Processed recommendation with risk management details
         """
         try:
-            logger.info("Processing recommendation through risk management")
+            logger.info(f"Processing recommendation for {recommendation.get('symbol', 'unknown')}")
             
-            if not recommendation:
-                logger.warning("Empty recommendation provided")
-                return None
-                
-            # Extract key data from recommendation
-            symbol = recommendation.get('symbol')
-            option_type = recommendation.get('optionType')
-            strike_price = recommendation.get('strikePrice')
-            underlying_price = recommendation.get('underlyingPrice')
-            delta = recommendation.get('delta', 0.5)
+            # Extract recommendation details
+            symbol = recommendation.get('symbol', '')
+            prediction = recommendation.get('prediction', 0)
+            confidence = recommendation.get('confidence', {}).get('score', 0.5)
             
-            # Calculate position sizing based on risk profile
-            account_size = 100000  # Default account size
-            max_risk_percent = 0.02  # Default 2% max risk per trade
+            # Apply risk management
+            position_sizing = self._calculate_position_sizing(symbol, prediction, confidence)
+            exit_points = self._calculate_exit_points(symbol, prediction, confidence)
             
-            # Calculate max position size based on risk
-            max_loss_estimate = abs(delta * 0.1 * underlying_price * 100)  # Simplified max loss estimate
-            if max_loss_estimate <= 0:
-                max_loss_estimate = underlying_price * 0.05 * 100  # Fallback estimate
-                
-            max_position_size = (account_size * max_risk_percent) / max_loss_estimate
-            max_position_size = max(1, min(round(max_position_size), 10))  # Between 1 and 10 contracts
-            
-            # Calculate stop loss and take profit levels
-            entry_price = recommendation.get('entryPrice', 0)
-            if entry_price <= 0:
-                entry_price = recommendation.get('mark', recommendation.get('last', recommendation.get('ask', 1.0)))
-                
-            # Stop loss (risk 50% of premium for long options)
-            stop_loss = entry_price * 0.5
-            
-            # Take profit (target 100% return for long options)
-            take_profit = entry_price * 2.0
-            
-            # Risk-reward ratio
-            risk_reward_ratio = 2.0  # 1:2 risk-reward
-            
-            # Expected value calculation
-            win_probability = recommendation.get('probabilityOfProfit', 0.5)
-            expected_value = (win_probability * take_profit) - ((1 - win_probability) * stop_loss)
-            expected_value_ratio = expected_value / entry_price
-            
-            # Create risk management details
-            risk_management = {
-                'position_size': {
-                    'recommended': max_position_size,
-                    'max_contracts': max_position_size,
-                    'account_size': account_size,
-                    'max_risk_percent': max_risk_percent * 100
-                },
-                'exit_strategy': {
-                    'stop_loss': stop_loss,
-                    'take_profit': take_profit,
-                    'risk_reward_ratio': risk_reward_ratio
-                },
-                'expected_value': {
-                    'win_probability': win_probability,
-                    'expected_value': expected_value,
-                    'expected_value_ratio': expected_value_ratio
-                },
-                'risk_assessment': {
-                    'risk_level': 'medium',  # Default
-                    'max_loss': max_loss_estimate * max_position_size,
-                    'max_gain': (take_profit - entry_price) * max_position_size * 100
+            # Combine into result
+            result = {
+                'symbol': symbol,
+                'original_recommendation': recommendation,
+                'risk_management': {
+                    'position_sizing': position_sizing,
+                    'exit_points': exit_points,
+                    'risk_reward_ratio': exit_points.get('risk_reward_ratio', 1.0)
                 }
             }
             
-            # Adjust risk level based on delta and volatility
-            if abs(delta) > 0.7:
-                risk_management['risk_assessment']['risk_level'] = 'high'
-            elif abs(delta) < 0.3:
-                risk_management['risk_assessment']['risk_level'] = 'low'
-                
-            # Add risk management to recommendation
-            enhanced_recommendation = recommendation.copy()
-            enhanced_recommendation['risk_management'] = risk_management
-            
-            logger.info(f"Added risk management details to recommendation for {symbol}")
-            return enhanced_recommendation
+            logger.info(f"Processed recommendation with risk-reward ratio {exit_points.get('risk_reward_ratio', 1.0):.2f}")
+            return result
             
         except Exception as e:
             logger.error(f"Error processing recommendation: {str(e)}")
-            return recommendation  # Return original recommendation if processing fails
+            return recommendation
     
-    def update_models_with_feedback(self, options_data, actual_values):
+    def _calculate_position_sizing(self, symbol, prediction, confidence):
         """
-        Update models with feedback data.
+        Calculate position sizing based on prediction and confidence.
         
         Parameters:
         -----------
-        options_data : pandas.DataFrame
-            Options data
-        actual_values : array-like
-            Actual target values
+        symbol : str
+            Symbol
+        prediction : float
+            Predicted return
+        confidence : float
+            Confidence score
             
         Returns:
         --------
         dict
-            Updated metrics
+            Position sizing details
         """
-        try:
-            logger.info(f"Updating models with feedback data ({len(options_data)} samples)")
-            update_result = self.trading_system.update_online_model(options_data, actual_values)
-            logger.info(f"Updated model: {update_result['model_name']}")
-            return update_result
-        except Exception as e:
-            logger.error(f"Error updating models with feedback: {str(e)}")
-            raise
-    
-    def generate_trading_recommendations(self, options_data, market_data=None):
-        """
-        Generate trading recommendations with risk management.
+        # Default values
+        account_size = 100000  # Example account size
+        max_risk_percent = 0.02  # 2% max risk per trade
         
-        Parameters:
-        -----------
-        options_data : pandas.DataFrame
-            Options data to analyze
-        market_data : dict, optional
-            Additional market data for risk calculations
-            
-        Returns:
-        --------
-        list
-            List of trading recommendations with risk management details
-        """
-        try:
-            logger.info(f"Generating trading recommendations for {len(options_data)} options")
-            recommendations = self.trading_system.generate_trading_recommendation(options_data, market_data)
-            logger.info(f"Generated {len(recommendations)} recommendations")
-            return recommendations
-        except Exception as e:
-            logger.error(f"Error generating trading recommendations: {str(e)}")
-            raise
-    
-    def get_portfolio_risk_report(self):
-        """
-        Generate a comprehensive portfolio risk report.
+        # Adjust risk based on confidence
+        risk_percent = max_risk_percent * confidence
         
-        Returns:
-        --------
-        dict
-            Portfolio risk report
-        """
-        try:
-            logger.info("Generating portfolio risk report")
-            report = self.trading_system.generate_portfolio_report()
-            logger.info(f"Portfolio has {report.get('total_positions', 0)} positions")
-            return report
-        except Exception as e:
-            logger.error(f"Error generating portfolio risk report: {str(e)}")
-            raise
-    
-    def update_account_settings(self, account_size=None, risk_profile=None):
-        """
-        Update account settings for risk management.
+        # Calculate position size
+        risk_amount = account_size * risk_percent
         
-        Parameters:
-        -----------
-        account_size : float, optional
-            New account size
-        risk_profile : str, optional
-            New risk profile ('conservative', 'moderate', or 'aggressive')
-        """
-        try:
-            if account_size is not None:
-                logger.info(f"Updating account size to ${account_size}")
-                self.trading_system.update_account_size(account_size)
-            
-            if risk_profile is not None:
-                logger.info(f"Updating risk profile to {risk_profile}")
-                self.trading_system.update_risk_profile(risk_profile)
-            
-            # Save updated configuration
-            if self.config_path:
-                self.trading_system.save_configuration(self.config_path)
-                logger.info(f"Saved updated configuration to {self.config_path}")
-        except Exception as e:
-            logger.error(f"Error updating account settings: {str(e)}")
-            raise
-    
-    def save_current_configuration(self, config_path=None):
-        """
-        Save current configuration to file.
+        # Simplified calculation for number of contracts
+        # In a real implementation, this would consider option price, delta, etc.
+        contract_price = 3.50  # Example option price
+        max_contracts = int(risk_amount / (contract_price * 100))
+        recommended_contracts = max(1, max_contracts)
         
-        Parameters:
-        -----------
-        config_path : str, optional
-            Path to save configuration (uses self.config_path if not provided)
-            
-        Returns:
-        --------
-        str
-            Path to saved configuration
-        """
-        try:
-            save_path = config_path or self.config_path or 'enhanced_trading_config.json'
-            logger.info(f"Saving configuration to {save_path}")
-            saved_path = self.trading_system.save_configuration(save_path)
-            self.config_path = saved_path
-            return saved_path
-        except Exception as e:
-            logger.error(f"Error saving configuration: {str(e)}")
-            raise
-
-# Example usage
-if __name__ == "__main__":
-    # This is just an example of how to use the integration module
-    try:
-        # Initialize integration
-        integration = EnhancedMLIntegration()
-        
-        # Load sample data (in a real scenario, this would come from the dashboard)
-        # Create synthetic options data
-        np.random.seed(42)
-        n_samples = 100
-        
-        data = {
-            'symbol': np.random.choice(['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'FB'], n_samples),
-            'putCall': np.random.choice(['CALL', 'PUT'], n_samples),
-            'strike': np.random.uniform(100, 200, n_samples),
-            'bid': np.random.uniform(1, 10, n_samples),
-            'ask': np.random.uniform(1.5, 11, n_samples),
-            'underlyingPrice': np.random.uniform(100, 200, n_samples),
-            'daysToExpiration': np.random.randint(1, 30, n_samples),
-            'delta': np.random.uniform(-1, 1, n_samples),
-            'gamma': np.random.uniform(0, 0.1, n_samples),
-            'theta': np.random.uniform(-1, 0, n_samples),
-            'vega': np.random.uniform(0, 1, n_samples),
-            'rho': np.random.uniform(-0.5, 0.5, n_samples),
-            'impliedVolatility': np.random.uniform(0.1, 0.5, n_samples),
-            'volume': np.random.randint(1, 1000, n_samples),
-            'openInterest': np.random.randint(10, 5000, n_samples),
-            'expected_return': np.random.uniform(-0.2, 0.5, n_samples)
+        return {
+            'account_size': account_size,
+            'risk_percentage': risk_percent,
+            'total_risk': risk_amount,
+            'max_contracts': max_contracts,
+            'recommended_contracts': recommended_contracts
         }
+    
+    def _calculate_exit_points(self, symbol, prediction, confidence):
+        """
+        Calculate exit points (stop loss and take profit) based on prediction.
         
-        sample_data = pd.DataFrame(data)
+        Parameters:
+        -----------
+        symbol : str
+            Symbol
+        prediction : float
+            Predicted return
+        confidence : float
+            Confidence score
+            
+        Returns:
+        --------
+        dict
+            Exit points details
+        """
+        # Default values
+        entry_price = 3.50  # Example option price
         
-        # Process data
-        processed_data = integration.process_options_data(sample_data)
-        print(f"Processed data shape: {processed_data.shape}")
+        # Calculate stop loss and take profit based on prediction and confidence
+        stop_loss_percent = 0.3 * (1 - confidence)  # Higher confidence = tighter stop
+        take_profit_percent = abs(prediction) * 2
         
-        # Generate recommendations
-        recommendations = integration.generate_trading_recommendations(sample_data)
-        print(f"Generated {len(recommendations)} recommendations")
+        # Ensure minimum values
+        stop_loss_percent = max(stop_loss_percent, 0.15)
+        take_profit_percent = max(take_profit_percent, 0.3)
         
-        # Save configuration
-        config_path = integration.save_current_configuration()
-        print(f"Saved configuration to {config_path}")
+        # Calculate actual prices
+        stop_loss = entry_price * (1 - stop_loss_percent)
+        take_profit = entry_price * (1 + take_profit_percent)
         
-    except Exception as e:
-        print(f"Error in example: {str(e)}")
+        # Calculate risk-reward ratio
+        risk = entry_price - stop_loss
+        reward = take_profit - entry_price
+        risk_reward_ratio = reward / risk if risk > 0 else 1.0
+        
+        return {
+            'entry_price': entry_price,
+            'initial_stop_loss': stop_loss,
+            'initial_take_profit': take_profit,
+            'stop_loss_percent': stop_loss_percent,
+            'take_profit_percent': take_profit_percent,
+            'risk_reward_ratio': risk_reward_ratio,
+            'final_stop_loss': stop_loss,
+            'final_take_profit': take_profit
+        }

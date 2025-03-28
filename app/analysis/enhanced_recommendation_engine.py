@@ -16,6 +16,9 @@ from app.analysis.recommendation_engine import RecommendationEngine as OriginalR
 # Import enhanced ML components
 from app.ml.enhanced.integration import EnhancedMLIntegration
 
+# Import enhanced logging
+from app.utils.enhanced_logging import EnhancedLogger, ErrorHandler
+
 class EnhancedRecommendationEngine(OriginalRecommendationEngine):
     """
     Enhanced recommendation engine that integrates machine learning components.
@@ -36,15 +39,16 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
         # Store debug flag
         self.debug = debug
         
+        # Initialize enhanced logging
+        self.logger = EnhancedLogger('enhanced_recommendation_engine')
+        if debug:
+            self.logger.logger.setLevel(logging.DEBUG)
+        
+        # Initialize error handler
+        self.error_handler = ErrorHandler(logger=self.logger)
+        
         # Initialize the enhanced ML integration
         self.ml_integration = EnhancedMLIntegration(config_path=ml_config_path)
-        
-        # Set up logging
-        self.logger = logging.getLogger('enhanced_recommendation_engine')
-        if debug:
-            self.logger.setLevel(logging.DEBUG)
-        else:
-            self.logger.setLevel(logging.INFO)
         
         # Log initialization
         self.logger.info("Enhanced recommendation engine initialized")
@@ -115,7 +119,7 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             return risk_managed_recommendations
             
         except Exception as e:
-            self.logger.error(f"Error generating enhanced recommendations: {str(e)}")
+            self.logger.error(f"Error generating enhanced recommendations: {str(e)}", exc_info=e)
             # Fall back to original recommendation engine
             self.logger.info("Falling back to original recommendation engine")
             lookback_days_value = 30 if lookback_days is None else lookback_days
@@ -155,24 +159,34 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
                 # Get symbol and option data
                 symbol = rec.get('symbol', '')
                 
+                # Get multi-timeframe data for the underlying symbol
+                multi_timeframe_data = self._get_multi_timeframe_data(symbol)
+                
                 # Get technical indicators
                 indicators = self._get_technical_indicators(symbol, lookback_days=30)
                 
                 # Create feature vector
                 features = {
+                    'symbol': symbol,
                     'option_data': rec,
                     'technical_indicators': indicators,
-                    'market_data': self._get_market_context()
+                    'market_data': self._get_market_context(),
+                    'multi_timeframe_data': multi_timeframe_data
                 }
                 
                 # Get ML prediction
-                ml_result = self.ml_integration.predict(features)
+                ml_result = self.error_handler.safe_execute(
+                    self.ml_integration.predict,
+                    features,
+                    default_return={'confidence': 0.5, 'prediction': 0, 'risk_score': 0.5}
+                )
                 
                 # Enhance recommendation with ML insights
                 if ml_result and 'prediction' in ml_result:
                     rec['mlConfidence'] = ml_result.get('confidence', 0.5)
                     rec['mlPredictedReturn'] = ml_result.get('prediction', 0)
                     rec['mlRiskScore'] = ml_result.get('risk_score', 0.5)
+                    rec['mlSource'] = ml_result.get('source', 'ml_model')
                     
                     # Adjust recommendation score based on ML
                     base_score = rec.get('score', 0)
@@ -185,7 +199,7 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             return pd.DataFrame(enhanced_recs)
             
         except Exception as e:
-            self.logger.error(f"Error applying ML enhancements: {str(e)}")
+            self.logger.error(f"Error applying ML enhancements: {str(e)}", exc_info=e)
             return recommendations
     
     def _apply_risk_management(self, recommendations):
@@ -221,7 +235,11 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
                 }
                 
                 # Process through risk management
-                enhanced_rec = self.ml_integration.process_recommendation(recommendation)
+                enhanced_rec = self.error_handler.safe_execute(
+                    self.ml_integration.process_recommendation,
+                    recommendation,
+                    default_return=recommendation
+                )
                 
                 # Extract risk management details
                 if enhanced_rec and 'risk_management' in enhanced_rec:
@@ -247,111 +265,196 @@ class EnhancedRecommendationEngine(OriginalRecommendationEngine):
             return pd.DataFrame(enhanced_recs)
             
         except Exception as e:
-            self.logger.error(f"Error adding risk management: {str(e)}")
+            self.logger.error(f"Error applying risk management: {str(e)}", exc_info=e)
             return recommendations
     
-    def _get_technical_indicators(self, symbol, lookback_days):
+    def _get_multi_timeframe_data(self, symbol):
         """
-        Get technical indicators for the symbol.
+        Get multi-timeframe data for a symbol.
         
         Args:
-            symbol (str): The stock symbol
+            symbol (str): Symbol to get data for
+            
+        Returns:
+            dict: Multi-timeframe data and analysis
+        """
+        try:
+            from app.indicators.multi_timeframe_analyzer import MultiTimeframeAnalyzer
+            
+            # Get multi-timeframe data
+            timeframe_data = self.data_collector.get_multi_timeframe_data(symbol)
+            
+            # Initialize analyzer
+            analyzer = MultiTimeframeAnalyzer()
+            
+            # Analyze data
+            analysis_result = analyzer.analyze(timeframe_data)
+            
+            return analysis_result
+            
+        except Exception as e:
+            self.logger.error(f"Error getting multi-timeframe data for {symbol}: {str(e)}", exc_info=e)
+            return {}
+    
+    def _get_technical_indicators(self, symbol, lookback_days=30):
+        """
+        Get technical indicators for a symbol.
+        
+        Args:
+            symbol (str): Symbol to get indicators for
             lookback_days (int): Number of days to look back
             
         Returns:
-            dict: Dictionary of technical indicators
+            dict: Technical indicators
         """
         try:
             # Get historical data
             historical_data = self.data_collector.get_historical_data(
-                symbol, 
-                period_type="month", 
-                period=1, 
-                frequency_type="daily", 
+                symbol=symbol,
+                period_type='month',
+                period=1,
+                frequency_type='daily',
                 frequency=1
             )
             
-            if historical_data is None or len(historical_data) == 0:
+            if historical_data.empty:
                 self.logger.warning(f"No historical data available for {symbol}")
                 return {}
             
-            # Convert to DataFrame
-            df = pd.DataFrame(historical_data)
+            # Calculate indicators
+            from app.indicators.technical_indicators import TechnicalIndicators
+            indicators = TechnicalIndicators()
+            
+            # Ensure we have the required columns
+            required_columns = ['open', 'high', 'low', 'close', 'volume']
+            missing_columns = [col for col in required_columns if col not in historical_data.columns]
+            
+            if missing_columns:
+                # Try to map common column names
+                column_mapping = {
+                    'Open': 'open',
+                    'High': 'high',
+                    'Low': 'low',
+                    'Close': 'close',
+                    'Volume': 'volume'
+                }
+                for orig, new in column_mapping.items():
+                    if orig in historical_data.columns and new not in historical_data.columns:
+                        historical_data[new] = historical_data[orig]
             
             # Calculate indicators
-            indicators = {}
+            result = {}
             
             # RSI
-            if len(df) >= 14:
-                delta = df['close'].diff()
-                gain = delta.where(delta > 0, 0).rolling(window=14).mean()
-                loss = -delta.where(delta < 0, 0).rolling(window=14).mean()
-                rs = gain / loss
-                indicators['rsi'] = 100 - (100 / (1 + rs.iloc[-1]))
+            if 'close' in historical_data.columns:
+                result['rsi'] = indicators.rsi(historical_data['close']).iloc[-1]
             
-            # Moving Averages
-            if len(df) >= 50:
-                indicators['sma20'] = df['close'].rolling(window=20).mean().iloc[-1]
-                indicators['sma50'] = df['close'].rolling(window=50).mean().iloc[-1]
-                indicators['ma_trend'] = 1 if indicators['sma20'] > indicators['sma50'] else -1
+            # MACD
+            if 'close' in historical_data.columns:
+                macd_result = indicators.macd(historical_data['close'])
+                result['macd'] = macd_result['macd'].iloc[-1]
+                result['macd_signal'] = macd_result['signal'].iloc[-1]
+                result['macd_histogram'] = macd_result['histogram'].iloc[-1]
             
-            # Volatility
-            if len(df) >= 20:
-                indicators['volatility'] = df['close'].pct_change().rolling(window=20).std().iloc[-1]
+            # Bollinger Bands
+            if 'close' in historical_data.columns:
+                bb_result = indicators.bollinger_bands(historical_data['close'])
+                result['bb_upper'] = bb_result['upper'].iloc[-1]
+                result['bb_middle'] = bb_result['middle'].iloc[-1]
+                result['bb_lower'] = bb_result['lower'].iloc[-1]
+                result['bb_width'] = bb_result['width'].iloc[-1]
             
-            # Trend
-            if len(df) >= 10:
-                indicators['price_trend'] = 1 if df['close'].iloc[-1] > df['close'].iloc[-10] else -1
+            # ATR
+            if all(col in historical_data.columns for col in ['high', 'low', 'close']):
+                result['atr'] = indicators.atr(
+                    historical_data['high'],
+                    historical_data['low'],
+                    historical_data['close']
+                ).iloc[-1]
             
-            # Volume trend
-            if 'volume' in df.columns and len(df) >= 10:
-                avg_volume = df['volume'].rolling(window=10).mean().iloc[-1]
-                indicators['volume_trend'] = 1 if df['volume'].iloc[-1] > avg_volume else -1
+            # ADX
+            if all(col in historical_data.columns for col in ['high', 'low', 'close']):
+                adx_result = indicators.adx(
+                    historical_data['high'],
+                    historical_data['low'],
+                    historical_data['close']
+                )
+                result['adx'] = adx_result['adx'].iloc[-1]
+                result['di_plus'] = adx_result['di_plus'].iloc[-1]
+                result['di_minus'] = adx_result['di_minus'].iloc[-1]
             
-            return indicators
+            return result
             
         except Exception as e:
-            self.logger.error(f"Error calculating technical indicators: {str(e)}")
+            self.logger.error(f"Error calculating technical indicators for {symbol}: {str(e)}", exc_info=e)
             return {}
     
-    def _get_market_context(self, symbol=None):
+    def _get_market_context(self):
         """
-        Get current market context data.
+        Get market context data.
         
-        Args:
-            symbol (str, optional): The stock symbol, ignored in enhanced version but kept for compatibility
-            
         Returns:
             dict: Market context data
         """
         try:
-            # Get market indices
-            spy_data = self.data_collector.get_quote('SPY')
-            vix_data = self.data_collector.get_quote('VIX')
+            # Get SPY data for market trend
+            spy_data = self.error_handler.safe_execute(
+                self.data_collector.get_historical_data,
+                symbol='SPY',
+                period_type='month',
+                period=1,
+                frequency_type='daily',
+                frequency=1,
+                default_return=pd.DataFrame()
+            )
             
-            market_context = {
-                'market_trend': 0,  # Neutral by default
-                'volatility': 0,
-                'sector_performance': {}
-            }
+            # Get VIX data for volatility
+            vix_data = self.error_handler.safe_execute(
+                self.data_collector.get_historical_data,
+                symbol='VIX',
+                period_type='month',
+                period=1,
+                frequency_type='daily',
+                frequency=1,
+                default_return=pd.DataFrame()
+            )
             
-            # Set market trend based on SPY
-            if spy_data and 'lastPrice' in spy_data and 'openPrice' in spy_data:
-                if spy_data['lastPrice'] > spy_data['openPrice']:
-                    market_context['market_trend'] = 1  # Bullish
-                elif spy_data['lastPrice'] < spy_data['openPrice']:
-                    market_context['market_trend'] = -1  # Bearish
+            result = {}
             
-            # Set volatility based on VIX
-            if vix_data and 'lastPrice' in vix_data:
-                market_context['volatility'] = vix_data['lastPrice']
+            # Calculate market trend
+            if not spy_data.empty and 'close' in spy_data.columns:
+                # Calculate 5-day and 20-day moving averages
+                spy_data['ma5'] = spy_data['close'].rolling(window=5).mean()
+                spy_data['ma20'] = spy_data['close'].rolling(window=20).mean()
+                
+                # Get latest values
+                latest = spy_data.iloc[-1]
+                
+                # Calculate trend
+                if latest['ma5'] > latest['ma20']:
+                    # Bullish trend
+                    trend_strength = (latest['ma5'] / latest['ma20'] - 1) * 10
+                    result['market_trend'] = min(trend_strength, 1.0)
+                else:
+                    # Bearish trend
+                    trend_strength = (1 - latest['ma5'] / latest['ma20']) * 10
+                    result['market_trend'] = -min(trend_strength, 1.0)
             
-            return market_context
+            # Calculate volatility
+            if not vix_data.empty and 'close' in vix_data.columns:
+                latest_vix = vix_data['close'].iloc[-1]
+                
+                # Normalize VIX (0-1 scale)
+                # VIX below 15 is low volatility, above 30 is high
+                if latest_vix < 15:
+                    result['volatility'] = 0.2
+                elif latest_vix > 30:
+                    result['volatility'] = 0.8
+                else:
+                    result['volatility'] = 0.2 + (latest_vix - 15) / 15 * 0.6
+            
+            return result
             
         except Exception as e:
-            self.logger.error(f"Error getting market context: {str(e)}")
-            return {
-                'market_trend': 0,
-                'volatility': 0,
-                'sector_performance': {}
-            }
+            self.logger.error(f"Error getting market context: {str(e)}", exc_info=e)
+            return {}
