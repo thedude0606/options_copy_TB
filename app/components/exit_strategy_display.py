@@ -183,9 +183,9 @@ class ExitStrategyDisplay:
             expected_target = (entry_price + take_profit) / 2
         
         # Create price paths
-        optimistic_path = np.linspace(entry_price, take_profit, days_to_hold + 1)
-        expected_path = np.linspace(entry_price, expected_target, days_to_hold + 1)
-        pessimistic_path = np.linspace(entry_price, stop_loss, days_to_hold + 1)
+        optimistic_path = np.linspace(entry_price, take_profit, int(days_to_hold) + 1)
+        expected_path = np.linspace(entry_price, expected_target, int(days_to_hold) + 1)
+        pessimistic_path = np.linspace(entry_price, stop_loss, int(days_to_hold) + 1)
         
         # Create figure
         fig = go.Figure()
