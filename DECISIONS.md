@@ -157,3 +157,15 @@ This document records key architectural choices, technology selections, design p
 ### 18. Standard RSI Calculation Implementation
 **Decision**: Implement standard Relative Strength Index (RSI) calculation in the TechnicalIndicators class.
 **Rationale**: RSI is a fundamental technical indicator used in market analysis to measure the speed and change of price movements. Implementing a standard RSI calculation method ensures compatibility with the recommendation engine and provides accurate overbought/oversold signals for trading decisions. The implementation follows the industry-standard approach of calculating average gains and losses over a specified period, then computing the relative strength and converting it to an index value between 0 and 100.
+
+### 19. Comprehensive Technical Indicators Implementation
+**Decision**: Implement a complete set of technical indicators (MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, CCI) in the TechnicalIndicators class.
+**Rationale**: A comprehensive set of technical indicators provides a more complete picture of market conditions and price action patterns. Each indicator offers unique insights: MACD for trend direction and momentum, Stochastic for overbought/oversold conditions, ATR for volatility measurement, ADX for trend strength, OBV for volume-price relationship, CMF for money flow, MFI for buying/selling pressure, and CCI for identifying cyclical trends. Implementing these indicators with proper error handling and edge case management ensures the recommendation engine has access to a rich set of signals for generating more accurate trading recommendations.
+
+### 20. Vectorized Implementation with Pandas
+**Decision**: Use pandas vectorized operations for technical indicator calculations where possible.
+**Rationale**: Vectorized operations in pandas are significantly more efficient than iterative approaches, especially for large datasets. By leveraging pandas' optimized methods for rolling windows, statistical calculations, and array operations, we achieve better performance while maintaining code readability. This approach is particularly important for technical indicators that require calculations over multiple time periods.
+
+### 21. Consistent Interface for Technical Indicators
+**Decision**: Implement a consistent interface pattern for all technical indicator methods.
+**Rationale**: By maintaining a consistent interface across all indicator methods (wrapper methods that call calculation methods), we improve code maintainability and make it easier to add new indicators in the future. This pattern also provides flexibility by separating the indicator calculation logic from the data management, allowing indicators to be calculated on both instance data and externally provided data.
