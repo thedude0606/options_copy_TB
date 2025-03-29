@@ -42,6 +42,7 @@
   - CMF (Chaikin Money Flow)
   - MFI (Money Flow Index)
   - CCI (Commodity Channel Index)
+  - Bollinger Bands
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach

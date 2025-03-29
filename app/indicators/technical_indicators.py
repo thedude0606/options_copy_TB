@@ -154,11 +154,34 @@ class TechnicalIndicators:
         if self.data is None or self.data.empty:
             return pd.DataFrame()
             
+        return self.calculate_bollinger_bands(
+            self.data,
+            period=period,
+            std_dev=std_dev,
+            price_col=price_col
+        )
+            
+    def calculate_bollinger_bands(self, data, period=20, std_dev=2, price_col='close'):
+        """
+        Calculate Bollinger Bands for the given data
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            period (int): Period for moving average
+            std_dev (float): Number of standard deviations
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.DataFrame: DataFrame with middle, upper, and lower bands
+        """
+        if data is None or data.empty or len(data) < period:
+            return pd.DataFrame()
+            
         # Calculate middle band (SMA)
-        middle_band = self.data[price_col].rolling(window=period).mean()
+        middle_band = data[price_col].rolling(window=period).mean()
         
         # Calculate standard deviation
-        rolling_std = self.data[price_col].rolling(window=period).std()
+        rolling_std = data[price_col].rolling(window=period).std()
         
         # Calculate upper and lower bands
         upper_band = middle_band + (rolling_std * std_dev)
@@ -173,7 +196,7 @@ class TechnicalIndicators:
             'upper_band': upper_band,
             'lower_band': lower_band,
             'width': bandwidth
-        }, index=self.data.index if hasattr(self.data, 'index') else None)
+        }, index=data.index if hasattr(data, 'index') else None)
         
         return result
     
