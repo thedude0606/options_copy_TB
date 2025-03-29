@@ -223,6 +223,44 @@ class TechnicalIndicators:
         if self.data is None:
             return pd.Series()
         return self.calculate_rsi(self.data, period, price_col)
+        
+    def calculate_rsi(self, data, period=14, price_col='close'):
+        """
+        Calculate Relative Strength Index for the given data
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            period (int): Period for RSI calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: RSI values
+        """
+        if data is None or data.empty or len(data) < period + 1:
+            return pd.Series()
+            
+        # Calculate price changes
+        delta = data[price_col].diff()
+        
+        # Separate gains and losses
+        gains = delta.copy()
+        losses = delta.copy()
+        
+        gains[gains < 0] = 0
+        losses[losses > 0] = 0
+        losses = abs(losses)
+        
+        # Calculate average gains and losses over the period
+        avg_gain = gains.rolling(window=period).mean()
+        avg_loss = losses.rolling(window=period).mean()
+        
+        # Calculate RS (Relative Strength)
+        rs = avg_gain / avg_loss
+        
+        # Calculate RSI
+        rsi = 100 - (100 / (1 + rs))
+        
+        return rsi
     
     def macd(self, fast_period=12, slow_period=26, signal_period=9, price_col='close'):
         """

@@ -32,6 +32,7 @@
 - Fixed Bollinger Bands calculation error in recommendation_engine.py by properly handling DataFrame return values
 - Fixed database connection error in options_db.py by properly initializing the connection variable and ensuring data directories exist
 - Fixed 'price_history' attribute error in data_collector.py by implementing proper Schwab API client methods with mock authentication for testing
+- Fixed missing calculate_rsi method in TechnicalIndicators class by implementing standard RSI calculation
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach
@@ -46,6 +47,7 @@
 - Need to verify the functionality of ML components with the new data approach
 - Database operations need proper directory creation and connection handling
 - Schwab API authentication requires interactive login, implemented mock authentication for testing
+- Several technical indicator calculation methods are still missing in the TechnicalIndicators class (MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, CCI)
 
 ## Next Steps
 - Complete testing of the integrated features
@@ -55,3 +57,4 @@
 - Consider adding more timeframes for analysis to improve prediction accuracy
 - Implement additional error handling for database operations
 - Implement proper authentication handling for Schwab API in production environment
+- Implement remaining technical indicator calculation methods in the TechnicalIndicators class

@@ -81,6 +81,11 @@
   - Status: Completed
   - Description: Implemented proper Schwab API client methods with mock authentication for historical data retrieval
 
+- [x] Fix missing calculate_rsi method in TechnicalIndicators class
+  - Dependency: None
+  - Status: Completed
+  - Description: Implemented standard RSI calculation method to fix AttributeError in recommendation_engine.py
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
@@ -136,6 +141,11 @@
   - Dependency: None
   - Status: Not started
   - Description: Develop a robust authentication system for Schwab API that works in production environments
+
+- [ ] Implement remaining technical indicator calculation methods
+  - Dependency: None
+  - Status: Not started
+  - Description: Implement missing calculation methods for MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, and CCI
 
 ## Low Priority Tasks
 - [ ] Create comprehensive test suite for all implemented features
