@@ -53,14 +53,34 @@ class DataCollector:
                 print(f"Requesting option chain for symbol: {symbol}")
             
             # Get option chain data with required parameters
-            # Use the get_options_chain method with snake_case parameters
-            option_chain_response = self.client.get_options_chain(
-                symbol=symbol,
-                contract_type="ALL",
-                strike_count=10,  # Get options around the current price
-                include_underlying_quote=True,
-                strategy="SINGLE"
-            )
+            # Add debugging to identify correct parameters
+            try:
+                # Print the function signature to see what parameters are accepted
+                import inspect
+                print(f"Function signature for get_options_chain: {inspect.signature(self.client.get_options_chain)}")
+                
+                # Try with minimal parameters first
+                option_chain_response = self.client.get_options_chain(symbol=symbol)
+            except Exception as e:
+                print(f"Error with minimal parameters: {str(e)}")
+                # Try with different parameter combinations
+                try:
+                    # Try with positional parameter only
+                    option_chain_response = self.client.get_options_chain(symbol)
+                except Exception as e:
+                    print(f"Error with positional parameter: {str(e)}")
+                    # Fall back to printing all available methods
+                    available_methods = [method for method in dir(self.client) if not method.startswith('_')]
+                    print(f"Available client methods: {available_methods}")
+                    
+                    # As a last resort, try to get the source code of the method
+                    try:
+                        import inspect
+                        print(f"Source code of get_options_chain: {inspect.getsource(self.client.get_options_chain)}")
+                    except Exception as source_error:
+                        print(f"Could not get source code: {str(source_error)}")
+                    
+                    raise e
             
             if DEBUG_MODE:
                 print(f"Option chain response type: {type(option_chain_response)}")
