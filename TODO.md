@@ -81,6 +81,11 @@
   - Status: Completed
   - Description: Implemented proper Schwab API client methods with mock authentication for historical data retrieval
 
+- [x] Implement missing technical indicator calculation methods
+  - Dependency: None
+  - Status: Completed
+  - Description: Implemented calculation methods for RSI, MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, and CCI in the TechnicalIndicators class
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
@@ -136,6 +141,11 @@
   - Dependency: None
   - Status: Not started
   - Description: Develop a robust authentication system for Schwab API that works in production environments
+
+- [ ] Address FutureWarnings in technical indicators calculations
+  - Dependency: None
+  - Status: Not started
+  - Description: Fix FutureWarnings by explicitly casting data types in technical indicator calculations
 
 ## Low Priority Tasks
 - [ ] Create comprehensive test suite for all implemented features

@@ -152,12 +152,8 @@ This document records key architectural choices, technology selections, design p
 
 ### 17. Database Connection Initialization
 **Decision**: Initialize database connection variables before try blocks and ensure data directories exist.
-**Rationale**: Properly initializing connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection establishment. Additionally, ensuring data directories exist before attempting to create database files prevents file system errors, making the application more robust in various environments.
+**Rationale**: Proper initialization of database connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection attempts. Additionally, ensuring that data directories exist before attempting to create or access database files prevents file-related errors, improving the robustness of database operations.
 
-### 18. Schwab API Client Methods for Historical Data
-**Decision**: Use proper Schwab API client methods (get_price_history_every_day, get_price_history_every_minute, etc.) for historical data retrieval.
-**Rationale**: The Schwab API provides dedicated methods for retrieving historical price data at various frequencies. By using these native methods instead of the non-existent 'price_history' method, we maintain compatibility with the Schwab API while ensuring reliable historical data retrieval. This approach preserves the existing interface and minimizes changes to the rest of the codebase.
-
-### 19. Mock Authentication for Testing
-**Decision**: Implement mock authentication and client for testing Schwab API integration.
-**Rationale**: Interactive authentication with Schwab API is not feasible in automated testing environments. By implementing a MockClient class that mimics the behavior of the real Schwab API client, we can test the application's functionality without requiring actual authentication, while maintaining the code structure for when proper authentication is available in production. This approach enables development and testing to proceed without disruption while ensuring the code will work correctly with real authentication in production.
+### 18. Comprehensive Technical Indicators Implementation
+**Decision**: Implement a complete set of technical indicators (RSI, MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, CCI) with standardized interfaces.
+**Rationale**: A comprehensive set of technical indicators provides a more complete picture of market conditions and enables more sophisticated trading strategies. By implementing all these indicators with consistent interfaces and proper error handling, we ensure that the recommendation engine has access to a rich set of data points for analysis, improving the quality and reliability of trading recommendations. The standardized approach with both instance methods and static calculation methods allows for flexible usage in different contexts while maintaining code consistency.
