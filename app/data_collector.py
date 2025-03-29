@@ -53,13 +53,40 @@ class DataCollector:
                 print(f"Requesting option chain for symbol: {symbol}")
             
             # Get option chain data with required parameters
-            option_chain_response = self.client.option_chains(
-                symbol=symbol,
-                contractType="ALL",
-                strikeCount=10,  # Get options around the current price
-                includeUnderlyingQuote=True,
-                strategy="SINGLE"
-            )
+            # Handle different client implementations by checking available methods
+            if hasattr(self.client, 'option_chains'):
+                # Use the MockClient implementation
+                option_chain_response = self.client.option_chains(
+                    symbol=symbol,
+                    contractType="ALL",
+                    strikeCount=10,  # Get options around the current price
+                    includeUnderlyingQuote=True,
+                    strategy="SINGLE"
+                )
+            elif hasattr(self.client, 'get_options_chain'):
+                # Use the method name we found in some documentation
+                option_chain_response = self.client.get_options_chain(
+                    symbol=symbol,
+                    contractType="ALL",
+                    strikeCount=10,
+                    includeUnderlyingQuote=True,
+                    strategy="SINGLE"
+                )
+            else:
+                try:
+                    # Try the method name from other documentation
+                    option_chain_response = self.client.get_option_chain(
+                        symbol=symbol,
+                        contractType="ALL",
+                        strikeCount=10,
+                        includeUnderlyingQuote=True,
+                        strategy="SINGLE"
+                    )
+                except AttributeError as e:
+                    # Log available methods to help with debugging
+                    available_methods = [method for method in dir(self.client) if not method.startswith('_')]
+                    print(f"Available client methods: {available_methods}")
+                    raise e
             
             if DEBUG_MODE:
                 print(f"Option chain response type: {type(option_chain_response)}")
