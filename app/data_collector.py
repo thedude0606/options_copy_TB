@@ -53,11 +53,11 @@ class DataCollector:
                 print(f"Requesting option chain for symbol: {symbol}")
             
             # Get option chain data with required parameters
-            option_chain_response = self.client.get_options_chain(
+            option_chain_response = self.client.option_chains(
                 symbol=symbol,
-                contract_type="ALL",
-                strike_count=10,  # Get options around the current price
-                include_underlying_quote=True,
+                contractType="ALL",
+                strikeCount=10,  # Get options around the current price
+                includeUnderlyingQuote=True,
                 strategy="SINGLE"
             )
             
