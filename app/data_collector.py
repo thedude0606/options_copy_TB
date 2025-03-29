@@ -52,35 +52,48 @@ class DataCollector:
             if DEBUG_MODE:
                 print(f"Requesting option chain for symbol: {symbol}")
             
-            # Get option chain data with required parameters
-            # Add debugging to identify correct parameters
+            # Get option chain data using a similar approach to the working historical data method
+            # First, print all available methods to find options-related methods
+            available_methods = [method for method in dir(self.client) if not method.startswith('_')]
+            print(f"Available client methods: {available_methods}")
+            
+            # Try using the method with just the symbol parameter
             try:
-                # Print the function signature to see what parameters are accepted
-                import inspect
-                print(f"Function signature for get_options_chain: {inspect.signature(self.client.get_options_chain)}")
-                
-                # Try with minimal parameters first
-                option_chain_response = self.client.get_options_chain(symbol=symbol)
+                option_chain_response = self.client.get_options_chain(symbol)
             except Exception as e:
-                print(f"Error with minimal parameters: {str(e)}")
-                # Try with different parameter combinations
+                print(f"Error with just symbol parameter: {str(e)}")
+                
+                # Try using option_chain (singular) instead of options_chain (plural)
                 try:
-                    # Try with positional parameter only
-                    option_chain_response = self.client.get_options_chain(symbol)
-                except Exception as e:
-                    print(f"Error with positional parameter: {str(e)}")
-                    # Fall back to printing all available methods
-                    available_methods = [method for method in dir(self.client) if not method.startswith('_')]
-                    print(f"Available client methods: {available_methods}")
-                    
-                    # As a last resort, try to get the source code of the method
-                    try:
-                        import inspect
-                        print(f"Source code of get_options_chain: {inspect.getsource(self.client.get_options_chain)}")
-                    except Exception as source_error:
-                        print(f"Could not get source code: {str(source_error)}")
-                    
-                    raise e
+                    if hasattr(self.client, 'get_option_chain'):
+                        option_chain_response = self.client.get_option_chain(symbol)
+                    else:
+                        print("Method get_option_chain not found")
+                        
+                        # Try using options (plural) method if it exists
+                        if hasattr(self.client, 'options'):
+                            option_chain_response = self.client.options(symbol)
+                        else:
+                            print("Method options not found")
+                            
+                            # Try using option_chain without the get_ prefix
+                            if hasattr(self.client, 'option_chain'):
+                                option_chain_response = self.client.option_chain(symbol)
+                            else:
+                                print("Method option_chain not found")
+                                
+                                # As a last resort, try to find any method with 'option' in the name
+                                option_methods = [method for method in available_methods if 'option' in method.lower()]
+                                print(f"Methods containing 'option': {option_methods}")
+                                
+                                # If we found any option-related methods, try the first one
+                                if option_methods:
+                                    method_name = option_methods[0]
+                                    method = getattr(self.client, method_name)
+                                    print(f"Trying method: {method_name}")
+                                    option_chain_response = method(symbol)
+                                else:
+                                    raise Exception("No option-related methods found on client")
             
             if DEBUG_MODE:
                 print(f"Option chain response type: {type(option_chain_response)}")
