@@ -776,6 +776,63 @@ class TechnicalIndicators:
         
         return cci
     
+    def imi(self, period=14, open_col='open', close_col='close'):
+        """
+        Calculate Intraday Momentum Index using instance data
+        
+        Args:
+            period (int): Period for IMI calculation
+            open_col (str): Column name for open price data
+            close_col (str): Column name for close price data
+            
+        Returns:
+            pd.Series: IMI values
+        """
+        if self.data is None or self.data.empty:
+            return pd.Series()
+            
+        return self.calculate_imi(
+            self.data,
+            period=period,
+            open_col=open_col,
+            close_col=close_col
+        )
+        
+    def calculate_imi(self, data, period=14, open_col='open', close_col='close'):
+        """
+        Calculate Intraday Momentum Index for the given data
+        
+        Args:
+            data (pd.DataFrame): Price data with open and close columns
+            period (int): Period for IMI calculation
+            open_col (str): Column name for open price data
+            close_col (str): Column name for close price data
+            
+        Returns:
+            pd.Series: IMI values
+        """
+        if data is None or data.empty or len(data) < period:
+            return pd.Series()
+            
+        # Calculate intraday price changes (close - open)
+        intraday_change = data[close_col] - data[open_col]
+        
+        # Separate gains (up days) and losses (down days)
+        gains = intraday_change.copy()
+        losses = intraday_change.copy()
+        gains[gains < 0] = 0
+        losses[losses > 0] = 0
+        losses = abs(losses)
+        
+        # Calculate sum of gains and losses over the period
+        gains_sum = gains.rolling(window=period).sum()
+        losses_sum = losses.rolling(window=period).sum()
+        
+        # Calculate IMI
+        imi = 100 * (gains_sum / (gains_sum + losses_sum))
+        
+        return imi
+    
     def calculate_rsi(self, data, period=14, price_col='close'):
         """
         Calculate Relative Strength Index for the given data

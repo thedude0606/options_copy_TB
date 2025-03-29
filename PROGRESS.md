@@ -43,6 +43,7 @@
   - MFI (Money Flow Index)
   - CCI (Commodity Channel Index)
   - Bollinger Bands
+  - IMI (Intraday Momentum Index)
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach
