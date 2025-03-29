@@ -60,6 +60,11 @@ class DataCollector:
             # Try using the method with just the symbol parameter
             try:
                 option_chain_response = self.client.get_options_chain(symbol)
+                
+                if DEBUG_MODE:
+                    print(f"Option chain response type: {type(option_chain_response)}")
+                    if hasattr(option_chain_response, 'status_code'):
+                        print(f"Status code: {option_chain_response.status_code}")
             except Exception as e:
                 print(f"Error with just symbol parameter: {str(e)}")
                 
@@ -94,11 +99,9 @@ class DataCollector:
                                     option_chain_response = method(symbol)
                                 else:
                                     raise Exception("No option-related methods found on client")
-            
-            if DEBUG_MODE:
-                print(f"Option chain response type: {type(option_chain_response)}")
-                if hasattr(option_chain_response, 'status_code'):
-                    print(f"Status code: {option_chain_response.status_code}")
+                except Exception as inner_e:
+                    print(f"All method attempts failed. Last error: {str(inner_e)}")
+                    raise inner_e
             
             # Process the response
             option_chain = None
