@@ -91,6 +91,26 @@
   - Status: Completed
   - Description: Added calculate_fair_value_gap method to TechnicalIndicators class to fix AttributeError in recommendation_engine.py
 
+- [x] Implement Liquidity Zones indicator
+  - Dependency: None
+  - Status: Completed
+  - Description: Added calculate_liquidity_zones method to TechnicalIndicators class to fix AttributeError in recommendation_engine.py
+
+- [x] Implement Moving Averages calculations
+  - Dependency: None
+  - Status: Completed
+  - Description: Added calculate_moving_averages method to TechnicalIndicators class to fix AttributeError in recommendation_engine.py
+
+- [x] Implement Volatility indicators
+  - Dependency: None
+  - Status: Completed
+  - Description: Added calculate_volatility method to TechnicalIndicators class to fix AttributeError in recommendation_engine.py
+
+- [x] Implement additional technical indicators
+  - Dependency: None
+  - Status: Completed
+  - Description: Added calculate_sma, calculate_ema, calculate_macd_signal, calculate_macd_histogram, calculate_cmo, calculate_stochastic_rsi, calculate_adl, and calculate_adaptive_moving_average methods
+
 - [x] Fix pandas dtype incompatibility error
   - Dependency: None
   - Status: Completed

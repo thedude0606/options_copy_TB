@@ -919,3 +919,437 @@ class TechnicalIndicators:
                     fvg.iloc[i] = -gap_percent  # Negative for bearish gaps
         
         return fvg
+
+    def calculate_liquidity_zones(self, data, high_col='high', low_col='low', volume_col='volume', lookback=20, threshold=1.5):
+        """
+        Calculate Liquidity Zones (areas of high volume/liquidity) for the given data.
+        Liquidity zones are price levels where significant trading activity has occurred,
+        often acting as support or resistance levels.
+        
+        Args:
+            data (pd.DataFrame): Price data with high, low, and volume columns
+            high_col (str): Column name for high price data
+            low_col (str): Column name for low price data
+            volume_col (str): Column name for volume data
+            lookback (int): Number of periods to look back for identifying liquidity zones
+            threshold (float): Volume threshold multiplier to identify significant liquidity zones
+            
+        Returns:
+            pd.DataFrame: DataFrame with support and resistance liquidity zones
+        """
+        if data is None or data.empty or len(data) < lookback:
+            return pd.DataFrame(columns=['price', 'strength', 'type'])
+            
+        # Initialize result
+        liquidity_zones = []
+        
+        # Calculate average volume
+        avg_volume = data[volume_col].rolling(window=lookback).mean()
+        
+        # Identify high volume bars
+        high_volume_bars = data[volume_col] > (avg_volume * threshold)
+        
+        # Process the data to find liquidity zones
+        for i in range(lookback, len(data)):
+            if high_volume_bars.iloc[i]:
+                # Get the price range for this bar
+                high_price = data[high_col].iloc[i]
+                low_price = data[low_col].iloc[i]
+                volume = data[volume_col].iloc[i]
+                
+                # Calculate the strength based on volume relative to average
+                strength = volume / avg_volume.iloc[i]
+                
+                # Add support zone (bottom of high volume bar)
+                liquidity_zones.append({
+                    'price': low_price,
+                    'strength': strength,
+                    'type': 'support'
+                })
+                
+                # Add resistance zone (top of high volume bar)
+                liquidity_zones.append({
+                    'price': high_price,
+                    'strength': strength,
+                    'type': 'resistance'
+                })
+        
+        # Convert to DataFrame
+        if liquidity_zones:
+            result = pd.DataFrame(liquidity_zones)
+            
+            # Group by similar price levels (within 0.5% range) and sum the strength
+            result['price_group'] = result['price'].apply(lambda x: round(x, 2))
+            grouped = result.groupby(['price_group', 'type']).agg({'strength': 'sum'}).reset_index()
+            
+            # Sort by strength in descending order
+            grouped = grouped.sort_values('strength', ascending=False)
+            
+            # Keep only the top 5 support and top 5 resistance zones
+            supports = grouped[grouped['type'] == 'support'].head(5)
+            resistances = grouped[grouped['type'] == 'resistance'].head(5)
+            
+            # Combine and return
+            return pd.concat([supports, resistances]).drop('price_group', axis=1)
+        else:
+            return pd.DataFrame(columns=['price', 'strength', 'type'])
+            
+    def calculate_moving_averages(self, data, close_col='close', periods=[9, 21, 50, 200]):
+        """
+        Calculate multiple moving averages for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with close column
+            close_col (str): Column name for close price data
+            periods (list): List of periods for moving average calculations
+            
+        Returns:
+            pd.DataFrame: DataFrame with moving averages for each period
+        """
+        if data is None or data.empty:
+            return pd.DataFrame()
+            
+        # Initialize result DataFrame
+        result = pd.DataFrame(index=data.index)
+        
+        # Calculate simple moving averages for each period
+        for period in periods:
+            result[f'sma_{period}'] = data[close_col].rolling(window=period).mean()
+            
+        # Calculate exponential moving averages for each period
+        for period in periods:
+            result[f'ema_{period}'] = data[close_col].ewm(span=period, adjust=False).mean()
+            
+        # Calculate moving average crossovers
+        if len(periods) >= 2:
+            # Sort periods to ensure consistent crossover calculations
+            sorted_periods = sorted(periods)
+            
+            for i in range(len(sorted_periods) - 1):
+                short_period = sorted_periods[i]
+                long_period = sorted_periods[i + 1]
+                
+                # Calculate crossover signals (1 for bullish crossover, -1 for bearish, 0 for no crossover)
+                short_ma = result[f'ema_{short_period}']
+                long_ma = result[f'ema_{long_period}']
+                
+                crossover = pd.Series(0, index=data.index)
+                crossover[(short_ma > long_ma) & (short_ma.shift(1) <= long_ma.shift(1))] = 1  # Bullish crossover
+                crossover[(short_ma < long_ma) & (short_ma.shift(1) >= long_ma.shift(1))] = -1  # Bearish crossover
+                
+                result[f'crossover_{short_period}_{long_period}'] = crossover
+        
+        return result
+        
+    def calculate_volatility(self, data, close_col='close', high_col='high', low_col='low', periods=[14, 30, 60]):
+        """
+        Calculate various volatility indicators for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with close, high, and low columns
+            close_col (str): Column name for close price data
+            high_col (str): Column name for high price data
+            low_col (str): Column name for low price data
+            periods (list): List of periods for volatility calculations
+            
+        Returns:
+            pd.DataFrame: DataFrame with volatility indicators
+        """
+        if data is None or data.empty:
+            return pd.DataFrame()
+            
+        # Initialize result DataFrame
+        result = pd.DataFrame(index=data.index)
+        
+        # Calculate daily returns
+        returns = data[close_col].pct_change()
+        
+        # Calculate historical volatility (standard deviation of returns) for each period
+        for period in periods:
+            result[f'hist_vol_{period}'] = returns.rolling(window=period).std() * np.sqrt(252)  # Annualized
+        
+        # Calculate Average True Range (ATR) for each period
+        for period in periods:
+            # Calculate True Range
+            tr1 = data[high_col] - data[low_col]  # Current high - current low
+            tr2 = abs(data[high_col] - data[close_col].shift(1))  # Current high - previous close
+            tr3 = abs(data[low_col] - data[close_col].shift(1))  # Current low - previous close
+            true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+            
+            # Calculate ATR
+            result[f'atr_{period}'] = true_range.rolling(window=period).mean()
+        
+        # Calculate Bollinger Bands volatility (bandwidth) for default period (20)
+        bb_period = 20
+        if len(data) >= bb_period:
+            sma = data[close_col].rolling(window=bb_period).mean()
+            std_dev = data[close_col].rolling(window=bb_period).std()
+            
+            upper_band = sma + (2 * std_dev)
+            lower_band = sma - (2 * std_dev)
+            
+            # Calculate bandwidth: (upper - lower) / middle
+            result['bb_bandwidth'] = (upper_band - lower_band) / sma
+        
+        # Calculate Chaikin Volatility
+        chaikin_period = 10
+        if len(data) >= chaikin_period:
+            high_low_diff = data[high_col] - data[low_col]
+            ema_high_low = high_low_diff.ewm(span=chaikin_period, adjust=False).mean()
+            result['chaikin_volatility'] = (ema_high_low / ema_high_low.shift(chaikin_period) - 1) * 100
+        
+        # Volatility regime classification
+        if 'hist_vol_30' in result.columns:
+            # Calculate long-term average volatility (using 60-day if available, otherwise 30-day)
+            if 'hist_vol_60' in result.columns:
+                long_term_vol = result['hist_vol_60'].rolling(window=90).mean()
+            else:
+                long_term_vol = result['hist_vol_30'].rolling(window=90).mean()
+            
+            # Classify volatility regime
+            regime = pd.Series('normal', index=data.index)
+            regime[result['hist_vol_30'] > (1.5 * long_term_vol)] = 'high'
+            regime[result['hist_vol_30'] < (0.5 * long_term_vol)] = 'low'
+            
+            result['volatility_regime'] = regime
+        
+        return result
+
+    def calculate_sma(self, data, period=20, price_col='close'):
+        """
+        Calculate Simple Moving Average for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            period (int): Period for SMA calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: SMA values
+        """
+        if data is None or data.empty or len(data) < period:
+            return pd.Series(dtype=float)
+            
+        return data[price_col].rolling(window=period).mean()
+        
+    def calculate_ema(self, data, period=20, price_col='close'):
+        """
+        Calculate Exponential Moving Average for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            period (int): Period for EMA calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: EMA values
+        """
+        if data is None or data.empty or len(data) < period:
+            return pd.Series(dtype=float)
+            
+        return data[price_col].ewm(span=period, adjust=False).mean()
+        
+    def calculate_macd_signal(self, data, fast_period=12, slow_period=26, signal_period=9, price_col='close'):
+        """
+        Calculate MACD Signal Line for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            fast_period (int): Period for fast EMA calculation
+            slow_period (int): Period for slow EMA calculation
+            signal_period (int): Period for signal line calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: MACD Signal Line values
+        """
+        if data is None or data.empty or len(data) < max(fast_period, slow_period, signal_period):
+            return pd.Series(dtype=float)
+            
+        # Calculate MACD Line
+        fast_ema = data[price_col].ewm(span=fast_period, adjust=False).mean()
+        slow_ema = data[price_col].ewm(span=slow_period, adjust=False).mean()
+        macd_line = fast_ema - slow_ema
+        
+        # Calculate Signal Line (EMA of MACD Line)
+        signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+        
+        return signal_line
+        
+    def calculate_macd_histogram(self, data, fast_period=12, slow_period=26, signal_period=9, price_col='close'):
+        """
+        Calculate MACD Histogram for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            fast_period (int): Period for fast EMA calculation
+            slow_period (int): Period for slow EMA calculation
+            signal_period (int): Period for signal line calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: MACD Histogram values
+        """
+        if data is None or data.empty or len(data) < max(fast_period, slow_period, signal_period):
+            return pd.Series(dtype=float)
+            
+        # Calculate MACD Line
+        fast_ema = data[price_col].ewm(span=fast_period, adjust=False).mean()
+        slow_ema = data[price_col].ewm(span=slow_period, adjust=False).mean()
+        macd_line = fast_ema - slow_ema
+        
+        # Calculate Signal Line (EMA of MACD Line)
+        signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+        
+        # Calculate Histogram (MACD Line - Signal Line)
+        histogram = macd_line - signal_line
+        
+        return histogram
+        
+    def calculate_cmo(self, data, period=14, price_col='close'):
+        """
+        Calculate Chande Momentum Oscillator for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            period (int): Period for CMO calculation
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: CMO values
+        """
+        if data is None or data.empty or len(data) < period + 1:
+            return pd.Series(dtype=float)
+            
+        # Calculate price changes
+        price_changes = data[price_col].diff()
+        
+        # Separate gains and losses
+        gains = price_changes.copy()
+        losses = price_changes.copy()
+        gains[gains < 0] = 0
+        losses[losses > 0] = 0
+        losses = abs(losses)
+        
+        # Calculate sum of gains and losses over the period
+        sum_gains = gains.rolling(window=period).sum()
+        sum_losses = losses.rolling(window=period).sum()
+        
+        # Calculate CMO
+        cmo = 100 * ((sum_gains - sum_losses) / (sum_gains + sum_losses))
+        
+        return cmo
+        
+    def calculate_stochastic_rsi(self, data, period=14, smooth_k=3, smooth_d=3, price_col='close'):
+        """
+        Calculate Stochastic RSI for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            period (int): Period for RSI and Stochastic calculation
+            smooth_k (int): Smoothing period for %K line
+            smooth_d (int): Smoothing period for %D line
+            price_col (str): Column name for price data
+            
+        Returns:
+            tuple: (Stochastic RSI %K, Stochastic RSI %D)
+        """
+        if data is None or data.empty or len(data) < period + smooth_k + smooth_d:
+            return pd.Series(dtype=float), pd.Series(dtype=float)
+            
+        # Calculate RSI
+        rsi = self.calculate_rsi(data, period=period, price_col=price_col)
+        
+        # Calculate Stochastic RSI
+        stoch_rsi = pd.Series(0.0, index=data.index)
+        
+        for i in range(period, len(rsi)):
+            rsi_window = rsi.iloc[i-period+1:i+1]
+            if not rsi_window.isna().all():
+                min_rsi = rsi_window.min()
+                max_rsi = rsi_window.max()
+                
+                if max_rsi - min_rsi != 0:
+                    stoch_rsi.iloc[i] = (rsi.iloc[i] - min_rsi) / (max_rsi - min_rsi)
+        
+        # Calculate %K (smoothed Stochastic RSI)
+        stoch_rsi_k = stoch_rsi.rolling(window=smooth_k).mean() * 100
+        
+        # Calculate %D (smoothed %K)
+        stoch_rsi_d = stoch_rsi_k.rolling(window=smooth_d).mean()
+        
+        return stoch_rsi_k, stoch_rsi_d
+        
+    def calculate_adl(self, data, high_col='high', low_col='low', close_col='close', volume_col='volume'):
+        """
+        Calculate Accumulation/Distribution Line for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with high, low, close, and volume columns
+            high_col (str): Column name for high price data
+            low_col (str): Column name for low price data
+            close_col (str): Column name for close price data
+            volume_col (str): Column name for volume data
+            
+        Returns:
+            pd.Series: A/D Line values
+        """
+        if data is None or data.empty:
+            return pd.Series(dtype=float)
+            
+        # Calculate Money Flow Multiplier
+        high_low_range = data[high_col] - data[low_col]
+        
+        # Avoid division by zero
+        high_low_range = high_low_range.replace(0, np.nan)
+        
+        close_loc = ((data[close_col] - data[low_col]) - (data[high_col] - data[close_col])) / high_low_range
+        close_loc = close_loc.fillna(0)  # Replace NaN with 0
+        
+        # Calculate Money Flow Volume
+        money_flow_volume = close_loc * data[volume_col]
+        
+        # Calculate A/D Line (cumulative sum of Money Flow Volume)
+        ad_line = money_flow_volume.cumsum()
+        
+        return ad_line
+        
+    def calculate_adaptive_moving_average(self, data, er_period=10, fast_period=2, slow_period=30, price_col='close'):
+        """
+        Calculate Kaufman's Adaptive Moving Average (KAMA) for the given data.
+        
+        Args:
+            data (pd.DataFrame): Price data with at least the specified price column
+            er_period (int): Period for Efficiency Ratio calculation
+            fast_period (int): Fast EMA period
+            slow_period (int): Slow EMA period
+            price_col (str): Column name for price data
+            
+        Returns:
+            pd.Series: KAMA values
+        """
+        if data is None or data.empty or len(data) < er_period + 1:
+            return pd.Series(dtype=float)
+            
+        # Calculate price change and direction
+        price_change = abs(data[price_col] - data[price_col].shift(er_period))
+        volatility = abs(data[price_col].diff()).rolling(window=er_period).sum()
+        
+        # Calculate Efficiency Ratio
+        er = price_change / volatility
+        er = er.replace([np.inf, -np.inf], np.nan).fillna(0)  # Handle division by zero
+        
+        # Calculate smoothing constant
+        fast_alpha = 2 / (fast_period + 1)
+        slow_alpha = 2 / (slow_period + 1)
+        sc = (er * (fast_alpha - slow_alpha) + slow_alpha) ** 2
+        
+        # Initialize KAMA
+        kama = pd.Series(0.0, index=data.index)
+        kama.iloc[er_period] = data[price_col].iloc[er_period]
+        
+        # Calculate KAMA
+        for i in range(er_period + 1, len(data)):
+            kama.iloc[i] = kama.iloc[i-1] + sc.iloc[i] * (data[price_col].iloc[i] - kama.iloc[i-1])
+        
+        return kama

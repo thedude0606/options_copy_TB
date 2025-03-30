@@ -165,3 +165,23 @@ This document records key architectural choices, technology selections, design p
 ### 20. Proper Type Handling in Technical Indicators
 **Decision**: Ensure proper type handling in technical indicators calculations to prevent dtype incompatibility warnings.
 **Rationale**: Pandas is moving towards stricter type checking, and mixing incompatible types (like float values in int64 columns) will raise errors in future versions. By implementing proper type handling and ensuring consistent return types (using float dtype for numerical calculations), we ensure forward compatibility with future pandas versions while maintaining calculation accuracy and preventing runtime errors.
+
+### 21. Liquidity Zones Analysis
+**Decision**: Implement Liquidity Zones indicator in the TechnicalIndicators class.
+**Rationale**: Liquidity zones represent price levels where significant trading activity has occurred, often acting as support or resistance levels. By identifying these zones, traders can anticipate potential price reactions when price approaches these levels, improving entry and exit timing. The implementation includes strength metrics based on volume, allowing for prioritization of the most significant zones.
+
+### 22. Comprehensive Moving Averages Framework
+**Decision**: Implement a unified moving averages calculation framework that handles multiple types and periods simultaneously.
+**Rationale**: Moving averages are fundamental to many trading strategies, but different timeframes and types (simple, exponential) provide different insights. By implementing a comprehensive framework that calculates multiple moving averages and their crossovers in a single function, we provide traders with a complete picture of trend direction and strength across different timeframes, while also improving code efficiency by reducing redundant calculations.
+
+### 23. Multi-faceted Volatility Analysis
+**Decision**: Implement a comprehensive volatility analysis system that combines multiple volatility metrics.
+**Rationale**: Volatility is a critical factor in options trading that affects both pricing and strategy selection. By implementing multiple volatility metrics (historical volatility, ATR, Bollinger Bandwidth, Chaikin Volatility) and a volatility regime classification system, we provide traders with a nuanced understanding of current market conditions, enabling more informed decisions about position sizing, strategy selection, and risk management.
+
+### 24. Advanced MACD Components
+**Decision**: Implement separate functions for MACD signal line and histogram calculations.
+**Rationale**: While the MACD indicator is commonly used, its components (signal line and histogram) provide distinct trading signals. By implementing separate functions for these components, we enable more sophisticated trading strategies that can independently analyze divergences, crossovers, and histogram patterns, while maintaining a clean and modular code structure.
+
+### 25. Standardized Error Handling in Technical Indicators
+**Decision**: Implement consistent error handling across all technical indicator functions.
+**Rationale**: Technical indicators often involve complex calculations that can fail with certain data inputs. By implementing standardized error handling that returns empty Series or DataFrames with appropriate dtypes when input data is insufficient or invalid, we ensure that the recommendation engine can gracefully handle edge cases without crashing, improving the overall robustness of the system.

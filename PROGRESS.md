@@ -45,6 +45,14 @@
   - Bollinger Bands
   - IMI (Intraday Momentum Index)
   - Fair Value Gap (FVG)
+  - Liquidity Zones
+  - Moving Averages (SMA, EMA, and crossovers)
+  - Volatility Indicators (Historical Volatility, ATR, Bollinger Bandwidth, Chaikin Volatility)
+  - MACD Signal Line and Histogram
+  - Chande Momentum Oscillator (CMO)
+  - Stochastic RSI
+  - Accumulation/Distribution Line (ADL)
+  - Adaptive Moving Average (Kaufman's AMA)
 - Fixed pandas dtype incompatibility error in technical indicators calculations by ensuring proper type handling
 
 ## Current Work in Progress
