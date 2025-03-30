@@ -54,6 +54,9 @@
   - Accumulation/Distribution Line (ADL)
   - Adaptive Moving Average (Kaufman's AMA)
 - Fixed pandas dtype incompatibility error in technical indicators calculations by ensuring proper type handling
+- Fixed UI display issues with recommendations by ensuring technical indicators return data in the expected format
+- Fixed "Unexpected result format" warnings for MACD, Bollinger Bands, and ADX indicators
+- Ensured consistent return types for all technical indicator functions to prevent display issues
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach
