@@ -871,3 +871,51 @@ class TechnicalIndicators:
         return rsi
     
     # New indicator methods for Phase 1 enhancements
+
+    def calculate_fair_value_gap(self, data, high_col='high', low_col='low', close_col='close', threshold=0.5):
+        """
+        Calculate Fair Value Gap (FVG) for the given data.
+        A Fair Value Gap occurs when price moves rapidly in one direction, leaving an imbalance or "gap" in price.
+        
+        Args:
+            data (pd.DataFrame): Price data with high, low, and close columns
+            high_col (str): Column name for high price data
+            low_col (str): Column name for low price data
+            close_col (str): Column name for close price data
+            threshold (float): Minimum percentage gap to be considered a FVG
+            
+        Returns:
+            pd.Series: Fair Value Gap values (positive for bullish gaps, negative for bearish gaps)
+        """
+        if data is None or data.empty or len(data) < 3:
+            return pd.Series(dtype=float)
+            
+        # Initialize result series
+        fvg = pd.Series(0.0, index=data.index)
+        
+        # Calculate FVG for each candle (starting from the 3rd candle)
+        for i in range(2, len(data)):
+            # Get the three consecutive candles
+            candle1 = data.iloc[i-2]
+            candle2 = data.iloc[i-1]
+            candle3 = data.iloc[i]
+            
+            # Bullish FVG: candle1 high < candle3 low
+            if candle1[high_col] < candle3[low_col]:
+                gap_size = candle3[low_col] - candle1[high_col]
+                avg_price = (candle1[close_col] + candle2[close_col] + candle3[close_col]) / 3
+                gap_percent = gap_size / avg_price * 100
+                
+                if gap_percent > threshold:
+                    fvg.iloc[i] = gap_percent
+            
+            # Bearish FVG: candle1 low > candle3 high
+            elif candle1[low_col] > candle3[high_col]:
+                gap_size = candle1[low_col] - candle3[high_col]
+                avg_price = (candle1[close_col] + candle2[close_col] + candle3[close_col]) / 3
+                gap_percent = gap_size / avg_price * 100
+                
+                if gap_percent > threshold:
+                    fvg.iloc[i] = -gap_percent  # Negative for bearish gaps
+        
+        return fvg

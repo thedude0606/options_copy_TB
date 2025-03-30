@@ -157,3 +157,11 @@ This document records key architectural choices, technology selections, design p
 ### 18. Comprehensive Technical Indicators Implementation
 **Decision**: Implement a complete set of technical indicators (RSI, MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, CCI) with standardized interfaces.
 **Rationale**: A comprehensive set of technical indicators provides a more complete picture of market conditions and enables more sophisticated trading strategies. By implementing all these indicators with consistent interfaces and proper error handling, we ensure that the recommendation engine has access to a rich set of data points for analysis, improving the quality and reliability of trading recommendations. The standardized approach with both instance methods and static calculation methods allows for flexible usage in different contexts while maintaining code consistency.
+
+### 19. Fair Value Gap (FVG) Implementation
+**Decision**: Implement Fair Value Gap (FVG) indicator in the TechnicalIndicators class.
+**Rationale**: Fair Value Gap is an important concept in price action analysis that identifies imbalances in the market where price has moved rapidly, leaving a "gap" that often gets filled later. By implementing this indicator, we provide traders with valuable information about potential price targets and reversal zones, enhancing the trading strategy's effectiveness.
+
+### 20. Proper Type Handling in Technical Indicators
+**Decision**: Ensure proper type handling in technical indicators calculations to prevent dtype incompatibility warnings.
+**Rationale**: Pandas is moving towards stricter type checking, and mixing incompatible types (like float values in int64 columns) will raise errors in future versions. By implementing proper type handling and ensuring consistent return types (using float dtype for numerical calculations), we ensure forward compatibility with future pandas versions while maintaining calculation accuracy and preventing runtime errors.

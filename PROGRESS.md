@@ -44,6 +44,8 @@
   - CCI (Commodity Channel Index)
   - Bollinger Bands
   - IMI (Intraday Momentum Index)
+  - Fair Value Gap (FVG)
+- Fixed pandas dtype incompatibility error in technical indicators calculations by ensuring proper type handling
 
 ## Current Work in Progress
 - Testing the enhanced recommendation engine with the new underlying data approach
@@ -58,7 +60,6 @@
 - Need to verify the functionality of ML components with the new data approach
 - Database operations need proper directory creation and connection handling
 - Schwab API authentication requires interactive login, implemented mock authentication for testing
-- FutureWarnings about pandas dtype compatibility in technical indicator calculations that should be addressed in future updates
 
 ## Next Steps
 - Complete testing of the integrated features
@@ -68,4 +69,3 @@
 - Consider adding more timeframes for analysis to improve prediction accuracy
 - Implement additional error handling for database operations
 - Implement proper authentication handling for Schwab API in production environment
-- Address FutureWarnings in technical indicators calculations by explicitly casting data types
