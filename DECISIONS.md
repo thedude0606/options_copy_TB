@@ -154,18 +154,10 @@ This document records key architectural choices, technology selections, design p
 **Decision**: Initialize database connection variables before try blocks and ensure data directories exist.
 **Rationale**: Proper initialization of connection variables before try blocks prevents UnboundLocalError exceptions when errors occur during connection attempts. Additionally, ensuring that data directories exist before attempting to create or access database files prevents file system related errors, improving the robustness of database operations.
 
-### 18. Standard RSI Calculation Implementation
-**Decision**: Implement standard Relative Strength Index (RSI) calculation in the TechnicalIndicators class.
-**Rationale**: RSI is a fundamental technical indicator used in market analysis to measure the speed and change of price movements. Implementing a standard RSI calculation method ensures compatibility with the recommendation engine and provides accurate overbought/oversold signals for trading decisions. The implementation follows the industry-standard approach of calculating average gains and losses over a specified period, then computing the relative strength and converting it to an index value between 0 and 100.
+### 18. Fair Value Gap (FVG) Implementation
+**Decision**: Implement Fair Value Gap (FVG) indicator in the TechnicalIndicators class.
+**Rationale**: Fair Value Gap is an important concept in price action analysis that identifies imbalances in the market where price has moved rapidly, leaving a "gap" that often gets filled later. By implementing this indicator, we provide traders with valuable information about potential price targets and reversal zones, enhancing the trading strategy's effectiveness.
 
-### 19. Comprehensive Technical Indicators Implementation
-**Decision**: Implement a complete set of technical indicators (MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, CCI) in the TechnicalIndicators class.
-**Rationale**: A comprehensive set of technical indicators provides a more complete picture of market conditions and price action patterns. Each indicator offers unique insights: MACD for trend direction and momentum, Stochastic for overbought/oversold conditions, ATR for volatility measurement, ADX for trend strength, OBV for volume-price relationship, CMF for money flow, MFI for buying/selling pressure, and CCI for identifying cyclical trends. Implementing these indicators with proper error handling and edge case management ensures the recommendation engine has access to a rich set of signals for generating more accurate trading recommendations.
-
-### 20. Vectorized Implementation with Pandas
-**Decision**: Use pandas vectorized operations for technical indicator calculations where possible.
-**Rationale**: Vectorized operations in pandas are significantly more efficient than iterative approaches, especially for large datasets. By leveraging pandas' optimized methods for rolling windows, statistical calculations, and array operations, we achieve better performance while maintaining code readability. This approach is particularly important for technical indicators that require calculations over multiple time periods.
-
-### 21. Consistent Interface for Technical Indicators
-**Decision**: Implement a consistent interface pattern for all technical indicator methods.
-**Rationale**: By maintaining a consistent interface across all indicator methods (wrapper methods that call calculation methods), we improve code maintainability and make it easier to add new indicators in the future. This pattern also provides flexibility by separating the indicator calculation logic from the data management, allowing indicators to be calculated on both instance data and externally provided data.
+### 19. Proper Type Handling in Technical Indicators
+**Decision**: Ensure proper type handling in technical indicators calculations to prevent dtype incompatibility warnings.
+**Rationale**: Pandas is moving towards stricter type checking, and mixing incompatible types (like float values in int64 columns) will raise errors in future versions. By implementing proper type handling, we ensure forward compatibility with future pandas versions while maintaining calculation accuracy and preventing runtime errors.

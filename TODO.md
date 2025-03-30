@@ -91,6 +91,16 @@
   - Status: Completed
   - Description: Implemented missing calculation methods for MACD, Stochastic, ATR, ADX, OBV, CMF, MFI, and CCI
 
+- [x] Implement Fair Value Gap (FVG) indicator
+  - Dependency: None
+  - Status: Completed
+  - Description: Added calculate_fair_value_gap method to TechnicalIndicators class to fix AttributeError in recommendation_engine.py
+
+- [x] Fix pandas dtype incompatibility error
+  - Dependency: None
+  - Status: Completed
+  - Description: Ensured proper type handling in technical indicators calculations to prevent dtype incompatibility warnings
+
 - [ ] Test integrated advanced indicators in the dashboard
   - Dependency: EnhancedRecommendationEngine integration
   - Status: In progress
@@ -147,10 +157,10 @@
   - Status: Not started
   - Description: Develop a robust authentication system for Schwab API that works in production environments
 
-- [ ] Address FutureWarnings in technical indicators calculations
+- [x] Address FutureWarnings in technical indicators calculations
   - Dependency: None
-  - Status: Not started
-  - Description: Fix FutureWarnings by explicitly casting data types in technical indicator calculations
+  - Status: Completed
+  - Description: Fixed FutureWarnings by ensuring proper type handling in technical indicator calculations
 
 ## Low Priority Tasks
 - [ ] Create comprehensive test suite for all implemented features
