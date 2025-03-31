@@ -1117,13 +1117,23 @@ class TechnicalIndicators:
                 short_period = sorted_periods[i]
                 long_period = sorted_periods[i + 1]
                 
-                # Calculate crossover signals (1 for bullish crossover, -1 for bearish, 0 for no crossover)
-                short_ma = ema_dict[f'{short_period}']
-                long_ma = ema_dict[f'{long_period}']
+                # Get moving averages and ensure they have the same index
+                short_ma = ema_dict[f'{short_period}'].copy()
+                long_ma = ema_dict[f'{long_period}'].copy()
                 
+                # Create shifted versions with same index
+                short_ma_shift = short_ma.shift(1)
+                long_ma_shift = long_ma.shift(1)
+                
+                # Create crossover series with same index
                 crossover = pd.Series(0, index=data.index)
-                crossover[(short_ma > long_ma) & (short_ma.shift(1) <= long_ma.shift(1))] = 1  # Bullish crossover
-                crossover[(short_ma < long_ma) & (short_ma.shift(1) >= long_ma.shift(1))] = -1  # Bearish crossover
+                
+                # Calculate crossovers using boolean indexing
+                bullish_mask = (short_ma > long_ma) & (short_ma_shift <= long_ma_shift)
+                bearish_mask = (short_ma < long_ma) & (short_ma_shift >= long_ma_shift)
+                
+                crossover[bullish_mask] = 1  # Bullish crossover
+                crossover[bearish_mask] = -1  # Bearish crossover
                 
                 crossovers[f'{short_period}_{long_period}'] = crossover.astype(float)
         
